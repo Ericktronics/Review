@@ -33,7 +33,7 @@ A flashcard web app for studying backend engineering concepts — built with Vit
 
 ## Requirements
 
-- **Node.js 18 LTS** (Hydrogen) — minimum required by Vite 5. Verified on `v18.20.8`.
+- **Node.js 25** — verified on `v25.2.0`. Minimum supported is Node 18 (Vite 5 requirement).
 
 If you use [nvm](https://github.com/nvm-sh/nvm), an `.nvmrc` is included:
 

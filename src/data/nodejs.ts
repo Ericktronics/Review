@@ -565,15 +565,15 @@ async function batchProcess<T>(items: T[], limit: number, fn: (item: T) => Promi
     code: {
       language: "bash",
       snippet: `# Set before launching Node.js
-            UV_THREADPOOL_SIZE=16 node dist/server.js
+UV_THREADPOOL_SIZE=16 node dist/server.js
 
-            # In Docker
-            ENV UV_THREADPOOL_SIZE=16
+# In Docker
+ENV UV_THREADPOOL_SIZE=16
 
-            # Rule of thumb for crypto-heavy workloads
-            # UV_THREADPOOL_SIZE = number of vCPUs × 2
-            # Verify with clinic doctor / 0x flame graph
-            npx clinic doctor -- node server.js`,
+# Rule of thumb for crypto-heavy workloads
+# UV_THREADPOOL_SIZE = number of vCPUs × 2
+# Verify with clinic doctor / 0x flame graph
+npx clinic doctor -- node server.js`,
     },
   },
 
@@ -586,7 +586,7 @@ async function batchProcess<T>(items: T[], limit: number, fn: (item: T) => Promi
     type: 'basics',
     question: 'What is Node.js and what makes it different from browser JavaScript?',
     answer:
-      "Node.js is a **server-side JavaScript runtime** built on Google's V8 engine. Key differences from browser JS:\n\n- **No DOM / BOM** — no `window`, `document`, or browser APIs\n- **Non-blocking I/O** — file system, network, and database calls are asynchronous by default; the process does not block waiting for them\n- **Single-threaded event loop** — one main thread handles all JS; I/O-heavy work is offloaded to libuv's thread pool or OS async primitives\n- **CommonJS / ESM modules** — `require()` / `import` instead of `<script>` tags\n- **Built-in modules** — `fs`, `path`, `http`, `crypto`, `stream`, etc.\n\n**Why this matters**: a Node.js server can handle tens of thousands of concurrent connections with low memory because it does not spawn a thread per request.",
+      "**Node.js is a JavaScript runtime that runs on the server**, not in a browser. It is built on Google's V8 engine (the same engine Chrome uses) and lets you use JavaScript for backend code.\n\n**Why it exists**: traditionally, every server language had its own ecosystem. Node.js lets frontend JavaScript developers write servers in the same language they already know, and it handles I/O-heavy workloads (like web APIs) very efficiently.\n\n**Key differences from browser JavaScript**:\n- **No DOM / BOM** — no `window`, `document`, or browser APIs\n- **Non-blocking I/O** — file system, network, and database calls are asynchronous by default; the process does not wait around while the OS fetches data\n- **Single-threaded event loop** — one main thread handles all JavaScript; I/O work is offloaded so the thread stays free\n- **CommonJS / ESM modules** — `require()` / `import` instead of `<script>` tags\n- **Built-in modules** — `fs`, `path`, `http`, `crypto`, `stream`, etc.\n\n**Why this matters**: a Node.js server can handle tens of thousands of concurrent connections with low memory because it does not spawn a thread per request (unlike traditional PHP or Java thread-per-request models).",
     code: {
       language: 'javascript',
       snippet: `// Valid Node.js, not browser JS
@@ -609,7 +609,7 @@ console.log('This prints BEFORE the file contents (non-blocking)');`,
     type: 'basics',
     question: 'What is the error-first callback pattern and why did Node.js adopt it?',
     answer:
-      "The **error-first (Node-style) callback** convention: the first argument to any callback is an `Error` object (or `null` if successful), and subsequent arguments are the result data.\n\n**Why**: before Promises, asynchronous errors could not be propagated with `try/catch`. By standardising the first argument as the error, every caller is forced to handle the failure case.\n\n**Rules**:\n- Always check `err` before using the result\n- Never throw synchronously inside an async callback — it skips the caller's error handler\n- Call the callback **once** — never twice, never zero times",
+      "The **error-first (Node-style) callback** convention places the error as the first argument of every callback: `callback(err, result)`. If the operation succeeds, `err` is `null`. If it fails, `err` is an `Error` object.\n\n**Why this convention exists**: before Promises (pre-2015), there was no standard way to propagate errors from async code. You could not use `try/catch` because the async callback runs after the original function has already returned. By putting the error first in every callback, Node.js forced developers to explicitly handle failures — not silently ignore them.\n\n**The three rules**:\n- **Always check `err` first** before using the result — otherwise you may crash accessing properties of `undefined`\n- **Never throw synchronously** inside an async callback — it bypasses the caller's error handling and crashes the process\n- **Call the callback exactly once** — never twice, never zero times\n\n**Why it matters today**: you will encounter this pattern in many Node.js built-in APIs (`fs.readFile`, `dns.lookup`) and older npm packages. Understanding it also helps you understand why Promises were invented.",
     code: {
       language: 'javascript',
       snippet: `function fetchUser(id, callback) {
@@ -639,7 +639,7 @@ fetchUser(null, (err) => {
     type: 'basics',
     question: 'How do Promises and async/await work in Node.js? What problems do they solve over callbacks?',
     answer:
-      "A **Promise** represents a future value: it is either pending, fulfilled, or rejected. It lets you chain async operations with `.then()` / `.catch()` instead of nesting callbacks.\n\n**Problems callbacks cause**: callback hell (deeply nested pyramids), inconsistent error handling, no easy way to run async tasks in parallel.\n\n**async/await**: syntactic sugar over Promises. An `async` function always returns a Promise. `await` pauses execution within that function until the Promise settles — without blocking the event loop. Error handling uses familiar `try/catch`.\n\n**Key methods**:\n- `Promise.all([])` — parallel, fails fast on first rejection\n- `Promise.allSettled([])` — parallel, never rejects, reports all outcomes\n- Unhandled rejections crash the process in Node.js 15+",
+      "A **Promise** represents a value that will be available in the future. It is in one of three states: **pending** (operation in progress), **fulfilled** (succeeded, has a value), or **rejected** (failed, has an error).\n\n**Problems callbacks cause** (why Promises were invented):\n- **Callback hell** — deeply nested pyramids of callbacks that are hard to read and debug\n- **Inconsistent error handling** — easy to forget to check `err`, easy to throw in the wrong place\n- **No parallel execution** — difficult to run two async tasks at the same time and wait for both\n\n**async/await** is syntactic sugar built on top of Promises. It makes async code look and behave like synchronous code:\n- An `async` function always returns a Promise\n- `await` pauses execution inside that function until the awaited Promise settles — without blocking the event loop (other requests continue to be processed)\n- Errors are caught with familiar `try/catch`\n\n**Most common gotcha**: forgetting `await`. Without it, the function returns a pending Promise and the next line runs before the async work is done.\n\n**Key methods**:\n- `Promise.all([p1, p2])` — run in parallel, fail fast if any rejects\n- `Promise.allSettled([p1, p2])` — run in parallel, never rejects, reports all outcomes\n- Unhandled rejections **crash the process** in Node.js 15+",
     code: {
       language: 'javascript',
       snippet: `function getOrder(id) { return Promise.resolve({ id, userId: 42 }); }
@@ -764,7 +764,7 @@ app.get('/profile', requireAuth, (req, res) => {
     type: 'basics',
     question: 'What is streaming in Node.js? Why use streams instead of reading entire files?',
     answer:
-      'A **stream** is an abstraction for working with data chunk by chunk instead of loading it all into memory at once.\n\n**Types of streams**:\n- **Readable** — data flows out (e.g. `fs.createReadStream`, HTTP request body)\n- **Writable** — data flows in (e.g. `fs.createWriteStream`, HTTP response)\n- **Duplex** — both readable and writable (e.g. TCP socket)\n- **Transform** — duplex that transforms data (e.g. `zlib.createGzip`)\n\n**Why streams over loading entire files**:\n- **Memory efficiency** — a 2 GB file read with `fs.readFile` allocates 2 GB in RAM. A stream processes it in 64 KB chunks.\n- **Time to first byte** — you can start processing or responding before the file/download is complete\n- **Composability** — streams connect via `.pipe()` into powerful pipelines\n\n**Backpressure**: if the consumer is slower than the producer, Node.js pauses the readable stream automatically to prevent memory buildup.',
+      "**A stream processes data piece by piece (in chunks) rather than loading it all into memory at once.** Think of it like watching a video on Netflix: you don't wait for the entire 2 GB file to download before it starts playing.\n\n**Types of streams**:\n- **Readable** — produces data (e.g. `fs.createReadStream`, HTTP request body)\n- **Writable** — consumes data (e.g. `fs.createWriteStream`, HTTP response)\n- **Duplex** — both readable and writable simultaneously (e.g. TCP socket)\n- **Transform** — reads input, transforms it, outputs the result (e.g. `zlib.createGzip`)\n\n**Why use streams instead of loading entire files**:\n- **Memory efficiency** — a 2 GB file read with `fs.readFile` allocates 2 GB of RAM. A stream processes it in ~64 KB chunks, using the same amount of RAM regardless of file size.\n- **Time to first byte** — the client starts receiving data immediately, before the file is fully read\n- **Composability** — streams connect with `.pipe()` into clean pipelines: `read → compress → write`\n\n**Backpressure**: if the consumer (e.g. a slow network client) is slower than the producer (e.g. disk reads), Node.js automatically pauses the readable stream so data does not pile up in memory.",
     code: {
       language: 'javascript',
       snippet: `const fs = require('fs');
@@ -827,7 +827,7 @@ const pool = new Pool({ connectionString: env.DATABASE_URL });`,
     type: 'basics',
     question: 'What is the difference between process.nextTick(), Promise microtasks, and setImmediate()?',
     answer:
-      'All three defer code execution, but at different points in the event loop:\n\n| | Queued in | Runs when |\n|---|---|---|\n| `process.nextTick()` | Node.js nextTick queue | Before any I/O, after current operation |\n| `Promise.then()` / `queueMicrotask()` | V8 microtask queue | After nextTick queue is drained |\n| `setImmediate()` | libuv check phase | After I/O callbacks in current loop iteration |\n\n**Execution order** (main module): sync code → nextTick queue → microtask queue → setImmediate\n\n**Caution**: `process.nextTick()` runs before I/O, so recursive calls can starve I/O — prefer `setImmediate()` when deferring to next iteration.',
+      "All three defer code execution to run later, but they run at **different points** in the event loop. Understanding the order is critical for predicting async behaviour.\n\n| | Queued in | Runs when |\n|---|---|---|\n| `process.nextTick()` | Node.js nextTick queue | Immediately after the current operation, before any I/O |\n| `Promise.then()` / `queueMicrotask()` | V8 microtask queue | After nextTick queue is fully drained |\n| `setImmediate()` | libuv check phase | After all I/O callbacks in the current loop iteration |\n\n**Execution order** from the main module: synchronous code → nextTick queue → Promise/microtask queue → setImmediate\n\n**Most common gotcha**: `process.nextTick()` runs before I/O callbacks. If you call `process.nextTick()` recursively it can **starve I/O** — the loop never reaches the poll phase. Use `setImmediate()` when you want to defer to the next loop iteration without blocking I/O.\n\n**When to use which**: use `process.nextTick()` to run code after the current synchronous operation but before anything else (e.g. emit an event after construction). Use `setImmediate()` to schedule work after I/O. In most application code, just use `await`.",
     code: {
       language: 'javascript',
       snippet: `console.log('start');

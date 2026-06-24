@@ -31,9 +31,20 @@ A flashcard web app for studying backend engineering concepts — built with Vit
 | Data Structures | Big O, hash tables, heaps, trees, linked lists |
 | Best Practices | DRY, KISS, testing pyramid, code review, logging |
 
+## Requirements
+
+- **Node.js 18 LTS** (Hydrogen) — minimum required by Vite 5. Verified on `v18.20.8`.
+
+If you use [nvm](https://github.com/nvm-sh/nvm), an `.nvmrc` is included:
+
+```bash
+nvm use   # switches to Node 18 automatically
+```
+
 ## Getting Started
 
 ```bash
+nvm use       # if using nvm
 npm install
 npm run dev
 ```

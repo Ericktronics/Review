@@ -33,7 +33,7 @@ A flashcard web app for studying backend engineering concepts — built with Vit
 
 ## Requirements
 
-- **Node.js 25** — verified on `v25.2.0`. Minimum supported is Node 18 (Vite 5 requirement).
+- **Node.js 24 LTS** (Krypton) — verified on `v24.18.0`. Minimum supported is Node 18 (Vite 5 requirement).
 
 If you use [nvm](https://github.com/nvm-sh/nvm), an `.nvmrc` is included:
 

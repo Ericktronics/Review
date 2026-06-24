@@ -4,7 +4,10 @@ A flashcard web app for studying backend engineering concepts — built with Vit
 
 ## Features
 
-- **111 flashcards** across 12 categories
+- **100+ flashcards** across 12 categories
+- **Two card types** with filter chips
+  - **Must Know Basics** — fundamentals every developer should know (easy + medium)
+  - **Must Know for Exp. Hires** — senior/production-level knowledge (hard)
 - **Three difficulty levels** — Easy, Medium, Hard — with filter chips
 - **Three view modes**
   - **Quiz** — one card at a time, answer hidden until revealed
@@ -18,18 +21,18 @@ A flashcard web app for studying backend engineering concepts — built with Vit
 
 | Category | Topics covered |
 |---|---|
-| Node.js | Event loop, streams, async patterns, clustering, AsyncLocalStorage |
-| TypeScript | Generics, conditional types, strict mode, variance |
-| OOP | SOLID principles, design patterns, composition vs inheritance |
-| REST & HTTP | HTTP methods, CORS, status codes, gRPC vs GraphQL |
-| Databases | MVCC, indexing, ACID, sharding, query optimisation |
-| Auth & Security | OAuth 2.0 PKCE, JWT, bcrypt, OWASP Top 10 |
-| System Design | CQRS, CAP theorem, load balancers, message queues |
-| Caching | Stampede prevention, eviction policies, cache layers |
-| Microservices | Circuit breaker, Saga pattern, API gateway, service mesh |
-| DevOps | Kubernetes, Docker, CI/CD, blue-green vs canary |
-| Data Structures | Big O, hash tables, heaps, trees, linked lists |
-| Best Practices | DRY, KISS, testing pyramid, code review, logging |
+| Node.js | Event loop, streams, async patterns, clustering, AsyncLocalStorage, CommonJS vs ESM |
+| TypeScript | Generics, conditional types, strict mode, variance, decorators, type inference |
+| OOP | SOLID principles, design patterns, composition vs inheritance, Factory, Observer |
+| REST & HTTP | HTTP methods, CORS, status codes, gRPC vs GraphQL, versioning, pagination |
+| Databases | MVCC, indexing, ACID, sharding, JOINs, normalization, ORMs |
+| Auth & Security | OAuth 2.0 PKCE, JWT, bcrypt, OWASP Top 10, HTTPS, session vs token auth |
+| System Design | CQRS, CAP theorem, load balancers, message queues, CDN, DNS |
+| Caching | Stampede prevention, eviction policies, cache layers, Redis, TTL, invalidation |
+| Microservices | Circuit breaker, Saga pattern, API gateway, service mesh, Strangler Fig |
+| DevOps | Kubernetes, Docker, CI/CD, blue-green vs canary, Helm, observability |
+| Data Structures | Big O, hash tables, heaps, trees, graphs, DFS/BFS, dynamic programming |
+| Best Practices | DRY, KISS, testing pyramid, code review, technical debt, semver |
 
 ## Requirements
 
@@ -38,7 +41,7 @@ A flashcard web app for studying backend engineering concepts — built with Vit
 If you use [nvm](https://github.com/nvm-sh/nvm), an `.nvmrc` is included:
 
 ```bash
-nvm use   # switches to Node 18 automatically
+nvm use   # switches to Node 24 automatically
 ```
 
 ## Getting Started

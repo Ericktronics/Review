@@ -17,6 +17,11 @@ const DIFF: Record<Flashcard['difficulty'], string> = {
   hard:   'text-red-400    bg-red-400/10    border border-red-400/20',
 };
 
+const TYPE: Record<Flashcard['type'], { label: string; cls: string }> = {
+  basics:     { label: 'Must Know Basics',            cls: 'text-sky-400   bg-sky-400/10   border border-sky-400/20' },
+  experience: { label: 'Must Know for Exp. Hires',   cls: 'text-violet-400 bg-violet-400/10 border border-violet-400/20' },
+};
+
 function CodeBlock({ code }: { code: NonNullable<Flashcard['code']> }) {
   const ref = useRef<HTMLElement>(null);
 
@@ -59,6 +64,9 @@ export function FlashCard({ card, compact = false, quizMode = false }: Props) {
           </span>
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${DIFF[card.difficulty]}`}>
             {card.difficulty}
+          </span>
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${TYPE[card.type].cls}`}>
+            {TYPE[card.type].label}
           </span>
         </div>
 

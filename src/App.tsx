@@ -7,6 +7,7 @@ import { Controls } from './components/Controls';
 
 type ViewMode = 'quiz' | 'study' | 'browse';
 type Difficulty = 'all' | 'easy' | 'medium' | 'hard';
+type TypeFilter = 'all' | 'basics' | 'experience';
 
 const ALL_CATEGORIES = Array.from(new Set(flashcards.map((c) => c.category))) as Category[];
 
@@ -22,6 +23,24 @@ const DIFF_ACTIVE: Record<Difficulty, string> = {
   easy:   'ring-2 ring-emerald-400',
   medium: 'ring-2 ring-amber-400',
   hard:   'ring-2 ring-red-400',
+};
+
+const TYPE_COLORS: Record<TypeFilter, string> = {
+  all:        'bg-slate-700 text-slate-100 border-slate-600',
+  basics:     'bg-sky-500/20    text-sky-300    border-sky-500/40',
+  experience: 'bg-violet-500/20 text-violet-300 border-violet-500/40',
+};
+
+const TYPE_ACTIVE: Record<TypeFilter, string> = {
+  all:        'ring-2 ring-slate-400',
+  basics:     'ring-2 ring-sky-400',
+  experience: 'ring-2 ring-violet-400',
+};
+
+const TYPE_LABELS: Record<TypeFilter, string> = {
+  all:        'All',
+  basics:     'Must Know Basics',
+  experience: 'Must Know for Exp. Hires',
 };
 
 function shuffle<T>(arr: T[]): T[] {
@@ -48,6 +67,7 @@ const VIEW_DESCRIPTIONS: Record<ViewMode, string> = {
 export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [difficultyFilter, setDifficultyFilter] = useState<Difficulty>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [index, setIndex] = useState(0);
   const [deck, setDeck] = useState<Flashcard[]>(flashcards);
   const [viewMode, setViewMode] = useState<ViewMode>('quiz');
@@ -58,18 +78,37 @@ export default function App() {
     [deck, selectedCategory]
   );
 
-  const filtered = useMemo(
-    () => (difficultyFilter === 'all' ? byCat : byCat.filter((c) => c.difficulty === difficultyFilter)),
+  const filtered = useMemo(() => {
+    let cards = byCat;
+    if (difficultyFilter !== 'all') cards = cards.filter(c => c.difficulty === difficultyFilter);
+    if (typeFilter !== 'all')       cards = cards.filter(c => c.type === typeFilter);
+    return cards;
+  }, [byCat, difficultyFilter, typeFilter]);
+
+  // Counts within current category + type filter (for difficulty chips)
+  const byType = useMemo(
+    () => (typeFilter === 'all' ? byCat : byCat.filter(c => c.type === typeFilter)),
+    [byCat, typeFilter]
+  );
+
+  const diffCounts = useMemo(() => ({
+    all:    byType.length,
+    easy:   byType.filter(c => c.difficulty === 'easy').length,
+    medium: byType.filter(c => c.difficulty === 'medium').length,
+    hard:   byType.filter(c => c.difficulty === 'hard').length,
+  }), [byType]);
+
+  // Counts within current category + difficulty filter (for type chips)
+  const byDiff = useMemo(
+    () => (difficultyFilter === 'all' ? byCat : byCat.filter(c => c.difficulty === difficultyFilter)),
     [byCat, difficultyFilter]
   );
 
-  // Difficulty counts within the current category selection
-  const diffCounts = useMemo(() => ({
-    all:    byCat.length,
-    easy:   byCat.filter(c => c.difficulty === 'easy').length,
-    medium: byCat.filter(c => c.difficulty === 'medium').length,
-    hard:   byCat.filter(c => c.difficulty === 'hard').length,
-  }), [byCat]);
+  const typeCounts = useMemo(() => ({
+    all:        byDiff.length,
+    basics:     byDiff.filter(c => c.type === 'basics').length,
+    experience: byDiff.filter(c => c.type === 'experience').length,
+  }), [byDiff]);
 
   const counts = useMemo(
     () =>
@@ -83,6 +122,7 @@ export default function App() {
   function handleCategorySelect(cat: Category | null) {
     setSelectedCategory(cat);
     setDifficultyFilter('all');
+    setTypeFilter('all');
     setIndex(0);
   }
 
@@ -141,7 +181,27 @@ export default function App() {
             </button>
           </div>
 
-          {/* Row 2: difficulty filter */}
+          {/* Row 2: type filter */}
+          <div className="flex items-center gap-2 px-5 pb-2">
+            <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest mr-1 flex-shrink-0">
+              Type
+            </span>
+            {(['all', 'basics', 'experience'] as TypeFilter[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => { setTypeFilter(t); setIndex(0); }}
+                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all
+                  ${TYPE_COLORS[t]}
+                  ${typeFilter === t ? TYPE_ACTIVE[t] : 'opacity-60 hover:opacity-100'}
+                `}
+              >
+                {TYPE_LABELS[t]}
+                <span className="ml-1.5 opacity-70">{typeCounts[t]}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Row 3: difficulty filter */}
           <div className="flex items-center gap-2 px-5 pb-2.5">
             <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest mr-1 flex-shrink-0">
               Difficulty
@@ -213,6 +273,7 @@ export default function App() {
                   <div className="flex items-center gap-3 pb-2 border-b border-slate-800">
                     <span className="text-slate-400 text-sm">
                       {selectedCategory ?? 'All Topics'}
+                      {typeFilter !== 'all' && ` · ${TYPE_LABELS[typeFilter]}`}
                       {difficultyFilter !== 'all' && ` · ${difficultyFilter}`}
                       {' '}— {filtered.length} card{filtered.length !== 1 ? 's' : ''}
                     </span>

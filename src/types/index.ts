@@ -22,4 +22,5 @@ export interface Flashcard {
     snippet: string;
   };
   difficulty: 'easy' | 'medium' | 'hard';
+  type: 'basics' | 'experience';
 }

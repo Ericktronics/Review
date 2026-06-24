@@ -7,6 +7,7 @@ export const nodejsCards: Flashcard[] = [
     id: "node-1",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       "Walk through every phase of the Node.js Event Loop. Where do microtasks (Promises, nextTick) fit in, and what does libuv actually own?",
     answer:
@@ -51,6 +52,7 @@ console.log('E: sync');
     id: "node-2",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       "How does V8's hidden class (shape) mechanism work, and what coding patterns cause deoptimisation?",
     answer:
@@ -82,6 +84,7 @@ obj.x = null;`,
     id: "node-3",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       "How do you detect and fix memory leaks in a Node.js production service?",
     answer:
@@ -113,6 +116,7 @@ process.on('SIGUSR2', () => {
     id: "node-4",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       "Compare `cluster`, `worker_threads`, and `child_process`. When do you reach for each?",
     answer:
@@ -146,6 +150,7 @@ if (isMainThread) {
     id: "node-5",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       "Implement a production-grade graceful shutdown for an Express/Fastify service.",
     answer:
@@ -188,6 +193,7 @@ process.on('SIGINT',  () => shutdown('SIGINT'));`,
     id: "node-6",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       "What are the differences between CommonJS (CJS) and ES Modules (ESM) in Node.js, and what are the key interop gotchas?",
     answer:
@@ -220,6 +226,7 @@ async function loadESM() {
     id: "node-7",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       "How do you implement a custom Transform stream, and how does object mode differ from the default binary mode?",
     answer:
@@ -264,6 +271,7 @@ class JSONLinesParser extends Transform {
     id: "node-8",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       "How does Node.js handle unhandled Promise rejections, and what is the correct pattern for async error propagation in an Express middleware chain?",
     answer:
@@ -299,6 +307,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     id: "node-9",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       "What is `AsyncLocalStorage` and how would you use it to propagate a request-scoped correlation ID across async boundaries without passing it as a parameter?",
     answer:
@@ -336,6 +345,7 @@ async function userService.findOrFail(id: string) {
     id: "node-11",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       'How does the Express middleware chain work internally? Explain the "onion model" and how `next(err)` bypasses normal middleware.',
     answer:
@@ -376,6 +386,7 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
     id: "node-12",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       "How does the Node.js `EventEmitter` work? What are the most common memory leak patterns involving it, and how do you design a type-safe EventEmitter?",
     answer:
@@ -420,6 +431,7 @@ emitter.once('user:created', (user) => sendWelcomeEmail(user));`,
     id: "node-13",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       "How does Node.js module caching work with `require()`? What are the implications for singletons, circular dependencies, and testing?",
     answer:
@@ -462,6 +474,7 @@ export function createService(config: Config) {
     id: "node-14",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       "Compare WebSockets, Server-Sent Events (SSE), and Long Polling for real-time communication in Node.js. When do you choose each?",
     answer:
@@ -505,6 +518,7 @@ wss.on('connection', (ws, req) => {
     id: "node-15",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       "What are the differences between `Promise.all`, `Promise.allSettled`, `Promise.race`, and `Promise.any`? When does each fail and how do you handle concurrent async operations safely?",
     answer:
@@ -543,6 +557,7 @@ async function batchProcess<T>(items: T[], limit: number, fn: (item: T) => Promi
     id: "node-10",
     category: "Node.js",
     difficulty: "hard",
+    type: 'experience',
     question:
       "What is the Node.js thread pool, what operations use it, and how do you tune it for a CPU-heavy workload?",
     answer:
@@ -568,6 +583,7 @@ async function batchProcess<T>(items: T[], limit: number, fn: (item: T) => Promi
     id: 'node-e1',
     category: 'Node.js',
     difficulty: 'easy',
+    type: 'basics',
     question: 'What is Node.js and what makes it different from browser JavaScript?',
     answer:
       "Node.js is a **server-side JavaScript runtime** built on Google's V8 engine. Key differences from browser JS:\n\n- **No DOM / BOM** — no `window`, `document`, or browser APIs\n- **Non-blocking I/O** — file system, network, and database calls are asynchronous by default; the process does not block waiting for them\n- **Single-threaded event loop** — one main thread handles all JS; I/O-heavy work is offloaded to libuv's thread pool or OS async primitives\n- **CommonJS / ESM modules** — `require()` / `import` instead of `<script>` tags\n- **Built-in modules** — `fs`, `path`, `http`, `crypto`, `stream`, etc.\n\n**Why this matters**: a Node.js server can handle tens of thousands of concurrent connections with low memory because it does not spawn a thread per request.",
@@ -590,6 +606,7 @@ console.log('This prints BEFORE the file contents (non-blocking)');`,
     id: 'node-e2',
     category: 'Node.js',
     difficulty: 'easy',
+    type: 'basics',
     question: 'What is the error-first callback pattern and why did Node.js adopt it?',
     answer:
       "The **error-first (Node-style) callback** convention: the first argument to any callback is an `Error` object (or `null` if successful), and subsequent arguments are the result data.\n\n**Why**: before Promises, asynchronous errors could not be propagated with `try/catch`. By standardising the first argument as the error, every caller is forced to handle the failure case.\n\n**Rules**:\n- Always check `err` before using the result\n- Never throw synchronously inside an async callback — it skips the caller's error handler\n- Call the callback **once** — never twice, never zero times",
@@ -619,6 +636,7 @@ fetchUser(null, (err) => {
     id: 'node-m1',
     category: 'Node.js',
     difficulty: 'medium',
+    type: 'basics',
     question: 'How do Promises and async/await work in Node.js? What problems do they solve over callbacks?',
     answer:
       "A **Promise** represents a future value: it is either pending, fulfilled, or rejected. It lets you chain async operations with `.then()` / `.catch()` instead of nesting callbacks.\n\n**Problems callbacks cause**: callback hell (deeply nested pyramids), inconsistent error handling, no easy way to run async tasks in parallel.\n\n**async/await**: syntactic sugar over Promises. An `async` function always returns a Promise. `await` pauses execution within that function until the Promise settles — without blocking the event loop. Error handling uses familiar `try/catch`.\n\n**Key methods**:\n- `Promise.all([])` — parallel, fails fast on first rejection\n- `Promise.allSettled([])` — parallel, never rejects, reports all outcomes\n- Unhandled rejections crash the process in Node.js 15+",
@@ -643,9 +661,170 @@ printUser();`,
   },
 
   {
+    id: 'node-e3',
+    category: 'Node.js',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'What is the difference between require() and import? (CommonJS vs ESM)',
+    answer:
+      '**CommonJS (CJS)** — the original Node.js module system. Uses `require()` to load modules synchronously.\n\n**ES Modules (ESM)** — the JavaScript standard. Uses `import`/`export` syntax; loaded asynchronously; enables static analysis and tree-shaking.\n\n| | CommonJS | ESM |\n|---|---|---|\n| Syntax | `require()` / `module.exports` | `import` / `export` |\n| Loading | Synchronous | Asynchronous |\n| Top-level `await` | No | Yes |\n| Tree-shaking | No | Yes |\n| `__dirname` | Available | Use `import.meta.url` |\n\n**Enable ESM**: add `"type": "module"` to `package.json`, or use `.mjs` extension.\n\n**Why it matters**: ESM is the future. Most modern packages (and TypeScript) ship ESM. Understanding the difference avoids confusing interop errors.',
+    code: {
+      language: 'javascript',
+      snippet: `// CommonJS (works in Node.js by default)
+const fs = require('fs');
+const { readFile } = require('fs');
+module.exports = { myFunc };
+
+// ESM (requires "type": "module" in package.json or .mjs extension)
+import fs from 'fs';
+import { readFile } from 'fs';
+export function myFunc() {}
+
+// __dirname equivalent in ESM
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __dirname = dirname(fileURLToPath(import.meta.url));`,
+    },
+  },
+
+  {
+    id: 'node-e4',
+    category: 'Node.js',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'What is package.json? What are the key fields?',
+    answer:
+      '`package.json` is the **manifest file** for a Node.js project. It describes the project and its dependencies so npm/yarn/pnpm know how to install and run it.\n\n**Key fields**:\n- `name` — package name (must be unique if published to npm)\n- `version` — semver version (`1.2.3`)\n- `main` — entry point for CJS (`"dist/index.js"`)\n- `exports` — modern entry point for ESM and CJS\n- `scripts` — runnable commands (`npm run build`, `npm start`, `npm test`)\n- `dependencies` — packages needed at runtime\n- `devDependencies` — packages needed only during development (TypeScript, test runners, linters)\n- `peerDependencies` — packages the consumer must provide (common in libraries)\n- `engines` — specifies required Node.js version\n\n**`dependencies` vs `devDependencies`**: always put test/build tools in `devDependencies` — they are excluded from production installs with `npm ci --omit=dev`.',
+    code: {
+      language: 'json',
+      snippet: `{
+  "name": "my-api",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev src/index.ts",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/express": "^4.17.21",
+    "jest": "^29.0.0"
+  },
+  "engines": { "node": ">=18.0.0" }
+}`,
+    },
+  },
+
+  {
+    id: 'node-e5',
+    category: 'Node.js',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'What is middleware in Express.js?',
+    answer:
+      '**Middleware** is a function that has access to `req`, `res`, and `next`. It runs between receiving a request and sending a response.\n\nMiddleware can:\n- Execute any code\n- Modify `req` and `res` objects\n- End the request-response cycle\n- Call `next()` to pass control to the next middleware\n\n**Types**:\n- **Application-level** — `app.use()` — runs for all routes\n- **Router-level** — `router.use()` — scoped to a router\n- **Error-handling** — 4 parameters `(err, req, res, next)` — handles errors passed via `next(err)`\n- **Built-in** — `express.json()`, `express.static()`\n- **Third-party** — `cors`, `helmet`, `morgan`\n\n**Why it matters**: middleware is how Express.js handles cross-cutting concerns (auth, logging, validation, rate limiting) without duplicating logic in every route handler.',
+    code: {
+      language: 'javascript',
+      snippet: `const express = require('express');
+const app = express();
+
+// Built-in middleware — parse JSON request bodies
+app.use(express.json());
+
+// Custom middleware — log every request
+app.use((req, res, next) => {
+  console.log(\`\${req.method} \${req.path}\`);
+  next(); // MUST call next() or the request hangs
+});
+
+// Auth middleware — only runs for protected routes
+function requireAuth(req, res, next) {
+  if (!req.headers.authorization) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+app.get('/profile', requireAuth, (req, res) => {
+  res.json({ user: 'Alice' });
+});`,
+    },
+  },
+
+  {
+    id: 'node-m3',
+    category: 'Node.js',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is streaming in Node.js? Why use streams instead of reading entire files?',
+    answer:
+      'A **stream** is an abstraction for working with data chunk by chunk instead of loading it all into memory at once.\n\n**Types of streams**:\n- **Readable** — data flows out (e.g. `fs.createReadStream`, HTTP request body)\n- **Writable** — data flows in (e.g. `fs.createWriteStream`, HTTP response)\n- **Duplex** — both readable and writable (e.g. TCP socket)\n- **Transform** — duplex that transforms data (e.g. `zlib.createGzip`)\n\n**Why streams over loading entire files**:\n- **Memory efficiency** — a 2 GB file read with `fs.readFile` allocates 2 GB in RAM. A stream processes it in 64 KB chunks.\n- **Time to first byte** — you can start processing or responding before the file/download is complete\n- **Composability** — streams connect via `.pipe()` into powerful pipelines\n\n**Backpressure**: if the consumer is slower than the producer, Node.js pauses the readable stream automatically to prevent memory buildup.',
+    code: {
+      language: 'javascript',
+      snippet: `const fs = require('fs');
+const zlib = require('zlib');
+
+// Without streams — loads entire file into RAM
+// const data = fs.readFileSync('huge.log'); // ✗ risky for large files
+
+// With streams — processes in chunks, constant memory usage
+fs.createReadStream('huge.log')
+  .pipe(zlib.createGzip())              // Transform: compress on the fly
+  .pipe(fs.createWriteStream('huge.log.gz'))
+  .on('finish', () => console.log('Done!'));
+
+// HTTP: stream a file directly to the response
+app.get('/download', (req, res) => {
+  res.setHeader('Content-Type', 'application/octet-stream');
+  fs.createReadStream('./large-file.csv').pipe(res);
+  // response starts immediately; data flows in chunks
+});`,
+    },
+  },
+
+  {
+    id: 'node-m4',
+    category: 'Node.js',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'How do you handle environment variables in Node.js?',
+    answer:
+      '**Environment variables** are key-value pairs set in the shell or deployment environment. They keep secrets and environment-specific config out of your code.\n\n**`process.env`**: Node.js exposes all environment variables via `process.env`. Values are always strings.\n\n**`dotenv`**: a package that loads variables from a `.env` file into `process.env` during local development. Never commit `.env` to version control — add it to `.gitignore`.\n\n**Best practices**:\n- **Validate on startup** — use Zod or `envalid` to assert required variables exist and have the right type. Fail fast if a required variable is missing.\n- **Provide defaults** — `process.env.PORT ?? 3000`\n- **Never log the full env** — it may contain secrets\n- **Different `.env` per environment** — `.env.development`, `.env.test` (but never `.env.production` committed)\n\n**In production**: set variables via your deployment platform (Kubernetes Secrets, AWS Parameter Store, Heroku Config Vars) — never via a `.env` file.',
+    code: {
+      language: 'typescript',
+      snippet: `// Install: npm install dotenv zod
+import 'dotenv/config'; // load .env file in development
+import { z } from 'zod';
+
+// Validate and parse env vars at startup
+const envSchema = z.object({
+  NODE_ENV:    z.enum(['development', 'test', 'production']),
+  PORT:        z.coerce.number().default(3000),
+  DATABASE_URL: z.string().url(),
+  JWT_SECRET:  z.string().min(32),
+});
+
+export const env = envSchema.parse(process.env);
+// Throws a clear error at startup if anything is missing or wrong
+
+// Usage
+import { env } from './config';
+app.listen(env.PORT);
+const pool = new Pool({ connectionString: env.DATABASE_URL });`,
+    },
+  },
+
+  {
     id: 'node-m2',
     category: 'Node.js',
     difficulty: 'medium',
+    type: 'basics',
     question: 'What is the difference between process.nextTick(), Promise microtasks, and setImmediate()?',
     answer:
       'All three defer code execution, but at different points in the event loop:\n\n| | Queued in | Runs when |\n|---|---|---|\n| `process.nextTick()` | Node.js nextTick queue | Before any I/O, after current operation |\n| `Promise.then()` / `queueMicrotask()` | V8 microtask queue | After nextTick queue is drained |\n| `setImmediate()` | libuv check phase | After I/O callbacks in current loop iteration |\n\n**Execution order** (main module): sync code → nextTick queue → microtask queue → setImmediate\n\n**Caution**: `process.nextTick()` runs before I/O, so recursive calls can starve I/O — prefer `setImmediate()` when deferring to next iteration.',

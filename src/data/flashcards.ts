@@ -1,0 +1,28 @@
+import { nodejsCards } from './nodejs';
+import { oopCards } from './oop';
+import { typescriptCards } from './typescript';
+import { restCards } from './rest';
+import { databasesCards } from './databases';
+import { authCards } from './auth';
+import { systemDesignCards } from './systemDesign';
+import { cachingCards } from './caching';
+import { microservicesCards } from './microservices';
+import { devopsCards } from './devops';
+import { dataStructuresCards } from './dataStructures';
+import { bestPracticesCards } from './bestPractices';
+import type { Flashcard } from '../types';
+
+export const flashcards: Flashcard[] = [
+  ...nodejsCards,
+  ...oopCards,
+  ...typescriptCards,
+  ...restCards,
+  ...databasesCards,
+  ...authCards,
+  ...systemDesignCards,
+  ...cachingCards,
+  ...microservicesCards,
+  ...devopsCards,
+  ...dataStructuresCards,
+  ...bestPracticesCards,
+];

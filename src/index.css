@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* No custom utilities needed after removing 3D flip */
+
+/* Force highlight.js dark background in Tailwind's Preflight context */
+.hljs { background: #0d1117 !important; }
+
+/* Custom scrollbar */
+::-webkit-scrollbar               { width: 5px; height: 5px; }
+::-webkit-scrollbar-track         { background: transparent; }
+::-webkit-scrollbar-thumb         { background: #334155; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover   { background: #6366f1; }

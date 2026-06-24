@@ -1,0 +1,250 @@
+import { useMemo, useState } from 'react';
+import { flashcards } from './data/flashcards';
+import type { Category, Flashcard } from './types';
+import { FlashCard } from './components/FlashCard';
+import { Sidebar } from './components/Sidebar';
+import { Controls } from './components/Controls';
+
+type ViewMode = 'quiz' | 'study' | 'browse';
+type Difficulty = 'all' | 'easy' | 'medium' | 'hard';
+
+const ALL_CATEGORIES = Array.from(new Set(flashcards.map((c) => c.category))) as Category[];
+
+const DIFF_COLORS: Record<Difficulty, string> = {
+  all:    'bg-slate-700 text-slate-100 border-slate-600',
+  easy:   'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+  medium: 'bg-amber-500/20  text-amber-300  border-amber-500/40',
+  hard:   'bg-red-500/20    text-red-300    border-red-500/40',
+};
+
+const DIFF_ACTIVE: Record<Difficulty, string> = {
+  all:    'ring-2 ring-slate-400',
+  easy:   'ring-2 ring-emerald-400',
+  medium: 'ring-2 ring-amber-400',
+  hard:   'ring-2 ring-red-400',
+};
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const VIEW_LABELS: Record<ViewMode, string> = {
+  quiz:   'Quiz',
+  study:  'Study',
+  browse: 'Browse All',
+};
+
+const VIEW_DESCRIPTIONS: Record<ViewMode, string> = {
+  quiz:   'One card at a time — answer hidden until you reveal it',
+  study:  'All cards fully expanded — read through at your own pace',
+  browse: 'Grid overview — all questions and answers visible',
+};
+
+export default function App() {
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [difficultyFilter, setDifficultyFilter] = useState<Difficulty>('all');
+  const [index, setIndex] = useState(0);
+  const [deck, setDeck] = useState<Flashcard[]>(flashcards);
+  const [viewMode, setViewMode] = useState<ViewMode>('quiz');
+
+  // Category filter first, then difficulty filter
+  const byCat = useMemo(
+    () => (selectedCategory ? deck.filter((c) => c.category === selectedCategory) : deck),
+    [deck, selectedCategory]
+  );
+
+  const filtered = useMemo(
+    () => (difficultyFilter === 'all' ? byCat : byCat.filter((c) => c.difficulty === difficultyFilter)),
+    [byCat, difficultyFilter]
+  );
+
+  // Difficulty counts within the current category selection
+  const diffCounts = useMemo(() => ({
+    all:    byCat.length,
+    easy:   byCat.filter(c => c.difficulty === 'easy').length,
+    medium: byCat.filter(c => c.difficulty === 'medium').length,
+    hard:   byCat.filter(c => c.difficulty === 'hard').length,
+  }), [byCat]);
+
+  const counts = useMemo(
+    () =>
+      ALL_CATEGORIES.reduce<Record<string, number>>((acc, cat) => {
+        acc[cat] = flashcards.filter((c) => c.category === cat).length;
+        return acc;
+      }, {}),
+    []
+  );
+
+  function handleCategorySelect(cat: Category | null) {
+    setSelectedCategory(cat);
+    setDifficultyFilter('all');
+    setIndex(0);
+  }
+
+  function handleDifficultyFilter(d: Difficulty) {
+    setDifficultyFilter(d);
+    setIndex(0);
+  }
+
+  function handleShuffle() {
+    setDeck(shuffle(deck));
+    setIndex(0);
+  }
+
+  const card = filtered[index];
+
+  return (
+    <div className="flex min-h-screen bg-slate-950 text-slate-100">
+      <Sidebar
+        categories={ALL_CATEGORIES}
+        selected={selectedCategory}
+        counts={counts}
+        total={flashcards.length}
+        onSelect={handleCategorySelect}
+      />
+
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* ── Top bar ─────────────────────────────────────── */}
+        <header className="sticky top-0 z-10 bg-slate-950/90 backdrop-blur border-b border-slate-800">
+          {/* Row 1: view mode + shuffle */}
+          <div className="flex items-center gap-2 px-5 py-2.5">
+            <div className="flex items-center gap-1 p-1 bg-slate-900 rounded-lg border border-slate-800">
+              {(Object.keys(VIEW_LABELS) as ViewMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  title={VIEW_DESCRIPTIONS[mode]}
+                  className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
+                    viewMode === mode
+                      ? 'bg-indigo-600 text-white shadow'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  onClick={() => { setViewMode(mode); setIndex(0); }}
+                >
+                  {VIEW_LABELS[mode]}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1" />
+
+            <button
+              className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-400 text-sm font-semibold hover:bg-slate-800 hover:text-slate-200 transition-colors"
+              onClick={handleShuffle}
+              title="Shuffle cards"
+            >
+              ⇄ Shuffle
+            </button>
+          </div>
+
+          {/* Row 2: difficulty filter */}
+          <div className="flex items-center gap-2 px-5 pb-2.5">
+            <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest mr-1 flex-shrink-0">
+              Difficulty
+            </span>
+            {(['all', 'easy', 'medium', 'hard'] as Difficulty[]).map((d) => (
+              <button
+                key={d}
+                onClick={() => handleDifficultyFilter(d)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all capitalize
+                  ${DIFF_COLORS[d]}
+                  ${difficultyFilter === d ? DIFF_ACTIVE[d] : 'opacity-60 hover:opacity-100'}
+                `}
+              >
+                {d === 'all' ? 'All' : d}
+                <span className="ml-1.5 opacity-70">{diffCounts[d]}</span>
+              </button>
+            ))}
+
+            <div className="flex-1" />
+
+            {/* Card count indicator */}
+            <span className="text-xs text-slate-500">
+              {filtered.length} card{filtered.length !== 1 ? 's' : ''}
+              {difficultyFilter !== 'all' && (
+                <button
+                  className="ml-2 text-slate-600 hover:text-slate-400 transition-colors"
+                  onClick={() => handleDifficultyFilter('all')}
+                  title="Clear difficulty filter"
+                >
+                  ✕ clear
+                </button>
+              )}
+            </span>
+          </div>
+        </header>
+
+        {/* ── Content ─────────────────────────────────────── */}
+        <main className="flex-1">
+
+          {/* Quiz */}
+          {viewMode === 'quiz' && (
+            <div className="flex flex-col items-center gap-7 p-8 min-h-[calc(100vh-100px)]">
+              {card ? (
+                <>
+                  <div className="w-full max-w-2xl">
+                    <FlashCard key={card.id} card={card} quizMode />
+                  </div>
+                  <Controls
+                    current={index}
+                    total={filtered.length}
+                    onPrev={() => setIndex((i) => Math.max(0, i - 1))}
+                    onNext={() => setIndex((i) => Math.min(filtered.length - 1, i + 1))}
+                    onShuffle={handleShuffle}
+                  />
+                </>
+              ) : (
+                <p className="text-slate-500 mt-20">No cards match this filter.</p>
+              )}
+            </div>
+          )}
+
+          {/* Study */}
+          {viewMode === 'study' && (
+            <div className="max-w-3xl mx-auto flex flex-col gap-6 p-8">
+              {filtered.length === 0 ? (
+                <p className="text-slate-500">No cards match this filter.</p>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 pb-2 border-b border-slate-800">
+                    <span className="text-slate-400 text-sm">
+                      {selectedCategory ?? 'All Topics'}
+                      {difficultyFilter !== 'all' && ` · ${difficultyFilter}`}
+                      {' '}— {filtered.length} card{filtered.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  {filtered.map((c, i) => (
+                    <div key={c.id}>
+                      <FlashCard card={c} />
+                      {i < filtered.length - 1 && (
+                        <div className="mt-6 border-b border-slate-800/60" />
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Browse */}
+          {viewMode === 'browse' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-6">
+              {filtered.length === 0 ? (
+                <p className="text-slate-500 col-span-full text-center py-10">No cards match this filter.</p>
+              ) : (
+                filtered.map((c) => (
+                  <FlashCard key={c.id} card={c} compact />
+                ))
+              )}
+            </div>
+          )}
+
+        </main>
+      </div>
+    </div>
+  );
+}

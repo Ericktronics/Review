@@ -2,7 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-/* No custom utilities needed after removing 3D flip */
+@layer base {
+  html {
+    @apply bg-slate-950;
+    scrollbar-gutter: stable; /* reserves desktop scrollbar width so layout never shifts */
+  }
+  body {
+    @apply bg-slate-950;
+    min-height: 100svh;
+    overflow-x: clip; /* prevent any rogue horizontal overflow from triggering browser rescale */
+  }
+  #root {
+    @apply bg-slate-950;
+    min-height: 100svh;
+  }
+}
 
 /* Force highlight.js dark background in Tailwind's Preflight context */
 .hljs { background: #0d1117 !important; }
@@ -12,3 +26,7 @@
 ::-webkit-scrollbar-track         { background: transparent; }
 ::-webkit-scrollbar-thumb         { background: #334155; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover   { background: #6366f1; }
+
+/* Hide scrollbar on filter rows while keeping scroll functional */
+.no-scrollbar::-webkit-scrollbar  { display: none; }
+.no-scrollbar                      { -ms-overflow-style: none; scrollbar-width: none; }

@@ -19,10 +19,10 @@ const DIFF_COLORS: Record<Difficulty, string> = {
 };
 
 const DIFF_ACTIVE: Record<Difficulty, string> = {
-  all:    'ring-2 ring-slate-400',
-  easy:   'ring-2 ring-emerald-400',
-  medium: 'ring-2 ring-amber-400',
-  hard:   'ring-2 ring-red-400',
+  all:    'ring-2 ring-slate-400 ring-offset-1 ring-offset-slate-950',
+  easy:   'ring-2 ring-emerald-400 ring-offset-1 ring-offset-slate-950',
+  medium: 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-950',
+  hard:   'ring-2 ring-red-400 ring-offset-1 ring-offset-slate-950',
 };
 
 const TYPE_COLORS: Record<TypeFilter, string> = {
@@ -32,15 +32,21 @@ const TYPE_COLORS: Record<TypeFilter, string> = {
 };
 
 const TYPE_ACTIVE: Record<TypeFilter, string> = {
-  all:        'ring-2 ring-slate-400',
-  basics:     'ring-2 ring-sky-400',
-  experience: 'ring-2 ring-violet-400',
+  all:        'ring-2 ring-slate-400 ring-offset-1 ring-offset-slate-950',
+  basics:     'ring-2 ring-sky-400 ring-offset-1 ring-offset-slate-950',
+  experience: 'ring-2 ring-violet-400 ring-offset-1 ring-offset-slate-950',
 };
 
 const TYPE_LABELS: Record<TypeFilter, string> = {
   all:        'All',
   basics:     'Must Know Basics',
   experience: 'Must Know for Exp. Hires',
+};
+
+const TYPE_LABELS_SHORT: Record<TypeFilter, string> = {
+  all:        'All',
+  basics:     'Basics',
+  experience: 'Exp. Hires',
 };
 
 function shuffle<T>(arr: T[]): T[] {
@@ -70,7 +76,8 @@ export default function App() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [index, setIndex] = useState(0);
   const [deck, setDeck] = useState<Flashcard[]>(flashcards);
-  const [viewMode, setViewMode] = useState<ViewMode>('quiz');
+  const [viewMode, setViewMode] = useState<ViewMode>('study');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Category filter first, then difficulty filter
   const byCat = useMemo(
@@ -124,6 +131,8 @@ export default function App() {
     setDifficultyFilter('all');
     setTypeFilter('all');
     setIndex(0);
+    setSidebarOpen(false);
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
   function handleDifficultyFilter(d: Difficulty) {
@@ -146,13 +155,26 @@ export default function App() {
         counts={counts}
         total={flashcards.length}
         onSelect={handleCategorySelect}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <div className="flex-1 flex flex-col min-h-screen">
         {/* ── Top bar ─────────────────────────────────────── */}
         <header className="sticky top-0 z-10 bg-slate-950/90 backdrop-blur border-b border-slate-800">
           {/* Row 1: view mode + shuffle */}
-          <div className="flex items-center gap-2 px-5 py-2.5">
+          <div className="flex items-center gap-2 px-3 py-2.5">
+            {/* Hamburger (mobile only) */}
+            <button
+              className="lg:hidden p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors flex-shrink-0"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open menu"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+
             <div className="flex items-center gap-1 p-1 bg-slate-900 rounded-lg border border-slate-800">
               {(Object.keys(VIEW_LABELS) as ViewMode[]).map((mode) => (
                 <button
@@ -182,7 +204,7 @@ export default function App() {
           </div>
 
           {/* Row 2: type filter */}
-          <div className="flex items-center gap-2 px-5 pb-2">
+          <div className="flex items-center flex-wrap gap-2 px-3 pt-1 pb-2">
             <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest mr-1 flex-shrink-0">
               Type
             </span>
@@ -190,19 +212,20 @@ export default function App() {
               <button
                 key={t}
                 onClick={() => { setTypeFilter(t); setIndex(0); }}
-                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap
                   ${TYPE_COLORS[t]}
                   ${typeFilter === t ? TYPE_ACTIVE[t] : 'opacity-60 hover:opacity-100'}
                 `}
               >
-                {TYPE_LABELS[t]}
+                <span className="sm:hidden">{TYPE_LABELS_SHORT[t]}</span>
+                <span className="hidden sm:inline">{TYPE_LABELS[t]}</span>
                 <span className="ml-1.5 opacity-70">{typeCounts[t]}</span>
               </button>
             ))}
           </div>
 
           {/* Row 3: difficulty filter */}
-          <div className="flex items-center gap-2 px-5 pb-2.5">
+          <div className="flex items-center flex-wrap gap-2 px-3 pt-1 pb-3">
             <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest mr-1 flex-shrink-0">
               Difficulty
             </span>
@@ -210,7 +233,7 @@ export default function App() {
               <button
                 key={d}
                 onClick={() => handleDifficultyFilter(d)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all capitalize
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all capitalize whitespace-nowrap
                   ${DIFF_COLORS[d]}
                   ${difficultyFilter === d ? DIFF_ACTIVE[d] : 'opacity-60 hover:opacity-100'}
                 `}
@@ -265,12 +288,12 @@ export default function App() {
 
           {/* Study */}
           {viewMode === 'study' && (
-            <div className="max-w-3xl mx-auto flex flex-col gap-6 p-8">
+            <div className="flex flex-col gap-3 px-4 sm:px-6 lg:px-8 2xl:px-16 py-6">
               {filtered.length === 0 ? (
                 <p className="text-slate-500">No cards match this filter.</p>
               ) : (
                 <>
-                  <div className="flex items-center gap-3 pb-2 border-b border-slate-800">
+                  <div className="flex items-center gap-3 pb-3 border-b border-slate-800 mb-1">
                     <span className="text-slate-400 text-sm">
                       {selectedCategory ?? 'All Topics'}
                       {typeFilter !== 'all' && ` · ${TYPE_LABELS[typeFilter]}`}
@@ -278,13 +301,8 @@ export default function App() {
                       {' '}— {filtered.length} card{filtered.length !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  {filtered.map((c, i) => (
-                    <div key={c.id}>
-                      <FlashCard card={c} />
-                      {i < filtered.length - 1 && (
-                        <div className="mt-6 border-b border-slate-800/60" />
-                      )}
-                    </div>
+                  {filtered.map((c) => (
+                    <FlashCard key={c.id} card={c} studyWide />
                   ))}
                 </>
               )}
@@ -293,7 +311,7 @@ export default function App() {
 
           {/* Browse */}
           {viewMode === 'browse' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-4 sm:p-6 lg:p-8 2xl:p-16">
               {filtered.length === 0 ? (
                 <p className="text-slate-500 col-span-full text-center py-10">No cards match this filter.</p>
               ) : (

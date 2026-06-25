@@ -22,6 +22,8 @@ A flashcard web app for studying backend engineering concepts — built with Vit
 | Category | Topics covered |
 |---|---|
 | Node.js | Event loop, streams, async patterns, clustering, AsyncLocalStorage, CommonJS vs ESM |
+| Express.js | Middleware chain, routing, error handling, async patterns, production-ready API structure |
+| NestJS | Modules, decorators, DI, pipes, guards, interceptors, exception filters, microservices, transactions |
 | TypeScript | Generics, conditional types, strict mode, variance, decorators, type inference |
 | OOP | SOLID principles, design patterns, composition vs inheritance, Factory, Observer |
 | REST & HTTP | HTTP methods, CORS, status codes, gRPC vs GraphQL, versioning, pagination |
@@ -33,6 +35,8 @@ A flashcard web app for studying backend engineering concepts — built with Vit
 | DevOps | Kubernetes, Docker, CI/CD, blue-green vs canary, Helm, observability |
 | Data Structures | Big O, hash tables, heaps, trees, graphs, DFS/BFS, dynamic programming |
 | Best Practices | DRY, KISS, testing pyramid, code review, technical debt, semver |
+| Compare & Choose | null vs undefined, == vs ===, JWT vs Sessions, REST vs GraphQL, ORM vs SQL, Monolith vs Microservices, consistency models |
+| Interview Scenarios | Production incidents, debugging under pressure, tech debt prioritization, API migrations, team leadership, scaling |
 
 ## Requirements
 

@@ -9,6 +9,8 @@ interface Props {
   compact?: boolean;
   /** quizMode = answer hidden until the user clicks Reveal */
   quizMode?: boolean;
+  /** studyWide = full-width two-column layout for Study mode */
+  studyWide?: boolean;
 }
 
 const DIFF: Record<Flashcard['difficulty'], string> = {
@@ -45,7 +47,7 @@ function CodeBlock({ code }: { code: NonNullable<Flashcard['code']> }) {
   );
 }
 
-export function FlashCard({ card, compact = false, quizMode = false }: Props) {
+export function FlashCard({ card, compact = false, quizMode = false, studyWide = false }: Props) {
   const [revealed, setRevealed] = useState(!quizMode);
 
   // Reset when the card or mode changes
@@ -53,6 +55,72 @@ export function FlashCard({ card, compact = false, quizMode = false }: Props) {
 
   const pad = compact ? 'p-4' : 'p-6';
 
+  // ── Study wide layout ─────────────────────────────────────────────
+  const [folded, setFolded] = useState(false);
+
+  if (studyWide) {
+    return (
+      <div className="rounded-xl border border-slate-700/60 bg-slate-900 overflow-hidden">
+        {/* badges row + fold toggle */}
+        <div className="flex items-center gap-2 flex-wrap px-6 pt-4 pb-3 border-b border-slate-700/40">
+          <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full">
+            {card.category}
+          </span>
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${DIFF[card.difficulty]}`}>
+            {card.difficulty}
+          </span>
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${TYPE[card.type].cls}`}>
+            {TYPE[card.type].label}
+          </span>
+
+          <button
+            onClick={() => setFolded(f => !f)}
+            className="ml-auto flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors px-2 py-1 rounded-md hover:bg-slate-800"
+            title={folded ? 'Expand answer' : 'Fold answer'}
+          >
+            <svg
+              className={`w-3.5 h-3.5 transition-transform duration-200 ${folded ? '-rotate-90' : ''}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+            {folded ? 'Show answer' : 'Hide answer'}
+          </button>
+        </div>
+
+        {/* body */}
+        {folded ? (
+          /* folded: question only, full width */
+          <div className="px-6 py-5">
+            <p className="text-base font-semibold text-slate-100 leading-relaxed whitespace-pre-line">
+              {card.question}
+            </p>
+          </div>
+        ) : (
+          /* expanded: two-column */
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] divide-y lg:divide-y-0 lg:divide-x divide-slate-700/50">
+            {/* left: question */}
+            <div className="p-6 flex flex-col justify-start min-w-0">
+              <p className="text-base font-semibold text-slate-100 leading-relaxed whitespace-pre-line break-words">
+                {card.question}
+              </p>
+            </div>
+
+            {/* right: answer + code */}
+            <div className="p-6 min-w-0 overflow-hidden">
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-500 block mb-3">Answer</span>
+              <div className="text-sm text-slate-300 space-y-2 break-words">
+                {renderAnswer(card.answer)}
+              </div>
+              {card.code && <CodeBlock code={card.code} />}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Standard layout (quiz / browse) ──────────────────────────────
   return (
     <div className="rounded-xl border border-slate-700/80 bg-slate-900 overflow-hidden flex flex-col">
       {/* ── Question ─────────────────────────────────────── */}

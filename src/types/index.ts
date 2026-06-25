@@ -10,7 +10,11 @@ export type Category =
   | 'Microservices'
   | 'DevOps'
   | 'Best Practices'
-  | 'Data Structures';
+  | 'Data Structures'
+  | 'Express.js'
+  | 'NestJS'
+  | 'Compare & Choose'
+  | 'Interview Scenarios';
 
 export interface Flashcard {
   id: string;

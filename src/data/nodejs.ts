@@ -11,7 +11,7 @@ export const nodejsCards: Flashcard[] = [
     question:
       "Walk through every phase of the Node.js Event Loop. Where do microtasks (Promises, nextTick) fit in, and what does libuv actually own?",
     answer:
-      "**Ownership** (staff-level follow-up):\n- **libuv** → event loop phases, I/O polling, thread pool\n- **V8** → Promise microtask queue (`Promise.then`, `queueMicrotask`)\n- **Node.js** → `process.nextTick` queue (Node-specific, not a V8 concept)\n\nThe loop cycles through 6 libuv phases:\n\n1. **timers** — runs `setTimeout` / `setInterval` whose threshold has elapsed\n2. **pending callbacks** — OS-level I/O errors deferred from last cycle\n3. **idle / prepare** — internal libuv bookkeeping only\n4. **poll** — blocks waiting for new I/O events; runs their callbacks\n5. **check** — runs `setImmediate` callbacks\n6. **close callbacks** — e.g. `socket.destroy()`\n\nAfter **every individual callback** (not just between phases — changed in Node.js v11 to match browser behaviour), Node drains two queues in order:\n1. `process.nextTick` queue — fully drained first, can starve I/O if called recursively\n2. V8 microtask queue — `Promise.then` callbacks and `queueMicrotask`\n\nThe thread pool (default 4 threads, tunable via `UV_THREADPOOL_SIZE`) handles `fs`, `crypto`, `dns.lookup`, and `zlib`. TCP/UDP, pipes, and timers use OS async primitives (epoll / kqueue / IOCP) directly — no thread pool involved.",
+      "**Ownership** (staff-level follow-up):\n- **libuv** → event loop phases, I/O polling, thread pool\n- **V8** → Promise microtask queue (`Promise.then`, `queueMicrotask`)\n- **Node.js** → `process.nextTick` queue (Node-specific, not a V8 concept)\n\nThe loop cycles through 6 libuv phases:\n\n1. **timers** — runs callbacks whose `setTimeout` / `setInterval` threshold has elapsed. Example: `setTimeout(() => console.log('hello'), 100)` runs here once 100 ms has passed.\n2. **pending callbacks** — runs I/O error callbacks deferred from the previous cycle. Example: a TCP connection error that libuv couldn't report immediately.\n3. **idle / prepare** — internal libuv bookkeeping only. Not accessible from userland JavaScript.\n4. **poll** — waits for new I/O events and runs their callbacks. Example: `fs.readFile()` completion, incoming HTTP requests, data arriving on a socket. If there are timers due, the loop won't block here and moves on.\n5. **check** — runs `setImmediate` callbacks. Example: `setImmediate(() => console.log('after I/O'))` — always fires after the current poll phase, making it predictable inside I/O callbacks.\n6. **close callbacks** — runs `close` event handlers. Example: `socket.on('close', () => ...)` after `socket.destroy()` is called.\n\nAfter **every individual callback** (not just between phases — changed in Node.js v11 to match browser behaviour), Node drains two queues in order:\n1. `process.nextTick` queue — fully drained first, can starve I/O if called recursively\n2. V8 microtask queue — `Promise.then` callbacks and `queueMicrotask`\n\nThe thread pool (default 4 threads, tunable via `UV_THREADPOOL_SIZE`) handles `fs`, `crypto`, `dns.lookup`, and `zlib`. TCP/UDP, pipes, and timers use OS async primitives (epoll / kqueue / IOCP) directly — no thread pool involved.",
     code: {
       language: "javascript",
       snippet: `// ── Test 1: queues drain after EACH callback (Node v11+, verified) ──
@@ -36,15 +36,25 @@ setTimeout(() => {
 // Promise (V8 microtask queue)
 // queueMicrotask (V8 microtask queue)
 
-// ── Test 3: classic output prediction ──
-setImmediate(() => console.log('A: setImmediate'));
-Promise.resolve().then(() => console.log('B: Promise'));
+// ── Test 3: classic output prediction (verified) ──
+setImmediate(() => console.log('A: setImmediate'));     // check phase
+Promise.resolve().then(() => console.log('B: Promise')); // V8 microtask
 process.nextTick(() => {
-  console.log('C: nextTick');
+  console.log('C: nextTick');                            // nextTick queue
   Promise.resolve().then(() => console.log('D: nested Promise'));
 });
+setTimeout(() => console.log('F: setTimeout'), 0);      // timers phase
 console.log('E: sync');
-// E → C → B → D → A  (verified)`,
+// Output:
+// E → sync code runs first
+// C → nextTick queue drains
+// B → microtask queue (B was queued before D)
+// D → microtask queued inside C, runs after B
+// F → timers phase (setTimeout)
+// A → check phase (setImmediate)
+//
+// Note: from the main module, F vs A order is non-deterministic.
+// Inside an I/O callback, setImmediate ALWAYS fires before setTimeout(fn,0).`,
     },
   },
 
@@ -268,42 +278,6 @@ class JSONLinesParser extends Transform {
   },
 
   {
-    id: "node-8",
-    category: "Node.js",
-    difficulty: "hard",
-    type: 'experience',
-    question:
-      "How does Node.js handle unhandled Promise rejections, and what is the correct pattern for async error propagation in an Express middleware chain?",
-    answer:
-      "Since Node.js 15+, an unhandled Promise rejection **crashes the process** by default (previously emitted a deprecation warning). Listen for `unhandledRejection` to log and exit cleanly.\n\n**Express does not catch async errors automatically.** If an async route handler throws, Express never sees it and the request hangs. Solutions:\n\n1. Wrap each handler in a `catchAsync` / `asyncHandler` HOF that passes errors to `next(err)`\n2. Use Express 5 (which natively supports async route handlers)\n3. Use Fastify or Hapi which handle async natively\n\n**async_hooks / AsyncLocalStorage** lets you propagate context (request ID, user) through async operations without passing it explicitly through every function.",
-    code: {
-      language: "typescript",
-      snippet: `// Global safety net — log then exit, let the process manager restart
-process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled rejection:', reason);
-  process.exit(1);
-});
-
-// asyncHandler HOF – Express 4
-const wrap =
-  (fn: RequestHandler): RequestHandler =>
-  (req, res, next) =>
-    Promise.resolve(fn(req, res, next)).catch(next);
-
-router.get('/users/:id', wrap(async (req, res) => {
-  const user = await userService.findOrFail(req.params.id);
-  res.json(user);
-}));
-
-// Global error handler (must have 4 args)
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  const status = err instanceof AppError ? err.statusCode : 500;
-  res.status(status).json({ error: err.message });
-});`,
-    },
-  },
-
-  {
     id: "node-9",
     category: "Node.js",
     difficulty: "hard",
@@ -338,47 +312,6 @@ async function userService.findOrFail(id: string) {
   getLogger().info('Looking up user');   // correlationId is automatically present
   return db.user.findUniqueOrThrow({ where: { id } });
 }`,
-    },
-  },
-
-  {
-    id: "node-11",
-    category: "Node.js",
-    difficulty: "hard",
-    type: 'experience',
-    question:
-      'How does the Express middleware chain work internally? Explain the "onion model" and how `next(err)` bypasses normal middleware.',
-    answer:
-      'Express middleware is a linked list of functions. When a request arrives, Express calls `layer.handle(req, res, next)` for each layer in registration order. Each middleware must call `next()` to pass control to the next layer.\n\n**The onion model**: code before `next()` runs on the way "in"; code after `next()` runs on the way "out" (after the route handler has finished). This is how response-timing and logging middleware works.\n\n**Error flow**: calling `next(err)` skips all non-error middleware and jumps to the nearest **error handler** — a middleware with exactly 4 parameters `(err, req, res, next)`. Express uses `fn.length === 4` to detect it.\n\n**Critical gotchas**:\n- Order of `app.use()` calls is execution order — put error handlers last\n- Forgetting to call `next()` hangs the request\n- Calling `next()` after sending a response causes "headers already sent" errors',
-    code: {
-      language: "typescript",
-      snippet: `// Onion model – code after next() runs on the way out
-app.use((req, res, next) => {
-  const start = Date.now();
-  console.log('→ in');
-  next();                          // passes to the next layer
-  console.log('← out', Date.now() - start, 'ms'); // runs after handler returns
-});
-
-// Route handler
-app.get('/users', async (req, res, next) => {
-  try {
-    const users = await userService.findAll();
-    res.json(users);
-  } catch (err) {
-    next(err); // jumps directly to the error handler below
-  }
-});
-
-// Error handler – MUST have exactly 4 params
-app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-  console.error(err);
-  res.status(500).json({ error: err.message });
-});
-
-// Output for GET /users (success):
-// → in
-// ← out 12 ms`,
     },
   },
 
@@ -722,42 +655,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));`,
   },
 
   {
-    id: 'node-e5',
-    category: 'Node.js',
-    difficulty: 'easy',
-    type: 'basics',
-    question: 'What is middleware in Express.js?',
-    answer:
-      '**Middleware** is a function that has access to `req`, `res`, and `next`. It runs between receiving a request and sending a response.\n\nMiddleware can:\n- Execute any code\n- Modify `req` and `res` objects\n- End the request-response cycle\n- Call `next()` to pass control to the next middleware\n\n**Types**:\n- **Application-level** — `app.use()` — runs for all routes\n- **Router-level** — `router.use()` — scoped to a router\n- **Error-handling** — 4 parameters `(err, req, res, next)` — handles errors passed via `next(err)`\n- **Built-in** — `express.json()`, `express.static()`\n- **Third-party** — `cors`, `helmet`, `morgan`\n\n**Why it matters**: middleware is how Express.js handles cross-cutting concerns (auth, logging, validation, rate limiting) without duplicating logic in every route handler.',
-    code: {
-      language: 'javascript',
-      snippet: `const express = require('express');
-const app = express();
-
-// Built-in middleware — parse JSON request bodies
-app.use(express.json());
-
-// Custom middleware — log every request
-app.use((req, res, next) => {
-  console.log(\`\${req.method} \${req.path}\`);
-  next(); // MUST call next() or the request hangs
-});
-
-// Auth middleware — only runs for protected routes
-function requireAuth(req, res, next) {
-  if (!req.headers.authorization) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-}
-
-app.get('/profile', requireAuth, (req, res) => {
-  res.json({ user: 'Alice' });
-});`,
-    },
-  },
-
-  {
     id: 'node-m3',
     category: 'Node.js',
     difficulty: 'medium',
@@ -841,6 +738,282 @@ console.log('end');
 // nextTick
 // promise
 // setImmediate`,
+    },
+  },
+
+  // ─── Node.js (More Easy) ─────────────────────────────────────────────────────
+
+  {
+    id: 'node-e5',
+    category: 'Node.js',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'What is npm? What are npm scripts and why are they useful?',
+    answer:
+      '**npm (Node Package Manager)** is the default package manager for Node.js. It does two things:\n1. **Installs packages** from the npm registry into your project (`npm install`)\n2. **Runs scripts** defined in `package.json`\n\n**npm scripts** are shortcuts for terminal commands defined under `"scripts"` in `package.json`. Instead of remembering a long command like `tsc && node dist/index.js`, you just run `npm run start`.\n\n**Why use them**:\n- Shared across the whole team — everyone runs the same command\n- No need to install tools globally — npm runs local binaries from `node_modules/.bin`\n- Can chain commands with `&&` (sequential) or `&` (parallel)\n\n**Special scripts**: `start`, `test`, `build` can be run without the `run` keyword (`npm start`, `npm test`).',
+    code: {
+      language: 'json',
+      snippet: `{
+  "scripts": {
+    "start":   "node dist/index.js",
+    "dev":     "ts-node-dev src/index.ts",
+    "build":   "tsc",
+    "test":    "jest",
+    "lint":    "eslint src/**/*.ts",
+    "prepare": "npm run build"  // runs automatically before npm publish
+  }
+}
+
+// Usage:
+// npm run dev     → runs ts-node-dev
+// npm test        → no 'run' needed for 'test'
+// npm start       → no 'run' needed for 'start'`,
+    },
+  },
+
+  {
+    id: 'node-e6',
+    category: 'Node.js',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'What is the difference between `dependencies` and `devDependencies` in package.json?',
+    answer:
+      '**`dependencies`**: packages your app needs to **run in production**. They are included when someone installs your package.\n- Examples: `express`, `pg`, `zod`, `jsonwebtoken`\n\n**`devDependencies`**: packages only needed during **development and building** — not in production.\n- Examples: `typescript`, `jest`, `eslint`, `ts-node`\n\n**Why it matters**:\n- `npm install --omit=dev` (used in Docker production builds) skips devDependencies, keeping the image smaller and the attack surface smaller\n- Accidentally putting a dev tool in `dependencies` bloats your production bundle\n\n**`peerDependencies`**: packages the consumer of your library must install themselves (used when writing npm packages, not apps).',
+    code: {
+      language: 'json',
+      snippet: `{
+  "dependencies": {
+    "express": "^4.18.2",    // needed at runtime
+    "zod":     "^3.22.0",    // needed at runtime
+    "pg":      "^8.11.0"     // needed at runtime
+  },
+  "devDependencies": {
+    "typescript":   "^5.2.0",  // compile-time only
+    "jest":         "^29.0.0", // test-time only
+    "@types/node":  "^20.0.0", // type definitions only
+    "ts-node-dev":  "^2.0.0"   // dev server only
+  }
+}
+
+// Install all: npm install
+// Install prod only: npm install --omit=dev`,
+    },
+  },
+
+  {
+    id: 'node-e7',
+    category: 'Node.js',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'What is `__dirname` and `__filename` in Node.js?',
+    answer:
+      '**`__dirname`**: the **absolute path of the directory** containing the current file.\n**`__filename`**: the **absolute path of the current file** itself.\n\nThese are injected by Node.js into every CommonJS module — they are NOT available in ES Modules (use `import.meta.url` instead).\n\n**Why they matter**: when building file paths, never use relative strings like `"./data/file.json"` — they resolve relative to the **working directory** (`process.cwd()`), which changes depending on where you run the command. Always use `path.join(__dirname, ...)` to get a path relative to the file, not the shell.',
+    code: {
+      language: 'javascript',
+      snippet: `const path = require('path');
+
+console.log(__filename); // /Users/alice/project/src/server.js
+console.log(__dirname);  // /Users/alice/project/src
+
+// ✗ Fragile — breaks if you run from a different directory
+const config = require('./config/settings.json');
+
+// ✓ Safe — always resolves relative to this file
+const config2 = require(path.join(__dirname, 'config', 'settings.json'));
+
+// Reading a file relative to the current module
+const fs = require('fs');
+const template = fs.readFileSync(
+  path.join(__dirname, '..', 'templates', 'email.html'),
+  'utf8',
+);`,
+    },
+  },
+
+  {
+    id: 'node-e8',
+    category: 'Node.js',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'What is a Buffer in Node.js? When do you use it?',
+    answer:
+      'A **Buffer** is a fixed-size chunk of raw binary memory outside the V8 heap. It represents binary data — like file contents, image bytes, or network packets — before it\'s been converted to a string.\n\n**Why it exists**: JavaScript strings are Unicode, but I/O (files, sockets, crypto) deals in raw bytes. Buffers bridge that gap.\n\n**When you use Buffers**:\n- Reading files in binary mode\n- Working with cryptographic operations (`crypto.createHash`)\n- Handling binary network protocols (TCP, WebSocket frames)\n- Encoding/decoding (Base64, hex)\n\n**Encoding**: when converting to/from a string you must specify the encoding (`utf8`, `base64`, `hex`, `binary`). Defaulting to the wrong one silently corrupts data.',
+    code: {
+      language: 'javascript',
+      snippet: `// Create from string
+const buf = Buffer.from('Hello');
+console.log(buf);            // <Buffer 48 65 6c 6c 6f>
+console.log(buf.toString()); // Hello
+console.log(buf.length);     // 5 (bytes, not characters)
+
+// Allocate empty buffer of N bytes
+const empty = Buffer.alloc(8); // 8 zero bytes
+
+// Common use: Base64 encode/decode
+const encoded = Buffer.from('secret data').toString('base64');
+// 'c2VjcmV0IGRhdGE='
+const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+// 'secret data'
+
+// In streams: chunks arrive as Buffers
+readableStream.on('data', (chunk) => {
+  console.log(chunk instanceof Buffer); // true
+  console.log(chunk.toString('utf8'));  // convert to string
+});`,
+    },
+  },
+
+  // ─── Node.js (More Medium) ───────────────────────────────────────────────────
+
+  {
+    id: 'node-m5',
+    category: 'Node.js',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'How does Node.js module caching work with `require()`? What problem can it cause in tests?',
+    answer:
+      'The first time you `require()` a module, Node.js:\n1. Resolves the file path\n2. Executes the file\n3. **Stores the exported value in `require.cache`** keyed by the absolute file path\n\nEvery subsequent `require()` of the same path returns the **cached export directly** — the file is never executed again. This means modules are effectively **singletons**.\n\n**Why it matters**:\n- A database connection pool required in multiple files is the same instance everywhere — intentional and efficient\n- A config object required in multiple files is shared — mutating it in one place affects all\n\n**Test problem**: if a module holds state (e.g. an in-memory store, a singleton class), that state persists between tests. Fix by deleting from `require.cache` or by using dependency injection instead of direct requires.',
+    code: {
+      language: 'javascript',
+      snippet: `const m1 = require('path');
+const m2 = require('path');
+console.log(m1 === m2); // true — exact same cached object
+
+// See what's cached
+console.log(require.cache[require.resolve('./myModule')]);
+
+// Clear a module from cache (useful in tests)
+delete require.cache[require.resolve('./myModule')];
+const fresh = require('./myModule'); // re-executes the file
+
+// Circular dependency: A requires B, B requires A
+// Node returns A's partially-built export to break the cycle
+// This can result in 'undefined' properties — avoid circular deps`,
+    },
+  },
+
+  {
+    id: 'node-m6',
+    category: 'Node.js',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is the `path` module? What is the difference between `path.join()` and `path.resolve()`?',
+    answer:
+      'The built-in `path` module provides utilities for working with file and directory paths in a cross-platform way (handles `/` vs `\\` on Windows automatically).\n\n**`path.join(...segments)`**: joins segments with the OS separator and normalises the result. It is **relative** — it does not care about the current working directory.\n\n**`path.resolve(...segments)`**: builds an **absolute** path by processing segments from right to left. If it hits an absolute path segment, it stops and uses that as the root. Similar to `cd`-ing through the segments in a shell.\n\n**Key difference**: `path.join` just concatenates and normalises. `path.resolve` always returns an absolute path, anchoring to `process.cwd()` if no absolute segment is found.\n\n**Rule of thumb**: use `path.join(__dirname, ...)` for paths relative to the current file. Use `path.resolve()` when you need a guaranteed absolute path.',
+    code: {
+      language: 'javascript',
+      snippet: `const path = require('path');
+
+// path.join — just concatenates + normalises
+path.join('/foo', 'bar', 'baz')       // '/foo/bar/baz'
+path.join('/foo', 'bar', '../baz')    // '/foo/baz'  (normalised)
+path.join('foo', 'bar')               // 'foo/bar'   (still relative)
+
+// path.resolve — always returns absolute path
+// (assuming cwd is /Users/alice/project)
+path.resolve('foo', 'bar')            // '/Users/alice/project/foo/bar'
+path.resolve('/foo', 'bar')           // '/foo/bar'
+path.resolve('/foo', 'bar', '/baz')   // '/baz'  (hits absolute, resets)
+
+// Best practice: path relative to current file
+const configPath = path.join(__dirname, '..', 'config', 'app.json');`,
+    },
+  },
+
+  {
+    id: 'node-m7',
+    category: 'Node.js',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'How do you read and write files in Node.js? What is the difference between the sync and async APIs?',
+    answer:
+      'The built-in `fs` module provides file system operations in three styles:\n\n**1. Callback (async)** — `fs.readFile()` — non-blocking, uses error-first callback. Original API.\n\n**2. Promises (async)** — `fs.promises.readFile()` or `require(\'fs/promises\')` — same non-blocking behaviour but returns a Promise. Use with `async/await`. Preferred in modern code.\n\n**3. Sync** — `fs.readFileSync()` — blocks the entire event loop until done. **Never use in a server request handler** — it freezes all other requests while waiting. Only acceptable in startup scripts or CLI tools.\n\n**Common gotcha**: forgetting to specify `\'utf8\'` encoding returns a `Buffer` instead of a string.',
+    code: {
+      language: 'javascript',
+      snippet: `const fs = require('fs/promises'); // Promise-based API (Node 14+)
+const fsSync = require('fs');       // sync API
+
+// ✓ Async — non-blocking, use in request handlers
+async function readConfig() {
+  const data = await fs.readFile('./config.json', 'utf8');
+  return JSON.parse(data);
+}
+
+async function writeLog(message) {
+  await fs.writeFile('./app.log', message + '\\n', { flag: 'a' }); // append
+}
+
+// ✓ Sync — only acceptable at startup, never in request handlers
+const config = JSON.parse(fsSync.readFileSync('./config.json', 'utf8'));
+
+// ✓ Check if file exists before reading
+async function safeRead(filePath) {
+  try {
+    return await fs.readFile(filePath, 'utf8');
+  } catch (err) {
+    if (err.code === 'ENOENT') return null; // file not found
+    throw err;
+  }
+}`,
+    },
+  },
+
+  {
+    id: 'node-m8',
+    category: 'Node.js',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is the `child_process` module? When would you use `exec`, `execFile`, `spawn`, or `fork`?',
+    answer:
+      'The `child_process` module lets you **run external commands or other Node.js scripts** as separate OS processes.\n\n| Method | Use when |\n|---|---|\n| `exec(cmd)` | Run a shell command, capture output as a string. Small output only (buffered). |\n| `execFile(file)` | Like `exec` but no shell — safer when running a known binary (no shell injection risk). |\n| `spawn(cmd)` | Stream large output (video processing, log tailing). Output is a stream, not buffered. |\n| `fork(script)` | Run another Node.js script in a separate process with a built-in IPC channel between parent and child. |\n\n**`exec` security warning**: never pass unsanitised user input to `exec` — it runs through a shell and is vulnerable to command injection. Use `execFile` or `spawn` instead.\n\n**When to use**: CPU-heavy tasks (image processing, PDF generation), running CLI tools, parallel processing.',
+    code: {
+      language: 'javascript',
+      snippet: `const { exec, spawn, fork } = require('child_process');
+
+// exec — run shell command, get output as string
+exec('ls -la', (err, stdout, stderr) => {
+  if (err) return console.error(err);
+  console.log(stdout);
+});
+
+// spawn — stream large output (doesn't buffer everything in memory)
+const ls = spawn('ls', ['-la']);
+ls.stdout.on('data', (chunk) => process.stdout.write(chunk));
+ls.on('close', (code) => console.log('Exit:', code));
+
+// fork — run a Node.js file, communicate via IPC
+const child = fork('./worker.js');
+child.send({ task: 'processImage', file: 'photo.jpg' });
+child.on('message', (result) => console.log('Done:', result));`,
+    },
+  },
+
+  {
+    id: 'node-m9',
+    category: 'Node.js',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is the V8 heap in Node.js? Where does it live, and how does Node.js use it?',
+    answer:
+      'The **heap** is the region of memory where V8 (Node\'s JS engine) allocates all JavaScript objects, strings, closures, and arrays at runtime. It lives in **RAM** as part of your Node.js process — not on disk.\n\n**How V8 organises the heap:**\n- **New Space (Young Generation)** — small, fast area for short-lived objects. Collected frequently by minor GC.\n- **Old Space (Old Generation)** — objects that survive minor GCs get promoted here. Collected by major GC.\n- **Large Object Space** — objects > ~256 KB. Never moved by GC.\n- **Code Space** — compiled JIT bytecode.\n- **Map Space** — hidden classes V8 uses to optimise property access.\n\n**Default heap limit:** ~1.5 GB on 64-bit. Override with `node --max-old-space-size=4096 app.js`.\n\n**Common heap problem:** a **memory leak** — objects stay referenced (global array, forgotten event listener, closure) so GC can\'t free them. Heap grows until the process crashes with `JavaScript heap out of memory`.',
+    code: {
+      language: 'javascript',
+      snippet: `// Inspect heap usage at runtime
+const v8 = require('v8');
+const { heapUsed, heapTotal, rss } = process.memoryUsage();
+
+console.log({
+  heapUsed:  (heapUsed  / 1024 / 1024).toFixed(1) + ' MB', // JS objects in use
+  heapTotal: (heapTotal / 1024 / 1024).toFixed(1) + ' MB', // total heap reserved
+  rss:       (rss       / 1024 / 1024).toFixed(1) + ' MB', // total process RAM
+});
+
+// Full V8 heap breakdown (space-by-space)
+console.log(v8.getHeapStatistics());
+// { total_heap_size, used_heap_size, heap_size_limit, ... }
+
+// Run with larger Old Space for memory-heavy workloads:
+// node --max-old-space-size=4096 app.js`,
     },
   },
 ];

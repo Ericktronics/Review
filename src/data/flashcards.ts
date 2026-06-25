@@ -10,10 +10,16 @@ import { microservicesCards } from './microservices';
 import { devopsCards } from './devops';
 import { dataStructuresCards } from './dataStructures';
 import { bestPracticesCards } from './bestPractices';
+import { expressCards } from './express';
+import { nestjsCards } from './nestjs';
+import { comparisonsCards } from './comparisons';
+import { interviewCards } from './interviews';
 import type { Flashcard } from '../types';
 
 export const flashcards: Flashcard[] = [
   ...nodejsCards,
+  ...expressCards,
+  ...nestjsCards,
   ...oopCards,
   ...typescriptCards,
   ...restCards,
@@ -25,4 +31,6 @@ export const flashcards: Flashcard[] = [
   ...devopsCards,
   ...dataStructuresCards,
   ...bestPracticesCards,
+  ...comparisonsCards,
+  ...interviewCards,
 ];

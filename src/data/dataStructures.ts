@@ -2,57 +2,50 @@ import type { Flashcard } from '../types';
 
 export const dataStructuresCards: Flashcard[] = [
 
-  // ─── Data Structures (Senior) ────────────────────────────────────────────────
+  // ─── Data Structures (Hard) ──────────────────────────────────────────────────
 
   {
     id: 'ds-1',
     category: 'Data Structures',
     difficulty: 'hard',
     type: 'experience',
-    question: 'When should you use a Heap (priority queue) vs a sorted array vs a BST? What are the time complexity trade-offs?',
+    question: 'Kth Largest Element in an Array — LeetCode #215\n\nGiven an integer array nums and an integer k, return the kth largest element in the array. Note that it is the kth largest in sorted order, not the kth distinct element.\n\nExample 1:\nInput:  nums = [3,2,1,5,6,4], k = 2\nOutput: 5\n\nExample 2:\nInput:  nums = [3,2,3,1,2,4,5,5,6], k = 4\nOutput: 4\n\nConstraints: Must solve in better than O(n log n) — aim for O(n log k) or O(n) average.',
     answer:
-      '| Operation | Sorted Array | Heap | Balanced BST (e.g. AVL/RB) |\n|---|---|---|---|\n| Insert | O(n) | O(log n) | O(log n) |\n| Get min/max | O(1) | O(1) | O(log n) |\n| Delete min/max | O(n) | O(log n) | O(log n) |\n| Search arbitrary | O(log n) | O(n) | O(log n) |\n| In-order traversal | O(n) | O(n log n) | O(n) |\n\n**Choose Heap** when you only need the min/max repeatedly (e.g. Dijkstra\'s shortest path, task scheduler, median maintenance with two heaps).\n**Choose Sorted Array** when data is mostly read-only and binary search suffices.\n**Choose BST** when you need ordered iteration, range queries, or arbitrary key lookups alongside priority access.',
+      '**Intuition**: the kth largest is the minimum of the k largest elements. A min-heap of size k always holds the k largest values seen so far — its root is the answer.\n\n**Approach — Min-Heap O(n log k)**:\n1. Iterate through every number\n2. Push it onto a min-heap\n3. If heap size exceeds k, pop the minimum (discard values smaller than the k-th largest)\n4. After the loop, the heap root is the kth largest\n\n**Approach — Quickselect O(n) average**:\nPartition around a pivot (like quicksort). Only recurse into the partition that contains index n-k. Average O(n), worst O(n²).\n\n**Complexity**:\n- Min-heap: Time O(n log k) | Space O(k)\n- Quickselect: Time O(n) avg | Space O(1)\n\n**When to use each**: if k is small relative to n, the heap is simple and fast. Quickselect is optimal but trickier to implement correctly under pressure.',
     code: {
-      language: 'typescript',
-      snippet: `// Min-heap for a task scheduler (smallest deadline first)
-// JavaScript has no built-in heap; common interview solution:
-class MinHeap<T> {
-  private heap: T[] = [];
-  constructor(private compare: (a: T, b: T) => number) {}
+      language: 'javascript',
+      snippet: `// Min-heap approach — O(n log k)
+// JavaScript has no built-in heap; use a sorted approach for interviews
+function findKthLargest(nums, k) {
+  // Simple O(n log n) using sort — acceptable in many interviews
+  return nums.sort((a, b) => b - a)[k - 1];
+}
 
-  push(val: T) {
-    this.heap.push(val);
-    this.bubbleUp(this.heap.length - 1);
-  }
-  pop(): T | undefined {
-    const top = this.heap[0];
-    const last = this.heap.pop()!;
-    if (this.heap.length > 0) { this.heap[0] = last; this.sinkDown(0); }
-    return top;
-  }
-  peek() { return this.heap[0]; }
-  size() { return this.heap.length; }
+// Quickselect — O(n) average
+function findKthLargestQS(nums, k) {
+  const target = nums.length - k; // kth largest = (n-k)th smallest index
 
-  private bubbleUp(i: number) {
-    while (i > 0) {
-      const p = (i - 1) >> 1;
-      if (this.compare(this.heap[p], this.heap[i]) <= 0) break;
-      [this.heap[p], this.heap[i]] = [this.heap[i], this.heap[p]];
-      i = p;
+  function partition(lo, hi) {
+    const pivot = nums[hi];
+    let i = lo;
+    for (let j = lo; j < hi; j++) {
+      if (nums[j] <= pivot) [nums[i++], nums[j]] = [nums[j], nums[i]];
     }
+    [nums[i], nums[hi]] = [nums[hi], nums[i]];
+    return i;
   }
-  private sinkDown(i: number) {
-    const n = this.heap.length;
-    while (true) {
-      let min = i, l = 2*i+1, r = 2*i+2;
-      if (l < n && this.compare(this.heap[l], this.heap[min]) < 0) min = l;
-      if (r < n && this.compare(this.heap[r], this.heap[min]) < 0) min = r;
-      if (min === i) break;
-      [this.heap[min], this.heap[i]] = [this.heap[i], this.heap[min]];
-      i = min;
-    }
+
+  function select(lo, hi) {
+    const p = partition(lo, hi);
+    if (p === target) return nums[p];
+    return p < target ? select(p + 1, hi) : select(lo, p - 1);
   }
-}`,
+
+  return select(0, nums.length - 1);
+}
+
+console.log(findKthLargest([3,2,1,5,6,4], 2)); // 5
+console.log(findKthLargest([3,2,3,1,2,4,5,5,6], 4)); // 4`,
     },
   },
 
@@ -61,34 +54,48 @@ class MinHeap<T> {
     category: 'Data Structures',
     difficulty: 'hard',
     type: 'experience',
-    question: 'What is amortised O(1) and how does a dynamic array (like JavaScript\'s `Array`) achieve it for `push`?',
+    question: 'Design HashMap — LeetCode #706\n\nDesign a HashMap without using any built-in hash table libraries. Implement the following operations:\n- put(key, value) — insert or update\n- get(key) — return value, or -1 if not found\n- remove(key) — remove the key if it exists\n\nExample:\nInput:  ["put",[1,1]], ["put",[2,2]], ["get",[1]], ["get",[3]], ["put",[2,1]], ["get",[2]], ["remove",[2]], ["get",[2]]\nOutput: [null, null, 1, -1, null, 1, null, -1]\n\nConstraints: 0 ≤ key, value ≤ 10⁶ | At most 10⁴ calls',
     answer:
-      'Amortised analysis averages the cost of an operation over a sequence of operations. A single operation may be expensive, but the average across N operations is cheap.\n\n**Dynamic array doubling**: when the array is full and `push` is called, it allocates a new array with **2× capacity** and copies all elements (O(n) for that one push). But this expensive copy only happens when capacity is a power-of-2 boundary.\n\n**Amortised cost analysis**: starting from empty, after N pushes, total copies ≤ 1 + 2 + 4 + ... + N = 2N. So N pushes cost 2N total copies → O(1) amortised per push.\n\nV8\'s `Array.push` uses a similar strategy (SMI arrays, packed arrays, backing store doubling). The same principle applies to hash map resizing: when load factor exceeds a threshold, rehash into a 2× table.',
+      '**Intuition**: a hash map maps keys to array indices via a hash function. Multiple keys may hash to the same index (collision) — handle with chaining (each bucket is a linked list of key-value pairs).\n\n**Approach**:\n1. Allocate an array of `capacity` buckets (e.g. 1024)\n2. `hash(key) = key % capacity` → bucket index\n3. Each bucket stores a list of `[key, value]` pairs (chaining for collisions)\n4. `put`: find existing entry in bucket and update, or append new\n5. `get`: scan bucket for matching key\n6. `remove`: filter the matching entry out of the bucket\n\n**Load factor & resizing**: when entries/capacity > 0.7, double the capacity and rehash all entries. This keeps average O(1) per operation.\n\n**Complexity**: Time O(1) average, O(n) worst (all keys collide) | Space O(n)\n\n**Why not use `{}` as a map in JS**: prototype properties (`constructor`, `toString`) can collide with your keys — always use `new Map()` in production.',
     code: {
-      language: 'typescript',
-      snippet: `// Simplified dynamic array to illustrate the amortised argument
-class DynamicArray<T> {
-  private data: T[] = new Array(1);
-  private _size = 0;
-  private capacity = 1;
-
-  push(item: T): void {
-    if (this._size === this.capacity) {
-      // O(n) resize – but happens rarely
-      this.capacity *= 2;
-      const next = new Array<T>(this.capacity);
-      for (let i = 0; i < this._size; i++) next[i] = this.data[i];
-      this.data = next;
-    }
-    this.data[this._size++] = item; // O(1) most of the time
+      language: 'javascript',
+      snippet: `class MyHashMap {
+  constructor() {
+    this.capacity = 1024;
+    this.buckets = Array.from({ length: this.capacity }, () => []);
   }
 
-  get(i: number): T { return this.data[i]; }
-  get size()        { return this._size; }
+  _hash(key) {
+    return key % this.capacity;
+  }
+
+  put(key, value) {
+    const bucket = this.buckets[this._hash(key)];
+    const pair = bucket.find(([k]) => k === key);
+    if (pair) pair[1] = value;       // update existing
+    else bucket.push([key, value]);  // insert new
+  }
+
+  get(key) {
+    const pair = this.buckets[this._hash(key)].find(([k]) => k === key);
+    return pair ? pair[1] : -1;
+  }
+
+  remove(key) {
+    const idx = this._hash(key);
+    this.buckets[idx] = this.buckets[idx].filter(([k]) => k !== key);
+  }
 }
 
-// After 8 pushes: copies at i=1(1), i=2(2), i=4(4) = 7 copies total
-// 8 pushes / 7 copies ≈ O(1) amortised`,
+const map = new MyHashMap();
+map.put(1, 1);
+map.put(2, 2);
+console.log(map.get(1));    // 1
+console.log(map.get(3));    // -1
+map.put(2, 1);
+console.log(map.get(2));    // 1
+map.remove(2);
+console.log(map.get(2));    // -1`,
     },
   },
 
@@ -97,44 +104,58 @@ class DynamicArray<T> {
     category: 'Data Structures',
     difficulty: 'hard',
     type: 'experience',
-    question: 'What is a trie (prefix tree) and when would you use one in a backend system?',
+    question: 'Implement Trie (Prefix Tree) — LeetCode #208\n\nA trie is a tree where each node represents a character. Implement a Trie with:\n- insert(word) — insert a word\n- search(word) — return true if word is in the trie\n- startsWith(prefix) — return true if any word starts with prefix\n\nExample:\nInput:  insert("apple"), search("apple"), search("app"), startsWith("app"), insert("app"), search("app")\nOutput: [null, true, false, true, null, true]\n\nConstraints: 1 ≤ word.length ≤ 2000 | word and prefix consist of lowercase letters only',
     answer:
-      'A trie is a tree where each node represents a character, and paths from root to leaf spell out keys. All keys sharing a prefix share the same path in the tree.\n\n**Time complexity**: insert, search, and prefix search all run in O(m) where m is the key length — independent of the number of keys (unlike O(m log n) for a BST).\n\n**Backend use cases**:\n- **Autocomplete / search suggestions**: retrieve all words with a given prefix in O(m + k) where k = results count\n- **IP routing tables**: longest-prefix matching in routers\n- **Rate limiting by prefix**: block entire IP ranges (`192.168.*`)\n- **URL routing**: HTTP router prefix matching\n- **Dictionary / spell check**: O(m) word lookup\n\n**Trade-off**: high memory usage when keys share few prefixes (sparse trie). A **compressed trie** (radix tree) collapses single-child chains to reduce memory.',
+      '**Intuition**: all words sharing a prefix share the same path in the tree. This gives O(m) lookup where m = word length — independent of how many words are stored (vs O(m log n) for a sorted set).\n\n**Approach**:\n1. Each TrieNode has a `children` map (char → TrieNode) and an `isEnd` flag\n2. `insert`: walk the trie character by character, creating nodes as needed, set `isEnd = true` on the last node\n3. `search`: walk the trie, return false if any character is missing; return `node.isEnd` at the end\n4. `startsWith`: same as search, but return true regardless of `isEnd`\n\n**Complexity**: Time O(m) for all operations | Space O(m × n) total where n = number of words\n\n**Backend uses**: autocomplete suggestions, IP routing, URL prefix matching, spell check',
     code: {
-      language: 'typescript',
+      language: 'javascript',
       snippet: `class TrieNode {
-  children = new Map<string, TrieNode>();
-  isEnd = false;
+  constructor() {
+    this.children = new Map(); // char → TrieNode
+    this.isEnd = false;
+  }
 }
 
 class Trie {
-  root = new TrieNode();
+  constructor() {
+    this.root = new TrieNode();
+  }
 
-  insert(word: string) {
+  insert(word) {
     let node = this.root;
     for (const ch of word) {
       if (!node.children.has(ch)) node.children.set(ch, new TrieNode());
-      node = node.children.get(ch)!;
+      node = node.children.get(ch);
     }
     node.isEnd = true;
   }
 
-  // Returns all words with the given prefix – O(prefix + results)
-  suggest(prefix: string): string[] {
+  _walk(str) {
     let node = this.root;
-    for (const ch of prefix) {
-      if (!node.children.has(ch)) return [];
-      node = node.children.get(ch)!;
+    for (const ch of str) {
+      if (!node.children.has(ch)) return null;
+      node = node.children.get(ch);
     }
-    const results: string[] = [];
-    const dfs = (n: TrieNode, current: string) => {
-      if (n.isEnd) results.push(current);
-      for (const [ch, child] of n.children) dfs(child, current + ch);
-    };
-    dfs(node, prefix);
-    return results;
+    return node;
   }
-}`,
+
+  search(word) {
+    const node = this._walk(word);
+    return node !== null && node.isEnd;
+  }
+
+  startsWith(prefix) {
+    return this._walk(prefix) !== null;
+  }
+}
+
+const trie = new Trie();
+trie.insert('apple');
+console.log(trie.search('apple'));     // true
+console.log(trie.search('app'));       // false
+console.log(trie.startsWith('app'));   // true
+trie.insert('app');
+console.log(trie.search('app'));       // true`,
     },
   },
 
@@ -145,27 +166,41 @@ class Trie {
     category: 'Data Structures',
     difficulty: 'easy',
     type: 'basics',
-    question: 'What is the difference between an array and a linked list? When would you choose one over the other?',
+    question: 'Reverse Linked List — LeetCode #206\n\nGiven the head of a singly linked list, reverse the list and return the reversed list.\n\nExample 1:\nInput:  1 → 2 → 3 → 4 → 5\nOutput: 5 → 4 → 3 → 2 → 1\n\nExample 2:\nInput:  1 → 2\nOutput: 2 → 1\n\nExample 3:\nInput:  []\nOutput: []\n\nConstraints: 0 ≤ number of nodes ≤ 5000 | -5000 ≤ Node.val ≤ 5000\nFollow-up: solve both iteratively and recursively.',
     answer:
-      '| | Array | Linked List |\n|---|---|---|\n| Memory | Contiguous block | Nodes scattered in heap |\n| Access by index | O(1) | O(n) — traverse from head |\n| Insert/delete at start | O(n) — shift all elements | O(1) — update head pointer |\n| Insert/delete at end | O(1) amortised | O(n) without tail pointer |\n| Cache performance | Excellent (spatial locality) | Poor (pointer chasing) |\n\n**Choose array**: random access by index is frequent, memory is a concern, data size is known upfront.\n\n**Choose linked list**: frequent insertions/deletions at the head or middle, and random access is rare.\n\n**In practice (JavaScript)**: `Array` is a dynamic array. You rarely need a hand-rolled linked list — but understanding the trade-offs helps in system design and algorithm questions.',
+      '**Intuition**: each node currently points forward. We need to make it point backward. Keep track of the previous node while moving forward — that is all we need.\n\n**Approach — Iterative O(1) space**:\n1. Start with `prev = null`, `curr = head`\n2. For each node: save `next = curr.next`, point `curr.next = prev`, advance `prev = curr`, `curr = next`\n3. When `curr` is null, `prev` is the new head\n\n**Approach — Recursive O(n) space (call stack)**:\n1. Base case: null or single node → return head\n2. Reverse the rest of the list recursively\n3. Make `head.next.next = head` and `head.next = null`\n\n**Complexity**:\n- Iterative: Time O(n) | Space O(1) ← preferred\n- Recursive: Time O(n) | Space O(n)\n\n**Why this matters**: pointer manipulation is the foundation of all linked list problems. Mastering the 3-pointer pattern (prev/curr/next) solves dozens of list problems.',
     code: {
-      language: 'typescript',
-      snippet: `class ListNode<T> {
-  constructor(public val: T, public next: ListNode<T> | null = null) {}
+      language: 'javascript',
+      snippet: `// Iterative — O(1) space (preferred)
+function reverseList(head) {
+  let prev = null;
+  let curr = head;
+
+  while (curr !== null) {
+    const next = curr.next; // save next before overwriting
+    curr.next = prev;        // reverse the pointer
+    prev = curr;             // advance prev
+    curr = next;             // advance curr
+  }
+
+  return prev; // prev is the new head
 }
 
-class LinkedList<T> {
-  head: ListNode<T> | null = null;
+// Recursive — O(n) space (call stack)
+function reverseListRecursive(head) {
+  if (!head || !head.next) return head;          // base case
 
-  prepend(val: T) {               // O(1) — advantage over array
-    this.head = new ListNode(val, this.head);
-  }
+  const newHead = reverseListRecursive(head.next); // reverse rest
+  head.next.next = head; // make next node point back to current
+  head.next = null;       // remove forward pointer
+  return newHead;
+}
 
-  get(index: number): T | null {  // O(n) — disadvantage vs array
-    let node = this.head;
-    for (let i = 0; i < index && node; i++) node = node.next;
-    return node?.val ?? null;
-  }
+// Helper to build a list from array for testing
+function fromArray(arr) {
+  let dummy = { val: 0, next: null }, curr = dummy;
+  for (const v of arr) { curr.next = { val: v, next: null }; curr = curr.next; }
+  return dummy.next;
 }`,
     },
   },
@@ -175,82 +210,76 @@ class LinkedList<T> {
     category: 'Data Structures',
     difficulty: 'easy',
     type: 'basics',
-    question: 'What is a stack and a queue? Give a real-world example of each.',
+    question: 'Valid Parentheses — LeetCode #20\n\nGiven a string s containing only \'(\', \')\', \'{\', \'}\', \'[\', \']\', determine if the input string is valid.\n\nA string is valid if:\n- Open brackets are closed by the same type of bracket\n- Open brackets are closed in the correct order\n- Every close bracket has a corresponding open bracket\n\nExample 1: Input: "()"       → Output: true\nExample 2: Input: "()[]{}"   → Output: true\nExample 3: Input: "(]"       → Output: false\nExample 4: Input: "([)]"     → Output: false\nExample 5: Input: "{[]}"     → Output: true\n\nConstraints: 1 ≤ s.length ≤ 10⁴',
     answer:
-      '**Stack — LIFO (Last In, First Out)**: the last element added is the first one removed.\n- Operations: `push` (add to top), `pop` (remove from top), `peek` (view top) — all O(1)\n- Examples: browser back button, function call stack, undo/redo, bracket matching in a compiler\n\n**Queue — FIFO (First In, First Out)**: the first element added is the first one removed.\n- Operations: `enqueue` (add to back), `dequeue` (remove from front), `peek` — O(1) with a deque\n- Examples: task/message queue (jobs processed in arrival order), print spooler, BFS traversal\n\n**In JavaScript**: `Array.push` / `Array.pop` implement a stack in O(1). `Array.shift()` for a queue is O(n) — use a linked-list-based deque for large queues.',
+      '**Intuition**: a stack naturally handles nested ordering — the most recently opened bracket must be the next one closed (LIFO).\n\n**Approach**:\n1. Create a map of closing → opening bracket pairs\n2. Iterate each character:\n   - If it is an opening bracket (`(`, `{`, `[`) → push to stack\n   - If it is a closing bracket → pop from stack and check it matches the expected opening\n   - If the stack is empty when we try to pop, or the popped bracket doesn\'t match → return false\n3. Return true only if the stack is empty at the end (all brackets closed)\n\n**Complexity**: Time O(n) | Space O(n)\n\n**Common mistake**: not checking if the stack is empty before popping — causes an error on inputs like `"]"`',
     code: {
-      language: 'typescript',
-      snippet: `// Stack — array push/pop are O(1) amortised
-const stack: number[] = [];
-stack.push(1); stack.push(2); stack.push(3);
-console.log(stack.pop()); // 3 — LIFO
+      language: 'javascript',
+      snippet: `function isValid(s) {
+  const stack = [];
+  const match = { ')': '(', '}': '{', ']': '[' };
 
-// Queue — shift() is O(n); fine for small sizes
-class Queue<T> {
-  private data: T[] = [];
-  enqueue(item: T) { this.data.push(item); }
-  dequeue(): T | undefined { return this.data.shift(); }
-  peek(): T | undefined { return this.data[0]; }
-  get size() { return this.data.length; }
+  for (const ch of s) {
+    if (ch === '(' || ch === '{' || ch === '[') {
+      stack.push(ch);               // opening bracket — push
+    } else {
+      if (stack.pop() !== match[ch]) return false; // mismatch or empty
+    }
+  }
+
+  return stack.length === 0; // all brackets must be closed
 }
 
-const q = new Queue<string>();
-q.enqueue('a'); q.enqueue('b');
-console.log(q.dequeue()); // 'a' — FIFO`,
+console.log(isValid('()'));      // true
+console.log(isValid('()[]{}')); // true
+console.log(isValid('(]'));     // false
+console.log(isValid('([)]'));   // false
+console.log(isValid('{[]}'));   // true
+console.log(isValid(']'));      // false (empty stack pop)`,
     },
   },
-
-  // ─── Data Structures (Medium) ────────────────────────────────────────────────
 
   {
     id: 'ds-e3',
     category: 'Data Structures',
     difficulty: 'easy',
     type: 'basics',
-    question: 'What is a binary tree? What is a binary search tree (BST)?',
+    question: 'Maximum Depth of Binary Tree — LeetCode #104\n\nGiven the root of a binary tree, return its maximum depth. Maximum depth is the number of nodes along the longest path from the root node down to the farthest leaf node.\n\nExample 1:\nInput:  [3, 9, 20, null, null, 15, 7]\nOutput: 3\n\nExample 2:\nInput:  [1, null, 2]\nOutput: 2\n\nConstraints: 0 ≤ number of nodes ≤ 10⁴ | -100 ≤ Node.val ≤ 100',
     answer:
-      "**Binary tree**: a tree data structure where each node has **at most two children**, called the left child and right child. There are no ordering rules.\n\n**Binary Search Tree (BST)**: a binary tree with an ordering property:\n- All nodes in the **left subtree** have values **less than** the current node\n- All nodes in the **right subtree** have values **greater than** the current node\n- This applies recursively to every node\n\n**Why BST is useful**: the ordering property enables **efficient search, insertion, and deletion in O(log n)** on average — by eliminating half the remaining tree at each step (like binary search on an array).\n\n**Worst case**: if you insert values in sorted order (1, 2, 3, 4, 5), the BST degenerates into a linked list — O(n) for all operations. **Self-balancing BSTs** (AVL tree, Red-Black tree) prevent this by rebalancing after insertions.\n\n**Common interview operations**: search, insert, delete, in-order traversal (gives sorted order), find min/max.",
+      '**Intuition**: the depth of any node is 1 + the maximum depth of its children. This is naturally recursive — each subtree is the same problem on a smaller input.\n\n**Approach — Recursive DFS**:\n1. Base case: `null` node → return 0\n2. Recursively compute depth of left and right subtrees\n3. Return `1 + Math.max(leftDepth, rightDepth)`\n\n**Approach — Iterative BFS (level-order)**:\n1. Use a queue starting with root\n2. For each level, process all nodes and enqueue their children\n3. Increment depth counter for each level\n\n**Complexity**:\n- DFS: Time O(n) | Space O(h) where h = height (O(log n) balanced, O(n) skewed)\n- BFS: Time O(n) | Space O(w) where w = max width\n\n**Which to choose**: DFS is simpler to write. BFS is better when you need level-by-level information.',
     code: {
-      language: 'typescript',
-      snippet: `class BSTNode {
-  constructor(
-    public val: number,
-    public left: BSTNode | null = null,
-    public right: BSTNode | null = null,
-  ) {}
+      language: 'javascript',
+      snippet: `// Recursive DFS — clean and simple
+function maxDepth(root) {
+  if (!root) return 0;
+  return 1 + Math.max(maxDepth(root.left), maxDepth(root.right));
 }
 
-class BST {
-  root: BSTNode | null = null;
+// Iterative BFS
+function maxDepthBFS(root) {
+  if (!root) return 0;
+  const queue = [root];
+  let depth = 0;
 
-  insert(val: number) {
-    const node = new BSTNode(val);
-    if (!this.root) { this.root = node; return; }
-    let curr = this.root;
-    while (true) {
-      if (val < curr.val) {
-        if (!curr.left)  { curr.left  = node; return; }
-        curr = curr.left;
-      } else {
-        if (!curr.right) { curr.right = node; return; }
-        curr = curr.right;
-      }
+  while (queue.length > 0) {
+    const levelSize = queue.length;
+    depth++;
+    for (let i = 0; i < levelSize; i++) {
+      const node = queue.shift();
+      if (node.left)  queue.push(node.left);
+      if (node.right) queue.push(node.right);
     }
   }
-
-  // In-order traversal gives sorted output
-  inOrder(node = this.root, result: number[] = []): number[] {
-    if (!node) return result;
-    this.inOrder(node.left, result);
-    result.push(node.val);
-    this.inOrder(node.right, result);
-    return result;
-  }
+  return depth;
 }
 
-const bst = new BST();
-[5, 3, 7, 1, 4].forEach(v => bst.insert(v));
-bst.inOrder(); // [1, 3, 4, 5, 7] — sorted!`,
+// Tree: [3, 9, 20, null, null, 15, 7]
+//       3
+//      / \
+//     9   20
+//        /  \
+//       15   7
+// maxDepth → 3`,
     },
   },
 
@@ -259,39 +288,40 @@ bst.inOrder(); // [1, 3, 4, 5, 7] — sorted!`,
     category: 'Data Structures',
     difficulty: 'easy',
     type: 'basics',
-    question: 'What is recursion? Give an example.',
+    question: 'Fibonacci Number — LeetCode #509\n\nThe Fibonacci sequence: F(0) = 0, F(1) = 1, F(n) = F(n-1) + F(n-2) for n > 1.\nGiven n, return F(n).\n\nExample 1: Input: 4  → Output: 3  (0, 1, 1, 2, 3)\nExample 2: Input: 10 → Output: 55\nExample 3: Input: 0  → Output: 0\n\nConstraints: 0 ≤ n ≤ 30\nFollow-up: what is the time complexity of each approach?',
     answer:
-      "**Recursion** is when a function **calls itself** to solve a smaller version of the same problem. It continues until it reaches a **base case** that doesn't require further recursion.\n\n**Two required components**:\n1. **Base case** — the condition that stops the recursion (prevents infinite loop)\n2. **Recursive case** — calls the function with a smaller/simpler input\n\n**How it works mentally**: think about what the function does for one step, and trust that the recursive call handles the rest correctly.\n\n**When to use recursion**:\n- Tree traversal (file systems, DOM, BST)\n- Divide-and-conquer algorithms (merge sort, quick sort)\n- Backtracking problems (mazes, sudoku)\n- Problems with a naturally recursive structure\n\n**Caution**: each recursive call adds a frame to the **call stack**. Very deep recursion causes a **stack overflow**. Iterative solutions or tail recursion optimisation avoid this.\n\n**Memoize** expensive recursive calls to avoid recomputing the same subproblems.",
+      '**Intuition**: naive recursion recomputes the same subproblems exponentially. Caching each result (memoization) reduces this to linear time.\n\n**Approach 1 — Naive Recursion**: O(2ⁿ) time. Computes fib(3) dozens of times for large n. Never use in production.\n\n**Approach 2 — Memoization (top-down DP)**: cache each fib(n) result on first compute. O(n) time, O(n) space.\n\n**Approach 3 — Iterative (bottom-up DP)**: compute from fib(0) up, only tracking the last two values. O(n) time, O(1) space — optimal.\n\n**Complexity comparison**:\n| Approach | Time | Space |\n|---|---|---|\n| Naive recursion | O(2ⁿ) | O(n) stack |\n| Memoization | O(n) | O(n) |\n| Iterative | O(n) | O(1) |\n\n**Key insight**: any problem where fib(n) depends on fib(n-1) and fib(n-2) is dynamic programming. This pattern appears in climbing stairs, min-cost path, and many others.',
     code: {
-      language: 'typescript',
-      snippet: `// Factorial: n! = n * (n-1)!
-function factorial(n: number): number {
-  if (n <= 1) return 1;           // base case
-  return n * factorial(n - 1);   // recursive case
-}
-factorial(5); // 5 * 4 * 3 * 2 * 1 = 120
-
-// Fibonacci (naive — exponential without memoization)
-function fib(n: number): number {
-  if (n <= 1) return n;           // base cases: fib(0)=0, fib(1)=1
-  return fib(n - 1) + fib(n - 2);
+      language: 'javascript',
+      snippet: `// Approach 1: Naive recursion — O(2^n), DO NOT use for large n
+function fibNaive(n) {
+  if (n <= 1) return n;
+  return fibNaive(n - 1) + fibNaive(n - 2);
 }
 
-// Tree traversal — naturally recursive
-function sumTree(node: TreeNode | null): number {
-  if (!node) return 0;            // base case: empty node
-  return node.val + sumTree(node.left) + sumTree(node.right);
+// Approach 2: Memoization — O(n) time, O(n) space
+function fibMemo(n, memo = new Map()) {
+  if (n <= 1) return n;
+  if (memo.has(n)) return memo.get(n);
+  const result = fibMemo(n - 1, memo) + fibMemo(n - 2, memo);
+  memo.set(n, result);
+  return result;
 }
 
-// File system traversal
-function getAllFiles(dir: string): string[] {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  return entries.flatMap(e =>
-    e.isDirectory()
-      ? getAllFiles(path.join(dir, e.name)) // recurse into subdirectory
-      : [path.join(dir, e.name)],
-  );
-}`,
+// Approach 3: Iterative DP — O(n) time, O(1) space (optimal)
+function fib(n) {
+  if (n <= 1) return n;
+  let prev = 0, curr = 1;
+  for (let i = 2; i <= n; i++) {
+    [prev, curr] = [curr, prev + curr];
+  }
+  return curr;
+}
+
+console.log(fib(0));  // 0
+console.log(fib(1));  // 1
+console.log(fib(4));  // 3
+console.log(fib(10)); // 55`,
     },
   },
 
@@ -300,167 +330,241 @@ function getAllFiles(dir: string): string[] {
     category: 'Data Structures',
     difficulty: 'easy',
     type: 'basics',
-    question: 'What is the difference between depth-first search (DFS) and breadth-first search (BFS)?',
+    question: 'Flood Fill — LeetCode #733\n\nGiven an m × n image grid of integers, a starting pixel (sr, sc), and a new color, perform a flood fill.\n\nFlood fill: change the color of the starting pixel and all 4-directionally connected pixels that share the same original color, then do the same for all newly changed pixels (recursively).\n\nExample:\nInput:  image = [[1,1,1],[1,1,0],[1,0,1]], sr = 1, sc = 1, color = 2\nOutput: [[2,2,2],[2,2,0],[2,0,1]]\n\nConstraints:\n- m == image.length, n == image[i].length\n- 1 ≤ m, n ≤ 50 | 0 ≤ image[i][j] ≤ 65535',
     answer:
-      "Both are algorithms for **traversing a graph or tree**, visiting every node.\n\n**Depth-First Search (DFS)**: go as **deep as possible** along one path before backtracking. Uses a **stack** (or the call stack via recursion).\n- Explores one complete path before trying alternatives\n- Implementations: preorder, inorder, postorder tree traversal\n- Good for: detecting cycles, topological sort, solving mazes, finding connected components\n\n**Breadth-First Search (BFS)**: explore all nodes at the **current depth level** before going deeper. Uses a **queue**.\n- Explores layer by layer\n- Good for: **shortest path** in an unweighted graph, level-order tree traversal, finding nodes closest to a source\n\n**Key difference**:\n| | DFS | BFS |\n|---|---|---|\n| Data structure | Stack (LIFO) | Queue (FIFO) |\n| Memory | O(height) | O(width) |\n| Shortest path | No | Yes (unweighted) |\n| Implementation | Recursive or iterative | Iterative (queue) |",
+      '**Intuition**: this is DFS/BFS on a grid. Starting from (sr, sc), spread in 4 directions to all connected cells that share the original color.\n\n**Approach — DFS**:\n1. Record the original color at (sr, sc)\n2. If original color already equals new color → return early (prevents infinite loop)\n3. Change current cell to new color (mark visited)\n4. Recursively DFS all 4 valid neighbors that have the original color\n\n**Approach — BFS (queue)**: same logic but iterative with a queue. Useful if the grid is huge and recursion depth would overflow the stack.\n\n**Complexity**: Time O(m × n) | Space O(m × n) for the recursion stack\n\n**Common mistake**: not checking if `startColor === color` before starting — causes infinite recursion because you immediately re-visit cells you just changed.',
     code: {
-      language: 'typescript',
-      snippet: `// DFS — recursive (uses call stack)
-function dfs(node: TreeNode | null, result: number[] = []): number[] {
-  if (!node) return result;
-  result.push(node.val);       // preorder: visit before children
-  dfs(node.left, result);
-  dfs(node.right, result);
-  return result;
+      language: 'javascript',
+      snippet: `function floodFill(image, sr, sc, color) {
+  const startColor = image[sr][sc];
+  if (startColor === color) return image; // avoid infinite loop
+
+  const rows = image.length, cols = image[0].length;
+  const dirs = [[0,1],[0,-1],[1,0],[-1,0]]; // 4 directions
+
+  function dfs(r, c) {
+    if (r < 0 || r >= rows || c < 0 || c >= cols) return; // out of bounds
+    if (image[r][c] !== startColor) return;               // wrong color
+
+    image[r][c] = color; // fill
+
+    for (const [dr, dc] of dirs) dfs(r + dr, c + dc);
+  }
+
+  dfs(sr, sc);
+  return image;
 }
 
-// BFS — iterative with a queue
-function bfs(root: TreeNode | null): number[][] {
-  if (!root) return [];
-  const result: number[][] = [];
-  const queue: TreeNode[] = [root];
-
-  while (queue.length > 0) {
-    const levelSize = queue.length;
-    const level: number[] = [];
-
-    for (let i = 0; i < levelSize; i++) {
-      const node = queue.shift()!;
-      level.push(node.val);
-      if (node.left)  queue.push(node.left);
-      if (node.right) queue.push(node.right);
-    }
-    result.push(level);
-  }
-  return result; // [[root], [level2...], [level3...]]
-}`,
+const image = [[1,1,1],[1,1,0],[1,0,1]];
+console.log(floodFill(image, 1, 1, 2));
+// [[2,2,2],
+//  [2,2,0],
+//  [2,0,1]]`,
     },
   },
 
   {
-    id: 'ds-m3',
+    id: 'ds-e6',
     category: 'Data Structures',
-    difficulty: 'medium',
+    difficulty: 'easy',
     type: 'basics',
-    question: 'What is dynamic programming? How does memoization help?',
+    question: 'Fizz Buzz — LeetCode #412\n\nGiven an integer n, return a string array answer where:\n- answer[i] == "FizzBuzz" if i is divisible by 3 and 5\n- answer[i] == "Fizz" if i is divisible by 3\n- answer[i] == "Buzz" if i is divisible by 5\n- answer[i] == i (as a string) otherwise\n\nNote: i starts at 1, not 0.\n\nExample 1: Input: 3  → Output: ["1","2","Fizz"]\nExample 2: Input: 5  → Output: ["1","2","Fizz","4","Buzz"]\nExample 3: Input: 15 → Output: ["1","2","Fizz","4","Buzz","Fizz","7","8","Fizz","Buzz","11","Fizz","13","14","FizzBuzz"]\n\nConstraints: 1 ≤ n ≤ 10⁴',
     answer:
-      "**Dynamic programming (DP)** is an optimization technique for problems that can be broken down into **overlapping subproblems** with **optimal substructure** (the optimal solution to the whole problem is built from optimal solutions to subproblems).\n\n**Two approaches**:\n\n**Top-down with memoization**: write the recursive solution naturally, then cache results of subproblems. On a recursive call, check the cache first — if the answer is already computed, return it immediately.\n\n**Bottom-up (tabulation)**: solve smaller subproblems first, store results in a table, build up to the final answer. No recursion — avoids call stack overhead.\n\n**How memoization helps**: the naive recursive Fibonacci computes `fib(n)` in O(2ⁿ) because it recomputes the same values many times. With memoization, each unique `n` is computed once — O(n) time and space.\n\n**Classic DP problems**: Fibonacci, coin change, longest common subsequence, knapsack, edit distance, shortest paths (Bellman-Ford).",
+      '**Intuition**: check divisibility with `%`. The only trick is order — check 15 (both) first, otherwise a number like 15 hits the `% 3` check and returns "Fizz" before ever reaching the combined case.\n\n**Approach**:\n1. Loop i from 1 to n\n2. Check `i % 15 === 0` first → "FizzBuzz"\n3. Then `i % 3 === 0` → "Fizz"\n4. Then `i % 5 === 0` → "Buzz"\n5. Else → `String(i)`\n\n**Complexity**: Time O(n) | Space O(n)\n\n**Common mistake**: using separate `if` blocks instead of `else if` — a multiple of 15 would then push "Fizz" and "Buzz" as separate entries instead of "FizzBuzz".',
     code: {
-      language: 'typescript',
-      snippet: `// Fibonacci — top-down DP with memoization
-function fibMemo(n: number, memo = new Map<number, number>()): number {
-  if (n <= 1) return n;
-  if (memo.has(n)) return memo.get(n)!; // cache hit
-  const result = fibMemo(n - 1, memo) + fibMemo(n - 2, memo);
-  memo.set(n, result);                  // cache result
+      language: 'javascript',
+      snippet: `function fizzBuzz(n) {
+  const result = [];
+  for (let i = 1; i <= n; i++) {
+    if      (i % 15 === 0) result.push('FizzBuzz'); // check BOTH first
+    else if (i % 3  === 0) result.push('Fizz');
+    else if (i % 5  === 0) result.push('Buzz');
+    else                   result.push(String(i));
+  }
   return result;
 }
-fibMemo(50); // instant; naive recursion would take ~2^50 operations
 
-// Fibonacci — bottom-up DP (tabulation)
-function fibDP(n: number): number {
-  if (n <= 1) return n;
-  const dp = [0, 1];
-  for (let i = 2; i <= n; i++) {
-    dp[i] = dp[i - 1] + dp[i - 2];
-  }
-  return dp[n];
-}
-
-// Coin change: minimum coins to make amount
-function coinChange(coins: number[], amount: number): number {
-  const dp = new Array(amount + 1).fill(Infinity);
-  dp[0] = 0;
-  for (let i = 1; i <= amount; i++) {
-    for (const coin of coins) {
-      if (coin <= i) dp[i] = Math.min(dp[i], dp[i - coin] + 1);
-    }
-  }
-  return dp[amount] === Infinity ? -1 : dp[amount];
-}`,
+console.log(fizzBuzz(15));
+// ['1','2','Fizz','4','Buzz','Fizz','7','8','Fizz',
+//  'Buzz','11','Fizz','13','14','FizzBuzz']`,
     },
   },
 
   {
-    id: 'ds-m4',
+    id: 'ds-e7',
     category: 'Data Structures',
-    difficulty: 'medium',
+    difficulty: 'easy',
     type: 'basics',
-    question: 'What is a graph data structure? What are its representations?',
+    question: 'Valid Palindrome — LeetCode #125\n\nA phrase is a palindrome if, after converting all uppercase letters to lowercase and removing all non-alphanumeric characters, it reads the same forward and backward.\n\nGiven a string s, return true if it is a palindrome, or false otherwise.\n\nExample 1:\nInput:  "A man, a plan, a canal: Panama"\nOutput: true  (→ "amanaplanacanalpanama")\n\nExample 2:\nInput:  "race a car"\nOutput: false  (→ "raceacar")\n\nExample 3:\nInput:  " "\nOutput: true  (→ ""  — empty string is palindrome)\n\nConstraints: 1 ≤ s.length ≤ 2 × 10⁵',
     answer:
-      "A **graph** is a collection of **nodes (vertices)** connected by **edges**. Unlike a tree, a graph can have cycles and multiple paths between nodes.\n\n**Types**:\n- **Directed** (digraph): edges have a direction (A → B doesn't mean B → A). Example: Twitter follows.\n- **Undirected**: edges have no direction (A — B means both can reach each other). Example: Facebook friends.\n- **Weighted**: edges have a cost (distance, latency). Used in shortest-path algorithms.\n\n**Representations**:\n\n**Adjacency List** (most common): a Map/object where each node maps to an array of its neighbors.\n- Space: O(V + E) — efficient for sparse graphs\n- Check if edge exists: O(degree of node)\n\n**Adjacency Matrix**: a 2D array where `matrix[i][j] = 1` if edge exists.\n- Space: O(V²) — wasteful for sparse graphs\n- Check if edge exists: O(1)\n\n**Real-world uses**: social networks, routing (Dijkstra, A*), dependency graphs, recommendation engines.",
+      '**Intuition**: strip non-alphanumeric characters and compare the cleaned string to its reverse. The two-pointer approach avoids creating a reversed copy.\n\n**Approach 1 — Clean and reverse**: O(n) time, O(n) space.\n\n**Approach 2 — Two pointers (optimal)**: left starts at 0, right at end. Skip non-alphanumeric chars by advancing the pointers. Compare lowercase characters at each valid position. Return false on first mismatch, true if pointers cross.\n\n**Complexity**:\n- Approach 1: Time O(n) | Space O(n)\n- Approach 2: Time O(n) | Space O(1) ← preferred\n\n**Edge cases**: empty string after cleaning → true. Single character → true.',
     code: {
-      language: 'typescript',
-      snippet: `// Adjacency list — most common representation
-class Graph {
-  private adj = new Map<string, string[]>();
+      language: 'javascript',
+      snippet: `// Approach 1: clean and reverse — O(n) space
+function isPalindrome1(s) {
+  const clean = s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return clean === clean.split('').reverse().join('');
+}
 
-  addEdge(u: string, v: string, directed = false) {
-    if (!this.adj.has(u)) this.adj.set(u, []);
-    if (!this.adj.has(v)) this.adj.set(v, []);
-    this.adj.get(u)!.push(v);
-    if (!directed) this.adj.get(v)!.push(u);
-  }
+// Approach 2: two pointers — O(1) space (optimal)
+function isPalindrome(s) {
+  const isAlNum = (c) => /[a-z0-9]/.test(c);
+  let left = 0, right = s.length - 1;
 
-  neighbors(node: string): string[] {
-    return this.adj.get(node) ?? [];
-  }
+  while (left < right) {
+    while (left < right && !isAlNum(s[left]))  left++;  // skip non-alnum
+    while (left < right && !isAlNum(s[right])) right--;
 
-  // BFS — shortest path (unweighted)
-  shortestPath(start: string, end: string): string[] | null {
-    const queue: string[][] = [[start]];
-    const visited = new Set([start]);
-    while (queue.length) {
-      const path = queue.shift()!;
-      const node = path[path.length - 1];
-      if (node === end) return path;
-      for (const neighbor of this.neighbors(node)) {
-        if (!visited.has(neighbor)) {
-          visited.add(neighbor);
-          queue.push([...path, neighbor]);
-        }
-      }
-    }
-    return null;
+    if (s[left].toLowerCase() !== s[right].toLowerCase()) return false;
+    left++;
+    right--;
   }
-}`,
+  return true;
+}
+
+console.log(isPalindrome('A man, a plan, a canal: Panama')); // true
+console.log(isPalindrome('race a car'));  // false
+console.log(isPalindrome(' '));           // true`,
     },
   },
+
+  {
+    id: 'ds-e8',
+    category: 'Data Structures',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'Count Vowels and Consonants\n\nGiven a string s, count the number of vowels (a, e, i, o, u) and consonants. Ignore digits, spaces, and special characters — count alphabetical characters only. The check is case-insensitive.\n\nExample 1:\nInput:  "Hello World!"\nOutput: { vowels: 3, consonants: 7 }\n\nExample 2:\nInput:  "Accenture"\nOutput: { vowels: 4, consonants: 5 }\n\nExample 3:\nInput:  "12345"\nOutput: { vowels: 0, consonants: 0 }\n\nConstraints: 1 ≤ s.length ≤ 10⁴',
+    answer:
+      '**Intuition**: iterate over each character and classify it. Skip anything that is not a letter (`/[a-z]/` check after lowercasing). If it is a letter, check if it is in the vowel set.\n\n**Approach**:\n1. Lowercase the entire string\n2. For each character: skip if not `[a-z]`\n3. Check if it is a vowel (use a Set for O(1) lookup)\n4. Otherwise it is a consonant\n\n**Complexity**: Time O(n) | Space O(1)\n\n**Common mistake**: not skipping non-alphabetic characters — counting digits or spaces as consonants.',
+    code: {
+      language: 'javascript',
+      snippet: `function countVowelsConsonants(s) {
+  const vowels = new Set(['a', 'e', 'i', 'o', 'u']);
+  let vowelCount = 0, consonantCount = 0;
+
+  for (const ch of s.toLowerCase()) {
+    if (!/[a-z]/.test(ch)) continue; // skip digits, spaces, punctuation
+    if (vowels.has(ch)) vowelCount++;
+    else consonantCount++;
+  }
+
+  return { vowels: vowelCount, consonants: consonantCount };
+}
+
+console.log(countVowelsConsonants('Hello World!'));
+// { vowels: 3, consonants: 7 }
+
+console.log(countVowelsConsonants('Accenture'));
+// { vowels: 4, consonants: 5 }
+
+console.log(countVowelsConsonants('12345'));
+// { vowels: 0, consonants: 0 }`,
+    },
+  },
+
+  {
+    id: 'ds-e9',
+    category: 'Data Structures',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'Find Minimum in Array — Classic Problem\n\nGiven an unsorted array of integers nums, return both the maximum and minimum values in a single pass (do not sort the array).\n\nExample 1:\nInput:  [3, 7, 1, 9, 2, 5]\nOutput: { max: 9, min: 1 }\n\nExample 2:\nInput:  [42]\nOutput: { max: 42, min: 42 }\n\nExample 3:\nInput:  [-3, -1, -7, -5]\nOutput: { max: -1, min: -7 }\n\nConstraints: 1 ≤ nums.length ≤ 10⁵ | Do not use Math.max(...arr) — explain why.',
+    answer:
+      '**Intuition**: initialise both `max` and `min` to the first element, then scan from index 1. Update each when a larger or smaller value is found.\n\n**Approach**:\n1. Guard empty array\n2. Set `max = min = nums[0]`\n3. For i from 1 to n-1: update `max` if `nums[i] > max`, update `min` if `nums[i] < min`\n4. Return both\n\n**Why not `Math.max(...arr)`**: the spread operator converts the array into function arguments. JavaScript\'s call stack has a limited argument count (~125k). For arrays larger than ~100k elements this throws: `RangeError: Maximum call stack size exceeded`. The loop is always safe.\n\n**Complexity**: Time O(n) | Space O(1)',
+    code: {
+      language: 'javascript',
+      snippet: `function findMaxMin(nums) {
+  if (nums.length === 0) return null;
+
+  let max = nums[0], min = nums[0];
+
+  for (let i = 1; i < nums.length; i++) {
+    if (nums[i] > max) max = nums[i];
+    if (nums[i] < min) min = nums[i];
+  }
+
+  return { max, min };
+}
+
+console.log(findMaxMin([3, 7, 1, 9, 2, 5])); // { max: 9, min: 1 }
+console.log(findMaxMin([42]));                // { max: 42, min: 42 }
+console.log(findMaxMin([-3, -1, -7, -5]));   // { max: -1, min: -7 }
+
+// ✗ Dangerous for large arrays:
+// Math.max(...new Array(200000).fill(1))
+// → RangeError: Maximum call stack size exceeded`,
+    },
+  },
+
+  {
+    id: 'ds-e10',
+    category: 'Data Structures',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'Reverse String — LeetCode #344\n\nWrite a function that reverses a string. The input string is given as an array of characters s. You must do this by modifying the input array in-place with O(1) extra memory.\n\nExample 1:\nInput:  ["h","e","l","l","o"]\nOutput: ["o","l","l","e","h"]\n\nExample 2:\nInput:  ["H","a","n","n","a","h"]\nOutput: ["h","a","n","n","a","H"]\n\nBonus: also reverse the words in a sentence ("Hello World" → "World Hello").\n\nConstraints: 1 ≤ s.length ≤ 10⁵',
+    answer:
+      '**Intuition**: two pointers — one at the start, one at the end. Swap them and move inward until they meet. No extra space needed.\n\n**Approach**:\n1. `left = 0`, `right = s.length - 1`\n2. While `left < right`: swap `s[left]` and `s[right]`, then `left++`, `right--`\n3. The array is reversed in-place\n\n**Complexity**: Time O(n) | Space O(1)\n\n**Common variation — reverse words in sentence**: split on spaces, reverse the words array, rejoin. This creates a new string (O(n) space) but is O(n) time.',
+    code: {
+      language: 'javascript',
+      snippet: `// LeetCode #344: reverse char array in-place
+function reverseString(s) {
+  let left = 0, right = s.length - 1;
+  while (left < right) {
+    [s[left], s[right]] = [s[right], s[left]]; // swap
+    left++;
+    right--;
+  }
+}
+
+const s = ['h','e','l','l','o'];
+reverseString(s);
+console.log(s); // ['o','l','l','e','h']
+
+// Bonus: reverse words in a sentence
+function reverseWords(sentence) {
+  return sentence.split(' ').reverse().join(' ');
+}
+
+console.log(reverseWords('Hello World'));      // 'World Hello'
+console.log(reverseWords('the sky is blue')); // 'blue is sky the'`,
+    },
+  },
+
+  // ─── Data Structures (Medium) ────────────────────────────────────────────────
 
   {
     id: 'ds-m1',
     category: 'Data Structures',
     difficulty: 'medium',
     type: 'basics',
-    question: 'What is a hash table? How does it handle collisions?',
+    question: 'Contains Duplicate — LeetCode #217\n\nGiven an integer array nums, return true if any value appears at least twice in the array, and return false if every element is distinct.\n\nExample 1: Input: [1,2,3,1]     → Output: true\nExample 2: Input: [1,2,3,4]     → Output: false\nExample 3: Input: [1,1,1,3,3,4,3,2,4,2] → Output: true\n\nConstraints: 1 ≤ nums.length ≤ 10⁵ | -10⁹ ≤ nums[i] ≤ 10⁹\nFollow-up: can you solve it in O(n) time and O(1) space? (Hint: you cannot with a general input — explain why.)',
     answer:
-      "**A hash table stores key-value pairs and delivers O(1) average-time lookup, insertion, and deletion** — regardless of how many items it holds. This is why JavaScript's `Map` and `{}` objects are so fast.\n\n**How it works**:\n1. Apply a **hash function** to the key: `index = hash(key) % capacity`\n2. Store the value at `array[index]`\n3. To look up a key, compute the same index and read `array[index]`\n\n**Collision**: two different keys can produce the same index. This is normal and handled by:\n\n- **Chaining** — each bucket is a linked list of `(key, value)` pairs. Multiple entries at the same index are chained together. Worst case O(n) if all keys collide (but a good hash function makes this extremely rare).\n- **Open addressing (linear probing)** — on collision, scan forward to the next empty slot. Better CPU cache performance but degrades badly at high fill ratios.\n\n**Load factor**: `entries / capacity`. When it exceeds ~0.7, the table **doubles its capacity and rehashes** all entries. This single operation is O(n) but happens rarely — so insertion is O(1) amortised.\n\n**Most common gotcha**: using a plain `{}` object as a map in JavaScript has subtle bugs — inherited prototype properties (`constructor`, `toString`) can collide with your keys. Always use `new Map()` for a proper hash map.\n\n**JavaScript `Map`** preserves insertion order, accepts any type as a key, and has `size` built-in — prefer it over `{}` for dynamic key-value storage.",
+      '**Intuition**: use a Set to remember every number seen so far. Before inserting, check if it is already there.\n\n**Approach — Hash Set O(n)**:\n1. Create an empty Set\n2. For each number: if it is in the Set → return true; else add it\n3. Return false if the loop finishes\n\n**Approach — Sort O(n log n)**:\nSort the array, then check adjacent elements. Uses O(1) extra space (if sorting in-place) but is slower.\n\n**Complexity**:\n- Hash Set: Time O(n) | Space O(n) ← preferred\n- Sort: Time O(n log n) | Space O(1)\n\n**Follow-up answer**: for arbitrary integer ranges, you cannot achieve O(n) time AND O(1) space simultaneously — any sublinear-space solution requires at least O(n log n) comparisons by information theory. The O(n) / O(1) trade-off is a classic interview discussion point.\n\n**One-liner**: `nums.length !== new Set(nums).size`',
     code: {
-      language: 'typescript',
-      snippet: `class HashMap<K, V> {
-  private buckets: Array<[K, V][]>;
-  constructor(private capacity = 16) {
-    this.buckets = Array.from({ length: capacity }, () => []);
+      language: 'javascript',
+      snippet: `// Hash Set — O(n) time, O(n) space
+function containsDuplicate(nums) {
+  const seen = new Set();
+  for (const num of nums) {
+    if (seen.has(num)) return true;
+    seen.add(num);
   }
+  return false;
+}
 
-  private hash(key: K): number {
-    const str = String(key);
-    let h = 0;
-    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % this.capacity;
-    return h;
-  }
+// One-liner (same complexity)
+const containsDup = (nums) => nums.length !== new Set(nums).size;
 
-  set(key: K, val: V) {
-    const b = this.buckets[this.hash(key)];
-    const pair = b.find(([k]) => k === key);
-    if (pair) pair[1] = val;
-    else b.push([key, val]);
+// Sort approach — O(n log n) time, O(1) extra space
+function containsDuplicateSort(nums) {
+  nums.sort((a, b) => a - b);
+  for (let i = 1; i < nums.length; i++) {
+    if (nums[i] === nums[i - 1]) return true;
   }
+  return false;
+}
 
-  get(key: K): V | undefined {
-    return this.buckets[this.hash(key)].find(([k]) => k === key)?.[1];
-  }
-}`,
+console.log(containsDuplicate([1,2,3,1])); // true
+console.log(containsDuplicate([1,2,3,4])); // false`,
     },
   },
 
@@ -469,35 +573,289 @@ class Graph {
     category: 'Data Structures',
     difficulty: 'medium',
     type: 'basics',
-    question: 'What is Big O notation? List the most common time complexities with examples.',
+    question: 'Best Time to Buy and Sell Stock — LeetCode #121\n\nYou are given an array prices where prices[i] is the price of a stock on the ith day. You want to maximize profit by choosing a single day to buy and a single day to sell after the buy day.\n\nReturn the maximum profit. If no profit is possible, return 0.\n\nExample 1:\nInput:  [7, 1, 5, 3, 6, 4]\nOutput: 5  (buy at 1, sell at 6)\n\nExample 2:\nInput:  [7, 6, 4, 3, 1]\nOutput: 0  (prices only decrease — no profitable trade)\n\nConstraints: 1 ≤ prices.length ≤ 10⁵ | 0 ≤ prices[i] ≤ 10⁴',
     answer:
-      "**Big O notation describes how an algorithm's performance scales as the input size grows.** It answers the question: 'If I double the input, how much slower does this get?'\n\nIt expresses the **worst-case upper bound**, ignoring constants (we care about the shape of growth, not the exact milliseconds).\n\n| Complexity | Name | Description | Example |\n|---|---|---|---|\n| O(1) | Constant | Same speed regardless of input size | Array index lookup, hash map get |\n| O(log n) | Logarithmic | Halves the problem each step | Binary search, balanced BST lookup |\n| O(n) | Linear | Work grows proportionally to input | Scan an array, traverse a linked list |\n| O(n log n) | Log-linear | Common in efficient sorting | Merge sort, heap sort |\n| O(n²) | Quadratic | Every element compared to every other | Bubble sort, nested loops over an array |\n| O(2ⁿ) | Exponential | Doubles with each additional input | Recursive Fibonacci without memoization |\n\n**Practical rules of thumb**:\n- O(n log n) is acceptable for `n < 10⁷` (millions of items)\n- O(n²) becomes too slow around `n > 10⁴` (tens of thousands)\n- If your input is always small (< 100 items), O(n²) is fine — don't over-optimize\n\n**Most common interview gotcha**: two nested `for` loops over the same array = O(n²). If you can replace one loop with a hash map lookup (O(1)), you often get O(n) overall.",
+      '**Intuition**: at each day, the best profit is `current price − lowest price seen so far`. Track both the running minimum and the best profit in one pass.\n\n**Approach — One pass O(n)**:\n1. `minPrice = Infinity`, `maxProfit = 0`\n2. For each price:\n   - Update `minPrice = Math.min(minPrice, price)`\n   - Update `maxProfit = Math.max(maxProfit, price - minPrice)`\n3. Return `maxProfit`\n\n**Why O(n) beats O(n²)**: the brute-force checks every (buy, sell) pair with nested loops. The key insight — once you know the minimum so far, you don\'t need to revisit previous prices.\n\n**Complexity**:\n- Brute force: Time O(n²) | Space O(1)\n- One pass: Time O(n) | Space O(1)\n\n**This problem illustrates the most common Big O optimization**: replace inner loop + scan with a "running best" variable.',
     code: {
-      language: 'typescript',
-      snippet: `// O(1) — constant
-const first = arr[0];
+      language: 'javascript',
+      snippet: `// Brute force — O(n²), TLE on large inputs
+function maxProfitBrute(prices) {
+  let max = 0;
+  for (let i = 0; i < prices.length; i++)
+    for (let j = i + 1; j < prices.length; j++)
+      max = Math.max(max, prices[j] - prices[i]);
+  return max;
+}
 
-// O(log n) — binary search
-function binarySearch(arr: number[], target: number): number {
-  let lo = 0, hi = arr.length - 1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    if (arr[mid] === target) return mid;
-    if (arr[mid] < target) lo = mid + 1; else hi = mid - 1;
+// One pass — O(n), optimal
+function maxProfit(prices) {
+  let minPrice = Infinity;
+  let maxProfit = 0;
+
+  for (const price of prices) {
+    minPrice = Math.min(minPrice, price);          // cheapest day to buy
+    maxProfit = Math.max(maxProfit, price - minPrice); // profit if sold today
   }
+
+  return maxProfit;
+}
+
+console.log(maxProfit([7, 1, 5, 3, 6, 4])); // 5  (buy 1, sell 6)
+console.log(maxProfit([7, 6, 4, 3, 1]));    // 0  (no profitable trade)`,
+    },
+  },
+
+  {
+    id: 'ds-m3',
+    category: 'Data Structures',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'Climbing Stairs — LeetCode #70\n\nYou are climbing a staircase. It takes n steps to reach the top. Each time you can either climb 1 or 2 steps. In how many distinct ways can you climb to the top?\n\nExample 1: Input: 2 → Output: 2  (1+1, 2)\nExample 2: Input: 3 → Output: 3  (1+1+1, 1+2, 2+1)\nExample 3: Input: 5 → Output: 8\n\nConstraints: 1 ≤ n ≤ 45',
+    answer:
+      '**Intuition**: to reach step n, you either came from step n-1 (1 step) or step n-2 (2 steps). So `ways(n) = ways(n-1) + ways(n-2)`. This is exactly Fibonacci.\n\n**Approach — Bottom-up DP**:\n1. Base cases: `dp[1] = 1`, `dp[2] = 2`\n2. For i from 3 to n: `dp[i] = dp[i-1] + dp[i-2]`\n3. Return `dp[n]`\n\n**Space optimization**: only the last two values are needed — no array required.\n\n**Complexity**: Time O(n) | Space O(1) with space optimization\n\n**Why not recursion without memoization**: `ways(n)` calls `ways(n-1)` and `ways(n-2)`, each of which call more recursive calls — exponential O(2ⁿ). With memoization it becomes O(n).\n\n**Pattern to recognize**: whenever `f(n) = f(n-1) + f(n-2)`, think Fibonacci / DP.',
+    code: {
+      language: 'javascript',
+      snippet: `// Bottom-up DP with space optimization — O(n) time, O(1) space
+function climbStairs(n) {
+  if (n <= 2) return n;
+
+  let prev = 1, curr = 2; // ways to reach step 1 and step 2
+  for (let i = 3; i <= n; i++) {
+    [prev, curr] = [curr, prev + curr];
+  }
+  return curr;
+}
+
+// Memoized recursion — O(n) time, O(n) space
+function climbStairsMemo(n, memo = {}) {
+  if (n <= 2) return n;
+  if (memo[n]) return memo[n];
+  memo[n] = climbStairsMemo(n - 1, memo) + climbStairsMemo(n - 2, memo);
+  return memo[n];
+}
+
+console.log(climbStairs(2));  // 2
+console.log(climbStairs(3));  // 3
+console.log(climbStairs(5));  // 8
+console.log(climbStairs(10)); // 89`,
+    },
+  },
+
+  {
+    id: 'ds-m4',
+    category: 'Data Structures',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'Number of Islands — LeetCode #200\n\nGiven an m × n 2D binary grid where \'1\' represents land and \'0\' represents water, return the number of islands. An island is surrounded by water and is formed by connecting adjacent lands horizontally or vertically.\n\nExample 1:\nInput:\n[["1","1","1","1","0"],\n ["1","1","0","1","0"],\n ["1","1","0","0","0"],\n ["0","0","0","0","0"]]\nOutput: 1\n\nExample 2:\nInput:\n[["1","1","0","0","0"],\n ["1","1","0","0","0"],\n ["0","0","1","0","0"],\n ["0","0","0","1","1"]]\nOutput: 3\n\nConstraints: 1 ≤ m, n ≤ 300',
+    answer:
+      '**Intuition**: each unvisited \'1\' is the start of an island. DFS/BFS from it to visit all connected land cells (marking them as visited), then count how many times you had to start a new DFS.\n\n**Approach — DFS**:\n1. Iterate every cell\n2. When you find an unvisited \'1\', increment island count and DFS all 4 neighbors\n3. Mark cells as \'0\' (or a visited marker) during DFS to avoid revisiting\n4. Return the count\n\n**Complexity**: Time O(m × n) | Space O(m × n) for the recursion stack\n\n**Union-Find alternative**: for follow-up questions about connecting islands dynamically, Union-Find (Disjoint Set Union) is more efficient for repeated queries.\n\n**Common mistake**: forgetting to mark cells as visited before recursing — causes infinite loops.',
+    code: {
+      language: 'javascript',
+      snippet: `function numIslands(grid) {
+  if (!grid || grid.length === 0) return 0;
+
+  const rows = grid.length, cols = grid[0].length;
+  let count = 0;
+
+  function dfs(r, c) {
+    if (r < 0 || r >= rows || c < 0 || c >= cols) return;
+    if (grid[r][c] !== '1') return;
+
+    grid[r][c] = '0'; // mark visited (sink the land)
+
+    dfs(r + 1, c);
+    dfs(r - 1, c);
+    dfs(r, c + 1);
+    dfs(r, c - 1);
+  }
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (grid[r][c] === '1') {
+        count++;       // found an unvisited island
+        dfs(r, c);     // sink the whole island
+      }
+    }
+  }
+
+  return count;
+}
+
+const grid = [['1','1','0','0','0'],['1','1','0','0','0'],
+              ['0','0','1','0','0'],['0','0','0','1','1']];
+console.log(numIslands(grid)); // 3`,
+    },
+  },
+
+  {
+    id: 'ds-m5',
+    category: 'Data Structures',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'Valid Anagram — LeetCode #242\n\nGiven two strings s and t, return true if t is an anagram of s, and false otherwise. An anagram uses the same characters with the same frequencies in a different order.\n\nExample 1: Input: s = "anagram", t = "nagaram" → Output: true\nExample 2: Input: s = "rat",     t = "car"     → Output: false\nExample 3: Input: s = "listen",  t = "silent"  → Output: true\n\nConstraints: 1 ≤ s.length, t.length ≤ 5 × 10⁴ | s and t consist of lowercase English letters\nFollow-up: what if the inputs contain Unicode characters?',
+    answer:
+      '**Intuition**: two strings are anagrams if and only if they have the exact same character frequencies. A frequency map captures this.\n\n**Approach 1 — Sort and compare**: O(n log n) — sort both strings alphabetically and compare. Simple but slower.\n\n**Approach 2 — Frequency map (optimal)**: O(n)\n1. Early return if lengths differ\n2. Count frequency of each character in s\n3. Decrement for each character in t\n4. If any count goes negative → not an anagram\n\n**Complexity**:\n- Sort: Time O(n log n) | Space O(1)\n- Freq map: Time O(n) | Space O(1) — at most 26 keys\n\n**Follow-up (Unicode)**: use a `Map` instead of an object — `Map` handles any character as a key, not just letters.',
+    code: {
+      language: 'javascript',
+      snippet: `// Approach 1: sort and compare — O(n log n)
+function isAnagramSort(s, t) {
+  if (s.length !== t.length) return false;
+  const sort = str => str.split('').sort().join('');
+  return sort(s) === sort(t);
+}
+
+// Approach 2: frequency map — O(n), optimal
+function isAnagram(s, t) {
+  if (s.length !== t.length) return false;
+
+  const freq = {};
+  for (const ch of s) freq[ch] = (freq[ch] || 0) + 1;
+  for (const ch of t) {
+    if (!freq[ch]) return false; // char not in s or count exhausted
+    freq[ch]--;
+  }
+  return true;
+}
+
+console.log(isAnagram('anagram', 'nagaram')); // true
+console.log(isAnagram('rat', 'car'));         // false
+console.log(isAnagram('listen', 'silent'));   // true`,
+    },
+  },
+
+  {
+    id: 'ds-m6',
+    category: 'Data Structures',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'First Unique Character in a String — LeetCode #387\n\nGiven a string s, find the first non-repeating character in it and return its index. If it does not exist, return -1.\n\nExample 1: Input: "leetcode"  → Output: 0  (\'l\' appears once)\nExample 2: Input: "loveleetcode" → Output: 2  (\'v\' appears once)\nExample 3: Input: "aabb"      → Output: -1  (no unique character)\n\nConstraints: 1 ≤ s.length ≤ 10⁵ | s consists of only lowercase English letters',
+    answer:
+      '**Intuition**: two passes — first build a frequency count, then scan again to find the first character with count 1. The second pass over the original string preserves insertion order.\n\n**Approach**:\n1. Build a frequency map: for each char, `freq[ch]++`\n2. Scan s again: return the index of the first char where `freq[ch] === 1`\n3. If no such char exists, return -1\n\n**Why two passes**: after the first pass the frequency map is complete. A single pass cannot tell you if a character is unique until you\'ve seen the entire string.\n\n**Complexity**: Time O(n) | Space O(1) — at most 26 keys in the map\n\n**Variation**: return the character instead of the index — same approach, just return `s[i]` instead of `i`.',
+    code: {
+      language: 'javascript',
+      snippet: `function firstUniqChar(s) {
+  const freq = {};
+
+  // Pass 1: count every character
+  for (const ch of s) {
+    freq[ch] = (freq[ch] || 0) + 1;
+  }
+
+  // Pass 2: find first with count 1 (preserves original order)
+  for (let i = 0; i < s.length; i++) {
+    if (freq[s[i]] === 1) return i;
+  }
+
   return -1;
 }
 
-// O(n²) — avoid on large inputs
-function hasDuplicate(arr: number[]): boolean {
-  for (let i = 0; i < arr.length; i++)
-    for (let j = i + 1; j < arr.length; j++)
-      if (arr[i] === arr[j]) return true;
-  return false;
+console.log(firstUniqChar('leetcode'));     // 0  ('l')
+console.log(firstUniqChar('loveleetcode')); // 2  ('v')
+console.log(firstUniqChar('aabb'));         // -1`,
+    },
+  },
+
+  {
+    id: 'ds-m7',
+    category: 'Data Structures',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'Missing Number — LeetCode #268\n\nGiven an array nums containing n distinct numbers in the range [0, n], return the only number in the range that is missing from the array.\n\nExample 1: Input: [3,0,1]     → Output: 2\nExample 2: Input: [0,1]       → Output: 2\nExample 3: Input: [9,6,4,2,3,5,7,0,1] → Output: 8\n\nConstraints: n == nums.length | 1 ≤ n ≤ 10⁴ | 0 ≤ nums[i] ≤ n | All numbers are unique\nFollow-up: solve in O(1) extra space and O(n) runtime.',
+    answer:
+      '**Intuition**: the sum of 0..n is known from Gauss\'s formula: `n*(n+1)/2`. The difference between the expected sum and the actual sum is the missing number.\n\n**Approach 1 — Gauss formula (optimal)**:\n1. Expected sum = `n * (n + 1) / 2`\n2. Actual sum = `nums.reduce((a, b) => a + b, 0)`\n3. Return `expected - actual`\n\n**Approach 2 — XOR**: XOR every index (0..n) with every value in the array. All paired values cancel out, leaving the missing number. Also O(n) time O(1) space.\n\n**Approach 3 — Set**: put all numbers in a Set, scan 0..n for the missing one. O(n) time but O(n) space.\n\n**Complexity** (Gauss): Time O(n) | Space O(1)',
+    code: {
+      language: 'javascript',
+      snippet: `// Gauss formula — O(n) time, O(1) space (optimal)
+function missingNumber(nums) {
+  const n = nums.length;
+  const expected = (n * (n + 1)) / 2;
+  const actual = nums.reduce((sum, num) => sum + num, 0);
+  return expected - actual;
 }
 
-// Better: O(n) with a Set
-const hasDuplicateFast = (arr: number[]) => arr.length !== new Set(arr).size;`,
+// XOR approach — also O(n) time, O(1) space
+function missingNumberXOR(nums) {
+  let result = nums.length; // start with n
+  for (let i = 0; i < nums.length; i++) {
+    result ^= i ^ nums[i]; // XOR index and value — paired ones cancel out
+  }
+  return result;
+}
+
+console.log(missingNumber([3, 0, 1]));               // 2
+console.log(missingNumber([0, 1]));                  // 2
+console.log(missingNumber([9,6,4,2,3,5,7,0,1]));    // 8`,
+    },
+  },
+
+  {
+    id: 'ds-m8',
+    category: 'Data Structures',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'Second Largest Element — Classic Problem\n\nGiven an unsorted array of integers, find the second largest distinct value in a single pass (do not sort the array).\n\nExample 1: Input: [3, 7, 1, 9, 2, 5] → Output: 7\nExample 2: Input: [5, 5, 5]           → Output: -1  (no distinct second largest)\nExample 3: Input: [1, 2]              → Output: 1\nExample 4: Input: [9, 1]              → Output: 1\n\nConstraints: 1 ≤ nums.length ≤ 10⁵ | Solve in O(n) time, O(1) space',
+    answer:
+      '**Intuition**: track two variables — `first` (the largest seen) and `second` (the second largest distinct value). Update them as you scan.\n\n**Approach**:\n1. Initialise `first = second = -Infinity`\n2. For each number:\n   - If `num > first`: shift — `second = first`, then `first = num`\n   - Else if `num > second && num !== first`: update `second = num`\n3. Return `second`, or -1 if it is still `-Infinity`\n\n**Why not just sort**: sorting is O(n log n). One-pass tracking is O(n) — the interviewer specifically asks for "single pass" to test this.\n\n**Key detail**: the `num !== first` guard handles duplicates — `[5, 5, 5]` should return -1, not 5.\n\n**Complexity**: Time O(n) | Space O(1)',
+    code: {
+      language: 'javascript',
+      snippet: `function secondLargest(nums) {
+  if (nums.length < 2) return -1;
+
+  let first = -Infinity, second = -Infinity;
+
+  for (const num of nums) {
+    if (num > first) {
+      second = first; // old first drops to second
+      first = num;
+    } else if (num > second && num !== first) {
+      second = num;   // new second — must be strictly less than first
+    }
+  }
+
+  return second === -Infinity ? -1 : second;
+}
+
+console.log(secondLargest([3, 7, 1, 9, 2, 5])); // 7
+console.log(secondLargest([5, 5, 5]));           // -1 (all duplicates)
+console.log(secondLargest([1, 2]));              // 1
+console.log(secondLargest([9, 1]));              // 1`,
+    },
+  },
+
+  {
+    id: 'ds-m9',
+    category: 'Data Structures',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'Two Sum — LeetCode #1\n\nGiven an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nExample 1:\nInput:  nums = [2,7,11,15], target = 9\nOutput: [0,1]  (nums[0] + nums[1] = 2 + 7 = 9)\n\nExample 2:\nInput:  nums = [3,2,4], target = 6\nOutput: [1,2]\n\nExample 3:\nInput:  nums = [3,3], target = 6\nOutput: [0,1]\n\nConstraints: 2 ≤ nums.length ≤ 10⁴ | Only one valid answer exists.',
+    answer:
+      '**Intuition**: for each number, the value needed to complete the pair is `target - nums[i]`. Store each number\'s index in a map — if its complement is already in the map, the pair is found.\n\n**Approach — Hash Map O(n)**:\n1. Create an empty Map: `value → index`\n2. For each index i:\n   - Compute `complement = target - nums[i]`\n   - If `complement` is in the map → return `[map.get(complement), i]`\n   - Otherwise → `map.set(nums[i], i)`\n3. (The problem guarantees a solution exists)\n\n**Why this works**: the map acts as a lookup table for "have I seen the number that pairs with this one?" — O(1) lookup vs O(n) scan in a nested loop.\n\n**Complexity**:\n- Brute force: Time O(n²) | Space O(1)\n- Hash map: Time O(n) | Space O(n)',
+    code: {
+      language: 'javascript',
+      snippet: `// Brute force: O(n²) — mention this first, then optimize
+function twoSumBrute(nums, target) {
+  for (let i = 0; i < nums.length; i++)
+    for (let j = i + 1; j < nums.length; j++)
+      if (nums[i] + nums[j] === target) return [i, j];
+}
+
+// Hash map: O(n) — optimal
+function twoSum(nums, target) {
+  const seen = new Map(); // value → index
+
+  for (let i = 0; i < nums.length; i++) {
+    const complement = target - nums[i];
+
+    if (seen.has(complement)) {
+      return [seen.get(complement), i]; // complement found!
+    }
+    seen.set(nums[i], i); // store for future lookups
+  }
+}
+
+console.log(twoSum([2, 7, 11, 15], 9)); // [0, 1]
+console.log(twoSum([3, 2, 4], 6));      // [1, 2]
+console.log(twoSum([3, 3], 6));         // [0, 1]`,
     },
   },
 ];

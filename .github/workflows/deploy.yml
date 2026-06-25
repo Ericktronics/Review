@@ -47,7 +47,5 @@ jobs:
             --exclude "assets/*" --exclude "index.html" \
             --delete
 
-      # TODO: Add CloudFront distribution ID to GitHub secrets as CLOUDFRONT_DISTRIBUTION_ID
-      # then uncomment the step below once the distribution is set up
-      # - name: Invalidate CloudFront Cache
-      #   run: aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+      - name: Invalidate CloudFront Cache
+        run: aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/flash-cards*"

@@ -4,7 +4,7 @@ A flashcard web app for studying backend engineering concepts — built with Vit
 
 ## Features
 
-- **100+ flashcards** across 12 categories
+- **360+ flashcards** across 19 categories
 - **Two card types** with filter chips
   - **Must Know Basics** — fundamentals every developer should know (easy + medium)
   - **Must Know for Exp. Hires** — senior/production-level knowledge (hard)
@@ -37,6 +37,9 @@ A flashcard web app for studying backend engineering concepts — built with Vit
 | Best Practices | DRY, KISS, testing pyramid, code review, technical debt, semver |
 | Compare & Choose | null vs undefined, == vs ===, JWT vs Sessions, REST vs GraphQL, ORM vs SQL, Monolith vs Microservices, consistency models |
 | Interview Scenarios | Production incidents, debugging under pressure, tech debt prioritization, API migrations, team leadership, scaling |
+| React | Components, hooks (useState, useEffect, useMemo, useCallback, useReducer, useContext), virtual DOM, reconciliation, error boundaries, performance optimization |
+| Angular | Components, directives, lifecycle hooks, two-way data binding, DI, RxJS, Observables, pipes, route guards |
+| Next.js | SSR, SSG, ISR, CSR, App Router vs Pages Router, React Server Components, API routes, middleware, authentication |
 
 ## Requirements
 

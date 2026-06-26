@@ -322,4 +322,90 @@ app.patch('/users/:id', async (req, res) => {
 });`,
     },
   },
+
+  {
+    id: 'rest-m5',
+    category: 'REST & HTTP',
+    difficulty: 'medium',
+    type: 'experience',
+    question: 'How do you implement idempotency in a payment API? Why does it matter?',
+    answer:
+      '**Idempotency** means calling the same endpoint multiple times with the same input produces the same result and no duplicate side effects — critical for payments where a retry must not charge the user twice.\n\n**How it works:**\n1. Client generates a unique **idempotency key** (UUID) per request and sends it in a header: `Idempotency-Key: <uuid>`\n2. Server checks if that key already exists in a store (DB/Redis)\n3. **If found** → return the stored response immediately, skip all processing\n4. **If not found** → process the request, persist `{ key, response, createdAt }`, return response\n5. Keys expire after a TTL (e.g. 24 hours) — after that, a new request with the same key is treated as fresh\n\n**What to store:** the key, the HTTP status code, and the full response body.\n\n**Edge case — in-flight requests:** if two identical requests arrive simultaneously before the first finishes, use a DB lock or `INSERT ... ON CONFLICT DO NOTHING` to prevent double-processing.\n\n**Stripe uses this exact pattern** with the `Idempotency-Key` header on all mutation endpoints.',
+    code: {
+      language: 'typescript',
+      snippet: `// Express middleware — check idempotency key before processing
+async function idempotencyMiddleware(req, res, next) {
+  const key = req.headers['idempotency-key'];
+  if (!key) return next(); // GET/read endpoints — skip
+
+  const cached = await redis.get(\`idem:\${key}\`);
+  if (cached) {
+    const { status, body } = JSON.parse(cached);
+    return res.status(status).json(body); // replay stored response
+  }
+
+  // Wrap res.json to capture and store the response
+  const originalJson = res.json.bind(res);
+  res.json = async (body) => {
+    await redis.setex(
+      \`idem:\${key}\`,
+      86400, // 24 hr TTL
+      JSON.stringify({ status: res.statusCode, body })
+    );
+    return originalJson(body);
+  };
+
+  next();
+}
+
+// Usage on payment route
+router.post('/payments', idempotencyMiddleware, async (req, res) => {
+  const charge = await stripe.charges.create({ amount: req.body.amount });
+  res.status(201).json({ chargeId: charge.id });
+  // On retry with same key → returns stored 201 without charging again
+});`,
+    },
+  },
+
+  {
+    id: 'rest-m6',
+    category: 'REST & HTTP',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'How would you design a RESTful API expected to handle very heavy traffic? What strategies do you apply?',
+    answer:
+      '**This is a classic Micro1/senior-screen question.** There are 6 layers to cover:\n\n**1. Pagination** — never return unbounded lists. Use cursor pagination for large, frequently-updated datasets; offset pagination for simple, sortable tables. Include `nextCursor` or `totalCount` in the response.\n\n**2. Caching** — add a Redis layer in front of the DB for frequently-read, rarely-changed data. Set `Cache-Control` headers for public resources so CDN/proxies cache them too. Aim for 80%+ cache hit rate on hot endpoints.\n\n**3. Rate limiting** — protect all endpoints with per-user or per-IP limits. Use sliding window counters in Redis. Return `429 Too Many Requests` with a `Retry-After` header.\n\n**4. HTTP compression** — enable `gzip`/`brotli` response compression. A 100 KB JSON payload compresses to ~10 KB, reducing bandwidth costs and latency especially on mobile.\n\n**5. Async processing** — move slow work (emails, PDF generation, webhooks, image resizing) off the HTTP request path. Accept the request, enqueue a job, return `202 Accepted`. Process via workers (BullMQ, SQS).\n\n**6. Connection pooling + DB read replicas** — never create a new DB connection per request. Pool connections (pg Pool, PgBouncer). Route `SELECT` queries to read replicas to spread the load.',
+    code: {
+      language: 'typescript',
+      snippet: `// Cursor pagination — scalable for large datasets
+app.get('/posts', async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 20, 100);
+  const cursor = req.query.cursor as string | undefined;
+
+  const posts = await db.post.findMany({
+    take: limit + 1,
+    ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const hasMore = posts.length > limit;
+  if (hasMore) posts.pop();
+
+  res.json({
+    data: posts,
+    nextCursor: hasMore ? posts[posts.length - 1].id : null,
+  });
+});
+
+// HTTP compression with Express
+import compression from 'compression';
+app.use(compression()); // gzip/brotli all JSON responses automatically
+
+// Async job — return 202, process in background
+app.post('/reports', async (req, res) => {
+  const job = await reportQueue.add('generate', req.body);
+  res.status(202).json({ jobId: job.id, status: 'queued' });
+});`,
+    },
+  },
 ];

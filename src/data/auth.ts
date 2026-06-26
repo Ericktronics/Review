@@ -415,4 +415,94 @@ const LoginSchema = z.object({
 const body = LoginSchema.parse(req.body); // throws 400 on bad input`,
     },
   },
+
+  {
+    id: 'auth-m5',
+    category: 'Auth & Security',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is CSRF? Do REST APIs using JWT need CSRF protection?',
+    answer:
+      '**Cross-Site Request Forgery (CSRF)** tricks a logged-in user\'s browser into making an unwanted request to your server. The browser automatically attaches cookies to every request — so if auth lives in a cookie, a malicious site can trigger actions on behalf of the user.\n\n**Classic attack:**\n1. User is logged in to `bank.com` (session cookie)\n2. User visits `evil.com` which has `<img src="bank.com/transfer?to=attacker&amount=1000">`\n3. Browser fires the request with the bank cookie → transfer happens\n\n**CSRF protections:**\n- **Synchroniser Token (CSRF token)** — server generates a secret token per session, embeds in forms/headers. Attacker can\'t read it from another origin (SOP).\n- **SameSite cookie** — `SameSite=Strict` or `SameSite=Lax` prevents the browser sending the cookie on cross-origin requests. Modern and effective.\n- **Custom request header** — AJAX sending a custom header (e.g. `X-Requested-With`) is blocked by CORS on cross-origin requests.\n\n**JWT in `Authorization: Bearer` header:** CSRF doesn\'t apply — browsers don\'t auto-send headers. Only cookies are auto-sent.\n\n**JWT stored in an `httpOnly` cookie:** you DO need CSRF protection — use `SameSite=Strict` + CSRF token.',
+    code: {
+      language: 'typescript',
+      snippet: `// Option 1: SameSite cookie — simplest modern fix
+res.cookie('token', jwt, {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'strict', // browser won't send cookie on cross-origin requests
+});
+
+// Option 2: CSRF token with csurf (for server-rendered apps / cookies)
+const csrf = require('csurf');
+const csrfProtection = csrf({ cookie: true });
+
+app.get('/form', csrfProtection, (req, res) => {
+  res.render('form', { csrfToken: req.csrfToken() }); // embed in form
+});
+app.post('/submit', csrfProtection, (req, res) => {
+  // csurf validates the token automatically — rejects if missing/wrong
+  res.json({ ok: true });
+});
+
+// Option 3: JWT in Authorization header — no CSRF risk
+// The browser never auto-sends Authorization headers
+// Attacker's site cannot set this header from cross-origin JS (blocked by CORS)
+fetch('/api/data', {
+  headers: { 'Authorization': \`Bearer \${localStorage.getItem('token')}\` }
+});`,
+    },
+  },
+
+  {
+    id: 'auth-h1',
+    category: 'Auth & Security',
+    difficulty: 'hard',
+    type: 'experience',
+    question: 'How does refresh token rotation work? How do you detect and handle refresh token theft?',
+    answer:
+      '**Refresh token rotation** issues a new refresh token every time the old one is used. The old token is immediately invalidated. This limits the window of compromise — a stolen refresh token can only be used once.\n\n**Flow:**\n1. Login → server issues `accessToken` (short-lived, 15min) + `refreshToken` (long-lived, 7d)\n2. Access token expires → client sends refresh token to `/auth/refresh`\n3. Server validates, issues new `accessToken` + new `refreshToken`, **invalidates the old refresh token**\n4. Client stores the new refresh token\n\n**Theft detection (reuse detection):**\n- If a **used** (already rotated) refresh token is presented again, an attacker AND the legitimate user both have tokens from the same family\n- Server detects reuse → **invalidate the entire token family** → force re-login\n- This protects the legitimate user: the attacker\'s next use also fails\n\n**Storage:** store refresh tokens in DB with `{ token, userId, family, usedAt, expiresAt }`. `httpOnly` cookie is safer than `localStorage` (XSS-proof).\n\n**Token family:** group of tokens issued from the same login session. Compromising any triggers a full family revocation.',
+    code: {
+      language: 'typescript',
+      snippet: `// On login — create initial token family
+async function login(userId: string) {
+  const family = crypto.randomUUID();
+  const refreshToken = crypto.randomUUID();
+
+  await db.query(
+    'INSERT INTO refresh_tokens (token, user_id, family, expires_at) VALUES ($1,$2,$3,$4)',
+    [refreshToken, userId, family, new Date(Date.now() + 7 * 86400_000)]
+  );
+  return { accessToken: signJwt(userId), refreshToken };
+}
+
+// On refresh
+async function refresh(oldToken: string) {
+  const stored = await db.query(
+    'SELECT * FROM refresh_tokens WHERE token = $1', [oldToken]
+  );
+
+  // Token not found at all — invalid
+  if (!stored.rows[0]) throw new Error('Invalid token');
+
+  // Token already used → THEFT DETECTED — invalidate entire family
+  if (stored.rows[0].used_at) {
+    await db.query(
+      'UPDATE refresh_tokens SET revoked = true WHERE family = $1',
+      [stored.rows[0].family]
+    );
+    throw new Error('Token reuse detected — please log in again');
+  }
+
+  // Mark old token as used and issue new one
+  await db.query('UPDATE refresh_tokens SET used_at = NOW() WHERE token = $1', [oldToken]);
+  const newRefreshToken = crypto.randomUUID();
+  await db.query(
+    'INSERT INTO refresh_tokens (token, user_id, family, expires_at) VALUES ($1,$2,$3,$4)',
+    [newRefreshToken, stored.rows[0].user_id, stored.rows[0].family, new Date(Date.now() + 7 * 86400_000)]
+  );
+  return { accessToken: signJwt(stored.rows[0].user_id), refreshToken: newRefreshToken };
+}`,
+    },
+  },
 ];

@@ -294,4 +294,166 @@ export async function findByEmail(email: string) {
 }`,
     },
   },
+
+  {
+    id: 'exp-e4',
+    category: 'Express.js',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'What are the four types of middleware in Express and what is each used for?',
+    answer:
+      '**1. Application-level** — bound to `app` with `app.use()` or `app.METHOD()`. Runs for all or specific routes.\n\n**2. Router-level** — bound to an `express.Router()` instance. Same behaviour but scoped to a sub-router, keeps code modular.\n\n**3. Error-handling** — has a *four-parameter* signature `(err, req, res, next)`. Express identifies it by the 4th param and only calls it when `next(err)` is invoked.\n\n**4. Built-in / Third-party** — `express.json()`, `express.urlencoded()`, `express.static()` are built-in. `cors`, `helmet`, `morgan`, `multer` are popular third-party middleware.\n\n**Key rule:** middleware runs in the order it is registered. Always put error-handling middleware *last*.',
+    code: {
+      language: 'javascript',
+      snippet: `const express = require('express');
+const app = express();
+const router = express.Router();
+
+// 1. Application-level — runs for every request
+app.use(express.json());
+app.use((req, res, next) => { console.log(req.method, req.url); next(); });
+
+// 2. Router-level — scoped to /users
+router.use((req, res, next) => { console.log('users router'); next(); });
+router.get('/', (req, res) => res.json([]));
+app.use('/users', router);
+
+// 3. Error-handling — MUST have 4 params
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: err.message });
+});
+
+// 4. Third-party
+const helmet = require('helmet');
+app.use(helmet()); // sets security headers`,
+    },
+  },
+
+  {
+    id: 'exp-m3',
+    category: 'Express.js',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'How do you implement rate limiting in Express? What are the risks of in-memory rate limiting?',
+    answer:
+      '**Rate limiting** caps how many requests a client can make in a time window — protects against brute force, DDoS, and API abuse.\n\n**`express-rate-limit`** is the standard package. It plugs in as middleware.\n\n**In-memory risk:** the default store keeps counters in the Node process\'s memory. This breaks in a **multi-instance / clustered** deployment — each instance has its own counter, so a client can make `limit × instances` requests total. Fix: use a shared store (Redis).\n\n**`rate-limit-redis`** or **`ioredis`** backed stores share counters across all instances — the correct approach for production.\n\n**Best practice:** apply a global limiter on all routes, then a stricter limiter on sensitive endpoints (`/login`, `/register`, `/payment`).',
+    code: {
+      language: 'javascript',
+      snippet: `const rateLimit = require('express-rate-limit');
+const RedisStore  = require('rate-limit-redis');
+const redis       = require('./redis'); // your ioredis client
+
+// Global limiter — 100 req / 15 min per IP
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,  // Return RateLimit-* headers
+  legacyHeaders: false,
+  store: new RedisStore({ sendCommand: (...args) => redis.call(...args) }),
+});
+
+// Strict limiter for auth routes — 10 req / 15 min
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many attempts, try again later.' },
+  store: new RedisStore({ sendCommand: (...args) => redis.call(...args) }),
+});
+
+app.use(globalLimiter);
+app.use('/auth', authLimiter);`,
+    },
+  },
+
+  {
+    id: 'exp-m4',
+    category: 'Express.js',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'How do you validate incoming request data in Express? Why is validation at the route level important?',
+    answer:
+      '**Never trust user input.** Validation at the route/controller level ensures invalid data is rejected before it reaches your business logic or database.\n\n**Two popular libraries:**\n- **Zod** — schema-first, TypeScript-native, throws typed errors\n- **Joi** — mature, expressive, framework-agnostic\n\n**Pattern:** define a schema, parse `req.body` / `req.params` / `req.query` inside the handler or a reusable validation middleware. On failure, return `400` with a clear error message.\n\n**Why it matters:**\n- Prevents malformed data from corrupting your DB\n- Prevents injection attacks (combined with parameterised queries)\n- Gives clients clear error messages\n- Acts as living documentation of your API contract',
+    code: {
+      language: 'typescript',
+      snippet: `import { z } from 'zod';
+import { Request, Response, NextFunction } from 'express';
+
+// Define schema
+const CreateUserSchema = z.object({
+  name:     z.string().min(2).max(50),
+  email:    z.string().email(),
+  age:      z.number().int().min(18).optional(),
+  role:     z.enum(['admin', 'user']).default('user'),
+});
+
+// Reusable middleware factory
+function validate(schema: z.ZodSchema) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ errors: result.error.flatten().fieldErrors });
+    }
+    req.body = result.data; // replace with parsed + coerced data
+    next();
+  };
+}
+
+// Route
+router.post('/users', validate(CreateUserSchema), async (req, res) => {
+  const user = await createUser(req.body); // body is now fully typed & safe
+  res.status(201).json(user);
+});`,
+    },
+  },
+
+  {
+    id: 'exp-m5',
+    category: 'Express.js',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'How do you handle file uploads in Express using Multer? What are the key security concerns?',
+    answer:
+      '**Multer** is the standard Express middleware for handling `multipart/form-data` (file uploads). It parses the incoming form data and attaches `req.file` (single) or `req.files` (multiple) to the request.\n\n**Storage options:**\n- `memoryStorage()` — file held in RAM as a `Buffer`. Fast but dangerous for large files.\n- `diskStorage()` — file written to disk. You control the destination and filename.\n- **Production:** stream directly to S3/cloud storage using `multer-s3`.\n\n**Security concerns:**\n- **File type validation** — check `mimetype` AND magic bytes (not just extension — easy to fake)\n- **File size limit** — always set `limits.fileSize` to prevent memory/disk exhaustion\n- **Filename sanitisation** — never use the original filename from the client; generate a UUID\n- **Malware** — consider scanning uploads with ClamAV or a cloud API before storing',
+    code: {
+      language: 'javascript',
+      snippet: `const multer  = require('multer');
+const path    = require('path');
+const crypto  = require('crypto');
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, './uploads/'),
+  // Generate safe random filename — never trust req.file.originalname
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, \`\${crypto.randomUUID()}\${ext}\`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB max
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.mimetype)) {
+      return cb(new Error('Only JPEG, PNG, WebP allowed'));
+    }
+    cb(null, true);
+  },
+});
+
+// Single file upload
+router.post('/avatar', upload.single('avatar'), (req, res) => {
+  res.json({ filename: req.file.filename });
+});
+
+// Error handling for multer errors
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError || err.message.includes('Only')) {
+    return res.status(400).json({ error: err.message });
+  }
+  next(err);
+});`,
+    },
+  },
 ];

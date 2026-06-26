@@ -414,4 +414,122 @@ try {
 } finally { client.release(); }`,
     },
   },
+
+  {
+    id: 'db-m5',
+    category: 'Databases',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is the N+1 query problem? How do you detect and fix it?',
+    answer:
+      'The **N+1 problem** happens when you fetch a list of N records and then fire an individual query for each record to get related data — 1 query for the list + N queries for relations = N+1 total.\n\n**Example:** fetch 100 posts, then loop and query each post\'s author → 101 queries instead of 2.\n\n**How to detect:**\n- Log slow queries in production (PostgreSQL `log_min_duration_statement`)\n- ORM debug mode — Prisma: `log: ["query"]`, TypeORM: `logging: true`\n- APM tools (Datadog, New Relic) show query counts per request\n\n**Fixes:**\n- **JOIN / eager load** — fetch everything in one query\n- **Batch loading (DataLoader pattern)** — collect all IDs, run one `WHERE id IN (...)` query\n- **`include` / `with`** in ORMs — Prisma `include: { author: true }`, TypeORM `relations: ["author"]`\n\n**Rule of thumb:** if query count scales with result count, you have N+1.',
+    code: {
+      language: 'typescript',
+      snippet: `// ❌ N+1 — 1 query for posts + N queries for authors
+const posts = await db.query('SELECT * FROM posts');
+for (const post of posts) {
+  // fires a separate query for EVERY post
+  post.author = await db.query('SELECT * FROM users WHERE id = $1', [post.authorId]);
+}
+
+// ✅ Fix 1: JOIN — single query
+const posts = await db.query(\`
+  SELECT p.*, u.name AS author_name
+  FROM posts p
+  JOIN users u ON u.id = p.author_id
+\`);
+
+// ✅ Fix 2: Prisma eager load
+const posts = await prisma.post.findMany({
+  include: { author: true }, // one SQL JOIN under the hood
+});
+
+// ✅ Fix 3: DataLoader — batch IDs into one IN query
+const authorLoader = new DataLoader(async (ids) => {
+  const authors = await db.query('SELECT * FROM users WHERE id = ANY($1)', [ids]);
+  return ids.map(id => authors.find(a => a.id === id));
+});
+// Each post.author call batches — resolves to one query total`,
+    },
+  },
+
+  {
+    id: 'db-m6',
+    category: 'Databases',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is connection pooling? How do you configure it correctly in a Node.js app?',
+    answer:
+      'Creating a new database connection is expensive — TCP handshake, auth, SSL negotiation can take 20–100ms. **Connection pooling** maintains a set of open, reusable connections. Requests borrow a connection, use it, and return it to the pool.\n\n**Key config parameters:**\n- `max` — max connections in the pool. Rule of thumb: `(num_cores * 2) + effective_spindle_count`. Too high → DB runs out of connections. Too low → requests queue.\n- `min` (idle) — connections kept open even when idle. Avoids cold-start latency.\n- `idleTimeoutMillis` — how long an idle connection lives before being closed.\n- `connectionTimeoutMillis` — how long to wait for a free connection before throwing.\n\n**In a serverless / Lambda environment:** pooling doesn\'t work well because each function instance creates its own pool. Use **RDS Proxy** or **PgBouncer** as an external pooler.\n\n**Connection leak:** always release connections in a `finally` block. A leaked connection never returns to the pool — eventually the pool is exhausted and all requests hang.',
+    code: {
+      language: 'typescript',
+      snippet: `import { Pool } from 'pg';
+
+const pool = new Pool({
+  host:     process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  user:     process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  max:      20,                // max pool size
+  min:      2,                 // keep 2 idle connections warm
+  idleTimeoutMillis:    30000, // close idle connections after 30s
+  connectionTimeoutMillis: 2000, // throw if no free connection in 2s
+});
+
+// Monitor pool health
+pool.on('error', (err) => console.error('Idle client error', err));
+
+// ✅ Always release in finally — prevents connection leaks
+async function getUser(id: string) {
+  const client = await pool.connect();
+  try {
+    const { rows } = await client.query('SELECT * FROM users WHERE id = $1', [id]);
+    return rows[0];
+  } finally {
+    client.release(); // returns connection to pool even if query throws
+  }
+}
+
+// Or just use pool.query() for simple one-off queries (auto-releases)
+const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);`,
+    },
+  },
+
+  {
+    id: 'db-m7',
+    category: 'Databases',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What are the core principles of good database schema design? What mistakes do you avoid?',
+    answer:
+      '**Schema design is a multiplier — a bad schema makes every future query harder.** Key principles:\n\n**1. Normalize to 3NF by default** — eliminate redundancy. Each fact lives in exactly one place. User data belongs in `users`, not duplicated across three tables. Denormalize intentionally only for read performance when queries prove too slow.\n\n**2. Choose data types carefully**\n- Use `UUID` or `BIGSERIAL` for primary keys (UUID is globally unique across services; BIGSERIAL is smaller and faster)\n- Use `TIMESTAMPTZ` (with timezone) not `TIMESTAMP` for all dates — always store in UTC\n- Use `NUMERIC(10,2)` for money, never `FLOAT` (floating point rounding errors in financial calculations)\n\n**3. Always index foreign keys** — without an index on the FK column, every JOIN scans the entire child table. Postgres does not auto-index FKs.\n\n**4. Index query predicates, not everything** — add indexes for columns that appear in `WHERE`, `ORDER BY`, and `JOIN ON`. Over-indexing slows writes.\n\n**5. Use foreign key constraints** — they enforce referential integrity at the DB level. Without them, orphaned rows accumulate silently.\n\n**6. Soft deletes** — add a `deleted_at TIMESTAMPTZ` column instead of physically deleting rows. Preserves audit history. Filter with `WHERE deleted_at IS NULL`.\n\n**Common mistakes**: storing JSON blobs for everything (hard to query/index), no created_at/updated_at timestamps, storing emails/usernames in multiple tables, varchar with no length limit, missing NOT NULL constraints.',
+    code: {
+      language: 'sql',
+      snippet: `-- ✅ Well-designed users table
+CREATE TABLE users (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email       VARCHAR(255) NOT NULL UNIQUE,
+  name        VARCHAR(100) NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at  TIMESTAMPTZ  -- NULL = active, set = soft deleted
+);
+
+-- ✅ Orders table with FK + proper types
+CREATE TABLE orders (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  total_cents BIGINT NOT NULL,   -- store money as integer cents, not float
+  status      VARCHAR(20) NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending', 'paid', 'cancelled')),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ✅ Index the FK (Postgres does NOT auto-index FKs)
+CREATE INDEX idx_orders_user_id ON orders(user_id);
+
+-- ✅ Partial index for active users only
+CREATE INDEX idx_users_email_active ON users(email) WHERE deleted_at IS NULL;`,
+    },
+  },
 ];

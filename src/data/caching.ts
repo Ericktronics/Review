@@ -290,4 +290,116 @@ async function updateUser(id: string, data: Partial<User>) {
 }`,
     },
   },
+
+  {
+    id: 'cache-m5',
+    category: 'Caching',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is cache warming? When do you need it and how do you implement it?',
+    answer:
+      '**Cache warming** (pre-warming) is the process of proactively loading data into the cache before it is requested — so the first users after a cold start or deploy don\'t hit the database.\n\n**When you need it:**\n- After a deploy that flushes the cache\n- After a Redis restart or failover\n- For data that is expensive to compute and heavily accessed at startup (e.g. product catalogue, feature flags, config)\n- To avoid the **thundering herd** — hundreds of simultaneous cache misses all hitting the DB at once\n\n**Approaches:**\n1. **Startup script** — warm before the app starts accepting traffic (good for fixed data sets)\n2. **Background job on deploy** — CI/CD triggers a warming worker after deploy\n3. **Single-flight / mutex lock** — first miss triggers the fetch, a distributed lock prevents other instances from also fetching simultaneously\n4. **Stale-while-revalidate** — serve stale data while refreshing in the background; never fully cold\n\n**Trade-off:** warming adds deploy complexity and DB load at startup. Only do it for truly hot, expensive-to-compute data.',
+    code: {
+      language: 'typescript',
+      snippet: `// Approach 1: warm cache before accepting traffic
+async function warmCache() {
+  const products = await db.query('SELECT * FROM products WHERE active = true');
+  await redis.set('products:all', JSON.stringify(products.rows), 'EX', 3600);
+  console.log(\`Warmed \${products.rowCount} products\`);
+}
+warmCache().then(() => app.listen(3000));
+
+// Approach 2: single-flight lock — prevents thundering herd on cache miss
+async function getWithLock(key: string, fetcher: () => Promise<any>) {
+  const cached = await redis.get(key);
+  if (cached) return JSON.parse(cached);
+
+  // Only one instance fetches — others wait and retry
+  const acquired = await redis.set(\`lock:\${key}\`, '1', 'NX', 'EX', 5);
+  if (!acquired) {
+    await new Promise(r => setTimeout(r, 100));
+    return getWithLock(key, fetcher); // retry — should hit cache now
+  }
+
+  try {
+    const data = await fetcher();
+    await redis.set(key, JSON.stringify(data), 'EX', 3600);
+    return data;
+  } finally {
+    await redis.del(\`lock:\${key}\`);
+  }
+}`,
+    },
+  },
+
+  {
+    id: 'cache-m6',
+    category: 'Caching',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is the NX + Lua pattern in Redis caching? How does it prevent cache stampedes?',
+    answer:
+      '**NX** ("Not eXists") is a Redis `SET` flag that only sets a key if it does not already exist. Returns `OK` on success (lock acquired), `null` if the key was already there (someone else has it).\n\n**Lua scripts** (`EVAL`) execute multiple Redis commands as one atomic operation. Because Redis is single-threaded, a Lua script cannot be interrupted — no other commands run between its steps.\n\n**The problem they solve — cache stampede**: when a hot cache key expires, hundreds of simultaneous requests get a cache miss and all rush to recompute the same expensive value, hammering the DB at once.\n\n**The fix — single-flight lock**:\n1. First request: `SET lock:key "1" NX EX 10` → gets `OK` → computes value → caches it → releases lock\n2. All other requests: same command returns `null` → they wait and retry, or serve stale data\n3. `EX 10` auto-expires the lock in 10 s — prevents deadlock if the computing process crashes\n\n**Why not just `GET` then `SET` separately?** Two requests can race between your `GET` check and `SET` write — both think they won. Lua makes the whole check-and-set indivisible.\n\n**NX is also used for**: distributed rate limiting counters, idempotency key storage, and any "do this exactly once" pattern.',
+    code: {
+      language: 'typescript',
+      snippet: `import Redis from 'ioredis';
+const redis = new Redis();
+
+// ── Basic NX lock ───────────────────────────────────────────
+async function acquireLock(key: string, ttlSec: number): Promise<boolean> {
+  const result = await redis.set(\`lock:\${key}\`, '1', 'NX', 'EX', ttlSec);
+  return result === 'OK'; // true = acquired, false = already held
+}
+
+// ── Lua script — atomic check + set ────────────────────────
+// Returns the cached value if it exists, otherwise sets a lock flag
+const LUA_GET_OR_LOCK = \`
+  local val = redis.call('GET', KEYS[1])
+  if val then return {1, val} end
+  local locked = redis.call('SET', KEYS[2], '1', 'NX', 'EX', ARGV[1])
+  if locked then return {2, 'LOCKED'} end
+  return {3, 'WAIT'}
+\`;
+
+// ── Full single-flight cache helper ────────────────────────
+async function getWithSingleFlight<T>(
+  key: string,
+  compute: () => Promise<T>,
+  ttlSec = 60,
+): Promise<T> {
+  const cached = await redis.get(key);
+  if (cached) return JSON.parse(cached);   // 1. fast path — cache hit
+
+  const lockKey = \`lock:\${key}\`;
+  const acquired = await redis.set(lockKey, '1', 'NX', 'EX', 10);
+
+  if (acquired === 'OK') {
+    // 2. We hold the lock — compute and cache
+    try {
+      const value = await compute();
+      await redis.setex(key, ttlSec, JSON.stringify(value));
+      return value;
+    } finally {
+      await redis.del(lockKey);            // always release lock
+    }
+  }
+
+  // 3. Another process is computing — poll for the result
+  for (let i = 0; i < 10; i++) {
+    await new Promise(r => setTimeout(r, 200));
+    const result = await redis.get(key);
+    if (result) return JSON.parse(result);
+  }
+
+  return compute();                        // fallback if lock holder crashed
+}
+
+// Usage — only one DB call fires even under 500 concurrent requests
+const user = await getWithSingleFlight(
+  \`user:\${id}\`,
+  () => db.user.findUniqueOrThrow({ where: { id } }),
+  300,
+);`,
+    },
+  },
 ];

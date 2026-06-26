@@ -206,7 +206,7 @@ greet(undefined);  // ✗ Caught at compile time, not at runtime`,
     type: 'basics',
     question: 'What is the difference between `interface` and `type` in TypeScript?',
     answer:
-      "Both describe the shape of an object. Key differences:\n\n| | `interface` | `type` |\n|---|---|---|\n| Extension | `extends` keyword | Intersection `&` |\n| Declaration merging | Yes — multiple declarations merge | No — duplicate names error |\n| Primitives / unions | No | Yes (`type ID = string \\| number`) |\n| Computed types | No | Yes (`type Keys = keyof T`) |\n\n**Rule of thumb**: use `interface` for **public API shapes** (class contracts, object props) where declaration merging or extension is useful. Use `type` for **unions, intersections, mapped types, and primitive aliases**.\n\nFor most object shapes they are interchangeable — prefer `interface` for objects and `type` for everything else.",
+      "Both describe the shape of an object. Key differences:\n\n| | `interface` | `type` |\n|---|---|---|\n| Extension | `extends` keyword | Intersection `&` |\n| Declaration merging | Yes — multiple declarations merge | No — duplicate names error |\n| Primitives / unions | No | Yes — supports union types |\n| Computed types | No | Yes (`type Keys = keyof T`) |\n\n**Rule of thumb**: use `interface` for **public API shapes** (class contracts, object props) where declaration merging or extension is useful. Use `type` for **unions, intersections, mapped types, and primitive aliases**.\n\nFor most object shapes they are interchangeable — prefer `interface` for objects and `type` for everything else.",
     code: {
       language: 'typescript',
       snippet: `// interface — extendable, mergeable
@@ -478,6 +478,46 @@ try {
   // e is 'unknown' — must narrow before using
   if (e instanceof Error) console.error(e.message);
 }`,
+    },
+  },
+
+  {
+    id: 'ts-e6',
+    category: 'TypeScript',
+    difficulty: 'easy',
+    type: 'basics',
+    question: '`type` vs `interface` in TypeScript — what is the difference and when do you use each?',
+    answer:
+      '**They are mostly interchangeable for objects, but have key differences:**\n\n| | `interface` | `type` |\n|---|---|---|\n| Declaration merging | ✅ Yes — you can reopen and extend | ❌ No — duplicate name = error |\n| Extends | `extends` keyword | `&` intersection |\n| Can describe primitives / unions / tuples | ❌ No | ✅ Yes |\n| Computed / mapped types | ❌ Limited | ✅ Full support |\n| Error messages | Usually cleaner | Can be verbose |\n\n**Use `interface` when:**\n- Defining the shape of an object or class contract\n- Building a public API / library (consumers can extend via declaration merging)\n- You want `implements` support with classes\n\n**Use `type` when:**\n- You need a union: `type Status = "active" | "inactive"`\n- You need a tuple: `type Point = [number, number]`\n- You need mapped/conditional types\n- Aliasing a primitive or utility type: `type ID = string`\n\n**Rule of thumb:** default to `interface` for objects and class shapes; reach for `type` when you need unions, tuples, or complex type expressions.',
+    code: {
+      language: 'typescript',
+      snippet: `// ── interface ───────────────────────────────────
+interface User {
+  id: number;
+  name: string;
+}
+
+// Declaration merging — only interfaces can do this
+interface User {
+  email: string; // merged into the original User
+}
+
+// Class can implement an interface
+class AdminUser implements User {
+  id = 1; name = 'Admin'; email = 'a@b.com';
+}
+
+// ── type ─────────────────────────────────────────
+type Status = 'active' | 'inactive' | 'banned'; // union — only type can do this
+type Point  = [number, number];                  // tuple
+
+type AdminUser2 = User & { role: 'admin' };      // intersection (same as extends)
+
+// Mapped type — only works with type
+type Readonly<T> = { readonly [K in keyof T]: T[K] };
+
+// Conditional type — only works with type
+type IsString<T> = T extends string ? true : false;`,
     },
   },
 ];

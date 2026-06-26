@@ -594,4 +594,42 @@ new UserService(db, new ConsoleLogger());
 new UserService(db, new NoOpLogger());`,
     },
   },
+
+  {
+    id: 'oop-e6',
+    category: 'OOP',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'What is the difference between "inherits" and `extends` in OOP?',
+    answer:
+      '**`inherit`** is the OOP concept — when a child class automatically gets the properties and methods of a parent class.\n\n**`extends`** is the keyword in TypeScript/Java/JavaScript that implements that concept.\n\nThey are not alternatives: `extends` is how you *declare* inheritance in those languages.\n\n**`extends` vs `implements`** — the more important distinction to know:\n- `extends` → inherit actual code (properties + method implementations) from a parent class\n- `implements` → fulfil a contract (interface shape only); no code is inherited\n\n**Interface extending interface** — interfaces also use `extends` to inherit shape from another interface.\n\n**Same concept, different syntax across languages:**\n\n| Language | Syntax |\n|---|---|\n| TypeScript / Java | `class Dog extends Animal` |\n| Python | `class Dog(Animal):` |\n| C# | `class Dog : Animal` |\n| Ruby | `class Dog < Animal` |',
+    code: {
+      language: 'typescript',
+      snippet: `// extends — inherit code from a parent class
+class Animal {
+  constructor(public name: string) {}
+  speak() { return \`\${this.name} makes a sound\`; }
+}
+
+class Dog extends Animal {           // Dog inherits name + speak()
+  speak() { return \`\${this.name} barks\`; }  // override
+}
+
+const d = new Dog('Rex');
+d.speak(); // "Rex barks"  — own method
+d.name;    // "Rex"        — inherited property
+
+// implements — fulfil a contract, no code inherited
+interface Runnable { run(): void; }
+
+class Cat extends Animal implements Runnable {
+  run() { console.log('running'); }  // must provide this — not inherited
+}
+
+// Interface extends interface — inherits shape
+interface Animal   { name: string; }
+interface Dog extends Animal { breed: string; }
+// Dog now requires: { name: string; breed: string }`,
+    },
+  },
 ];

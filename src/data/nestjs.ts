@@ -514,4 +514,61 @@ export class OrdersService {
 }`,
     },
   },
+
+  {
+    id: 'nest-m5',
+    category: 'NestJS',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is the difference between Middleware and Interceptors in NestJS? When do you use each?',
+    answer:
+      '**Middleware** runs before the route handler. It has access to `req` and `res` but never sees the handler\'s return value — it only modifies the incoming request.\n\n**Interceptors** wrap the entire execution using RxJS. They run logic both **before and after** the handler, can transform the response, measure execution time, and even short-circuit with a cached result.\n\n**NestJS request lifecycle order**:\nMiddleware → Guards → Interceptors (before) → Pipes → Handler → Interceptors (after) → Exception Filters\n\n| | Middleware | Interceptor |\n|---|---|---|\n| Runs | Before handler | Before + after handler |\n| Sees response | No | Yes |\n| Transforms response | No | Yes |\n| Access to handler metadata | No | Yes (`ExecutionContext`) |\n| Based on | Express middleware | RxJS Observable |\n| Use for | Auth, CORS, rate limiting, body parsing | Response mapping, logging with timing, caching, timeout |\n\n**Use middleware for**: global concerns that don\'t need to know what handler ran — auth token extraction, request logging, CORS headers.\n\n**Use interceptors for**: anything that needs the response — logging with response time, wrapping all responses in `{ data: ... }`, adding cache headers, implementing a global timeout.',
+    code: {
+      language: 'typescript',
+      snippet: `import { Injectable, NestMiddleware, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Observable, tap, timeout, TimeoutError } from 'rxjs';
+
+// ── Middleware — runs BEFORE the handler, no response access ──
+@Injectable()
+export class LoggerMiddleware implements NestMiddleware {
+  use(req: Request, res: Response, next: () => void) {
+    console.log(\`[\${req.method}] \${req.url}\`);
+    next(); // must call next() or the request hangs
+  }
+}
+
+// Apply in AppModule:
+// configure(consumer: MiddlewareConsumer) {
+//   consumer.apply(LoggerMiddleware).forRoutes('*');
+// }
+
+// ── Interceptor — wraps the handler, can see the response ──
+@Injectable()
+export class ResponseWrapInterceptor implements NestInterceptor {
+  intercept(ctx: ExecutionContext, next: CallHandler): Observable<any> {
+    const start = Date.now();
+
+    return next.handle().pipe(
+      tap(data => {
+        // runs AFTER the handler — has access to the response data
+        console.log(\`Handler took \${Date.now() - start}ms, returned:\`, data);
+      }),
+      // Transform every response into { data: ..., timestamp: ... }
+      // map(data => ({ data, timestamp: new Date().toISOString() })),
+    );
+  }
+}
+
+// Global timeout interceptor — abort if handler takes > 5s
+@Injectable()
+export class TimeoutInterceptor implements NestInterceptor {
+  intercept(ctx: ExecutionContext, next: CallHandler): Observable<any> {
+    return next.handle().pipe(timeout(5000));
+  }
+}
+
+// Apply globally in main.ts:
+// app.useGlobalInterceptors(new ResponseWrapInterceptor());`,
+    },
+  },
 ];

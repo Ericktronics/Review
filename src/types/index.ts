@@ -14,7 +14,10 @@ export type Category =
   | 'Express.js'
   | 'NestJS'
   | 'Compare & Choose'
-  | 'Interview Scenarios';
+  | 'Interview Scenarios'
+  | 'React'
+  | 'Angular'
+  | 'Next.js';
 
 export interface Flashcard {
   id: string;

@@ -296,6 +296,39 @@ spec:
   },
 
   {
+    id: 'devops-e6',
+    category: 'DevOps',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'What are Git branching strategies? Compare GitFlow, GitHub Flow, and trunk-based development.',
+    answer:
+      '**A branching strategy defines how your team creates, names, and merges branches.** Choosing the wrong one for your workflow is a major source of painful merges and slow deploys.\n\n**GitFlow** — long-lived `main`, `develop`, `feature/*`, `release/*`, and `hotfix/*` branches.\n- For teams with scheduled releases, versioned software (mobile apps, libraries)\n- Con: heavy, slow — `develop` drifts from `main`; long-lived branches cause painful merge conflicts\n\n**GitHub Flow** — one `main` branch, short-lived `feature/*` branches, PR → merge to main → deploy.\n- Simple, continuous delivery, fast feedback\n- Best for web apps that deploy multiple times a day\n- Con: requires strong CI/CD and good test coverage to keep `main` stable\n\n**Trunk-based development** — everyone commits directly to `main` (or very short-lived branches, max 1–2 days). Feature flags hide incomplete work.\n- Used by Google, Facebook, high-performing teams\n- Fastest possible integration, fewest merge conflicts\n- Requires feature flags, high test confidence, mature CI\n\n**merge vs rebase** — the other common interview question:\n- `git merge` — creates a merge commit, preserves full history\n- `git rebase` — replays your commits on top of the base branch, creates linear history\n- Rule: rebase local work before pushing to clean history; never rebase shared/public branches',
+    code: {
+      language: 'bash',
+      snippet: `# GitHub Flow — the most common in startups/web apps
+git checkout -b feature/add-login    # create feature branch
+# ... make commits ...
+git push origin feature/add-login    # push and open PR
+# after PR review, squash-merge to main, then deploy
+
+# Keeping your branch up to date before PR (rebase)
+git fetch origin
+git rebase origin/main               # replay your commits on top of latest main
+
+# Trunk-based: commit directly to main, hidden behind a flag
+# Feature flag in code:
+# if (featureFlags.isEnabled('new-login-flow')) { ... }
+
+# Hotfix in GitFlow
+git checkout main
+git checkout -b hotfix/critical-auth-bug
+# fix, test
+git checkout main && git merge hotfix/critical-auth-bug
+git checkout develop && git merge hotfix/critical-auth-bug`,
+    },
+  },
+
+  {
     id: 'devops-m2',
     category: 'DevOps',
     difficulty: 'medium',

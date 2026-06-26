@@ -989,6 +989,89 @@ child.on('message', (result) => console.log('Done:', result));`,
   },
 
   {
+    id: 'node-m11',
+    category: 'Node.js',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'Compare all four async patterns in Node.js: callbacks, Promises, async/await, and EventEmitters. When do you use each?',
+    answer:
+      '**This is one of the most common Micro1 and senior Node.js interview questions.**\n\n| Pattern | Best for | Error handling | Composability |\n|---|---|---|---|\n| Callbacks | Legacy APIs, streams | Error-first `(err, data)` | Hard (callback hell) |\n| Promises | Sequential or parallel async | `.catch()` / rejection | `.then()` chains, `Promise.all` |\n| async/await | Most modern async code | `try/catch` | Reads like sync code |\n| EventEmitter | Repeated events, streams, pub/sub | `error` event | Decoupled producer/consumer |\n\n**Callbacks** — the original Node.js pattern. Inversion of control: you pass a function that Node.js calls later. Problem: deeply nested callbacks become unreadable ("callback hell"). Still used internally in Node.js built-in APIs (`fs.readFile`, etc.).\n\n**Promises** — represent a future value in one of three states (pending, fulfilled, rejected). Composable with `Promise.all`, `Promise.race`, `Promise.allSettled`. Eliminated callback hell. Unhandled rejections crash the process in Node.js 15+.\n\n**async/await** — syntactic sugar over Promises. Makes async code look synchronous, dramatically improving readability. Errors caught with familiar `try/catch`. The default choice for new code.\n\n**EventEmitter** — for events that happen multiple times (not just once). Examples: HTTP server receiving requests, a file stream emitting `data` chunks, a websocket receiving messages. Use `on(event, handler)`, remove with `off()` to avoid memory leaks.',
+    code: {
+      language: 'typescript',
+      snippet: `// ── Callback (legacy pattern) ─────────────────────────
+fs.readFile('./data.json', 'utf8', (err, data) => {
+  if (err) return console.error(err);
+  console.log(data);
+});
+
+// ── Promise ────────────────────────────────────────────
+fetch('/api/user')
+  .then(res => res.json())
+  .then(user => console.log(user))
+  .catch(err => console.error(err));
+
+// ── async/await (preferred for most cases) ────────────
+async function loadUser(id: string) {
+  try {
+    const res = await fetch(\`/api/users/\${id}\`);
+    if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
+    return await res.json();
+  } catch (err) {
+    console.error('Failed to load user:', err);
+    throw err;
+  }
+}
+
+// ── EventEmitter (for repeated, multiple events) ──────
+import { EventEmitter } from 'events';
+const emitter = new EventEmitter();
+
+// Producer fires events multiple times
+emitter.on('data', (chunk: string) => console.log('Got chunk:', chunk));
+emitter.on('end', () => console.log('Stream done'));
+
+emitter.emit('data', 'first chunk');
+emitter.emit('data', 'second chunk');
+emitter.emit('end');`,
+    },
+  },
+
+  {
+    id: 'node-m10',
+    category: 'Node.js',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is libuv and what role does it play in Node.js?',
+    answer:
+      '**libuv** is the C library that powers Node.js\'s asynchronous I/O. V8 runs JavaScript — libuv handles everything outside of JavaScript: file system, networking, timers, DNS, and child processes.\n\n**What libuv provides:**\n- **Event loop** — the actual loop implementation. It drives all phases (timers, I/O callbacks, idle, poll, check, close).\n- **Thread pool** — a pool of 4 threads (default) for operations the OS can\'t do asynchronously: `fs` file reads, `crypto`, `zlib`, `dns.lookup`. Heavy CPU work here blocks the pool.\n- **Async I/O** — uses OS-native async mechanisms: `epoll` (Linux), `kqueue` (macOS), `IOCP` (Windows)\n- **Timers** — `setTimeout` and `setInterval` are implemented in libuv, not V8\n\n**Key insight:** Node.js is single-threaded for JavaScript, but libuv runs multiple threads in the background for blocking operations. When a thread pool task completes, libuv pushes the callback into the event loop queue — then V8 picks it up.\n\n**Tuning the thread pool:** if your app is CPU/crypto-heavy, increase pool size:\n`UV_THREADPOOL_SIZE=16 node app.js` (max 128)',
+    code: {
+      language: 'javascript',
+      snippet: `// libuv thread pool in action — these run on pool threads, not the JS thread
+const fs     = require('fs');
+const crypto = require('crypto');
+
+// fs.readFile uses the thread pool — doesn't block the event loop
+fs.readFile('./large-file.txt', (err, data) => {
+  console.log('File read on thread pool thread, callback on JS thread');
+});
+
+// crypto.pbkdf2 is CPU-heavy — also uses the thread pool
+crypto.pbkdf2('password', 'salt', 100000, 64, 'sha512', (err, key) => {
+  console.log('Hash done:', key.toString('hex'));
+});
+
+// Check current thread pool size
+console.log('Thread pool size:', process.env.UV_THREADPOOL_SIZE || 4);
+
+// Increase if doing many parallel crypto/fs operations:
+// UV_THREADPOOL_SIZE=16 node app.js
+
+// TCP/UDP networking does NOT use the thread pool —
+// the OS handles it natively via epoll/kqueue/IOCP`,
+    },
+  },
+
+  {
     id: 'node-m9',
     category: 'Node.js',
     difficulty: 'medium',

@@ -14,6 +14,9 @@ import { expressCards } from './express';
 import { nestjsCards } from './nestjs';
 import { comparisonsCards } from './comparisons';
 import { interviewCards } from './interviews';
+import { reactCards } from './react';
+import { angularCards } from './angular';
+import { nextjsCards } from './nextjs';
 import type { Flashcard } from '../types';
 
 export const flashcards: Flashcard[] = [
@@ -33,4 +36,7 @@ export const flashcards: Flashcard[] = [
   ...bestPracticesCards,
   ...comparisonsCards,
   ...interviewCards,
+  ...reactCards,
+  ...angularCards,
+  ...nextjsCards,
 ];

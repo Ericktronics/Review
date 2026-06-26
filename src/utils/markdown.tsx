@@ -93,9 +93,23 @@ export function renderAnswer(text: string): ReactNode {
     // numbered list
     if (line.trim().match(/^\d+[.)]/)) {
       const items: string[] = [];
-      while (i < lines.length && lines[i].trim().match(/^\d+[.)] /)) {
-        items.push(lines[i].trim().replace(/^\d+[.)] /, ''));
-        i++;
+      while (i < lines.length) {
+        const cur = lines[i].trim();
+        if (cur.match(/^\d+[.)] /)) {
+          items.push(cur.replace(/^\d+[.)] /, ''));
+          i++;
+        } else if (cur === '') {
+          // look ahead past blank lines — stay in the list if next non-blank is a numbered item
+          let peek = i + 1;
+          while (peek < lines.length && lines[peek].trim() === '') peek++;
+          if (peek < lines.length && lines[peek].trim().match(/^\d+[.)] /)) {
+            i++; // consume the blank line and continue
+          } else {
+            break;
+          }
+        } else {
+          break;
+        }
       }
       nodes.push(
         <ol key={`ol-${i}`} className="space-y-1.5 my-1">

@@ -4,7 +4,7 @@ A flashcard web app for studying backend engineering concepts — built with Vit
 
 ## Features
 
-- **360+ flashcards** across 19 categories
+- **290+ flashcards** across 19 categories
 - **Two card types** with filter chips
   - **Must Know Basics** — fundamentals every developer should know (easy + medium)
   - **Must Know for Exp. Hires** — senior/production-level knowledge (hard)

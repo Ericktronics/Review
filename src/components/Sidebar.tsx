@@ -20,7 +20,7 @@ function NavContent({
           {'</>'}
         </span>
         <span className="font-bold text-sm text-slate-100 leading-tight">
-          Backend<br />Flashcards
+          Dev<br />Flashcards
         </span>
         {showClose && (
           <button

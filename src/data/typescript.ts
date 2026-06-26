@@ -199,30 +199,6 @@ greet(undefined);  // ✗ Caught at compile time, not at runtime`,
     },
   },
 
-  {
-    id: 'ts-e2',
-    category: 'TypeScript',
-    difficulty: 'easy',
-    type: 'basics',
-    question: 'What is the difference between `interface` and `type` in TypeScript?',
-    answer:
-      "Both describe the shape of an object. Key differences:\n\n| | `interface` | `type` |\n|---|---|---|\n| Extension | `extends` keyword | Intersection `&` |\n| Declaration merging | Yes — multiple declarations merge | No — duplicate names error |\n| Primitives / unions | No | Yes — supports union types |\n| Computed types | No | Yes (`type Keys = keyof T`) |\n\n**Rule of thumb**: use `interface` for **public API shapes** (class contracts, object props) where declaration merging or extension is useful. Use `type` for **unions, intersections, mapped types, and primitive aliases**.\n\nFor most object shapes they are interchangeable — prefer `interface` for objects and `type` for everything else.",
-    code: {
-      language: 'typescript',
-      snippet: `// interface — extendable, mergeable
-interface User { id: number; name: string; }
-interface Admin extends User { role: 'admin'; }
-
-// Declaration merging (only interfaces can do this)
-interface Window { myCustomProp: string; }
-
-// type — unions, mapped types, aliases
-type Status  = 'active' | 'inactive' | 'banned';
-type Nullable<T> = T | null;
-type UserKeys = keyof User; // 'id' | 'name'`,
-    },
-  },
-
   // ─── TypeScript (Medium) ─────────────────────────────────────────────────────
 
   {

@@ -17,7 +17,8 @@ export type Category =
   | 'Interview Scenarios'
   | 'React'
   | 'Angular'
-  | 'Next.js';
+  | 'Next.js'
+  | 'Testing';
 
 export interface Flashcard {
   id: string;

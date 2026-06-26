@@ -1,10 +1,10 @@
-# Backend Developer Flashcards
+# Dev Flashcards
 
-A flashcard web app for studying backend engineering concepts — built with Vite, React 18, TypeScript, and Tailwind CSS.
+A flashcard web app for studying software engineering concepts — built with Vite, React 18, TypeScript, and Tailwind CSS.
 
 ## Features
 
-- **290+ flashcards** across 19 categories
+- **300+ flashcards** across 20 categories
 - **Two card types** with filter chips
   - **Must Know Basics** — fundamentals every developer should know (easy + medium)
   - **Must Know for Exp. Hires** — senior/production-level knowledge (hard)
@@ -40,6 +40,7 @@ A flashcard web app for studying backend engineering concepts — built with Vit
 | React | Components, hooks (useState, useEffect, useMemo, useCallback, useReducer, useContext), virtual DOM, reconciliation, error boundaries, performance optimization |
 | Angular | Components, directives, lifecycle hooks, two-way data binding, DI, RxJS, Observables, pipes, route guards |
 | Next.js | SSR, SSG, ISR, CSR, App Router vs Pages Router, React Server Components, API routes, middleware, authentication |
+| Testing | Unit, integration, E2E, Jest, React Testing Library, mocking, TDD, supertest, NestJS testing, Playwright |
 
 ## Requirements
 

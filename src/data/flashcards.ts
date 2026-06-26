@@ -17,6 +17,7 @@ import { interviewCards } from './interviews';
 import { reactCards } from './react';
 import { angularCards } from './angular';
 import { nextjsCards } from './nextjs';
+import { testingCards } from './testing';
 import type { Flashcard } from '../types';
 
 export const flashcards: Flashcard[] = [
@@ -39,4 +40,5 @@ export const flashcards: Flashcard[] = [
   ...reactCards,
   ...angularCards,
   ...nextjsCards,
+  ...testingCards,
 ];

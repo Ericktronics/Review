@@ -165,6 +165,213 @@ function Table() {
     },
   },
 
+  {
+    id: 'react-e6',
+    category: 'React',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'How do you conditionally render elements in JSX?',
+    answer:
+      "JSX is JavaScript, so you use plain JS expressions for conditionals — no special directive syntax like Angular's `*ngIf`.\n\n**Three patterns:**\n\n**1. Ternary** — use when you need either/or:\n```\n{isLoggedIn ? <Dashboard /> : <LoginPage />}\n```\n\n**2. `&&` short-circuit** — use when you render something only if true:\n```\n{hasError && <ErrorBanner />}\n```\n⚠️ **Pitfall**: if the left side is a number, React renders that number.\n`{count && <Badge />}` renders `0` when count is 0. Fix: `{count > 0 && <Badge />}`\n\n**3. Early return** — cleanest for guard clauses at the top of a component:\n```\nif (!user) return null;\n```\n\n**`null`, `undefined`, `false`, `''`** — React renders nothing for these. Use them to \"turn off\" a subtree.",
+    code: {
+      language: 'tsx',
+      snippet: `function Notification({ count, user }: { count: number; user: User | null }) {
+  // Early return guard
+  if (!user) return null;
+
+  return (
+    <div>
+      {/* Ternary: either/or */}
+      {user.isAdmin ? <AdminBanner /> : <UserBanner name={user.name} />}
+
+      {/* && shortcircuit: only show if true */}
+      {user.isVerified && <span>✓ Verified</span>}
+
+      {/* ✗ WRONG: renders "0" when count is 0 */}
+      {count && <Badge label={count} />}
+
+      {/* ✓ CORRECT: explicitly check > 0 */}
+      {count > 0 && <Badge label={count} />}
+    </div>
+  );
+}`,
+    },
+  },
+
+  {
+    id: 'react-e7',
+    category: 'React',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'How does event handling work in React? How is it different from HTML?',
+    answer:
+      "React wraps native browser events in a **SyntheticEvent** — a normalized wrapper that works identically across all browsers.\n\n**Key differences from HTML:**\n- Event names are **camelCase**: `onClick`, `onChange`, `onSubmit` (not `onclick`)\n- You pass a **function reference**, not a string: `onClick={handleClick}` (not `onclick=\"handleClick()\"`)\n- To prevent default browser behavior, call **`e.preventDefault()`** — `return false` does nothing in React\n\n**Common events:**\n- `onClick` — any clickable element\n- `onChange` — fires on every keystroke in `<input>`, `<select>`, `<textarea>`; use `e.target.value` to read the current value\n- `onSubmit` — on `<form>`; always call `e.preventDefault()` to stop the page reload\n- `onKeyDown`, `onFocus`, `onBlur` — keyboard and focus events\n\n**Passing arguments** — wrap the handler in an arrow function if you need to pass extra data:\n`onClick={() => handleDelete(item.id)}`",
+    code: {
+      language: 'tsx',
+      snippet: `function ContactForm() {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault(); // stop page reload
+    // process form data...
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    console.log(e.target.value); // current input value on each keystroke
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input type="text" onChange={handleChange} />
+      <button type="submit">Send</button>
+    </form>
+  );
+}
+
+// Passing arguments with an arrow function wrapper
+function List({ items }: { items: Item[] }) {
+  function handleDelete(id: string) { /* ... */ }
+
+  return (
+    <ul>
+      {items.map(item => (
+        <li key={item.id}>
+          {item.name}
+          <button onClick={() => handleDelete(item.id)}>Delete</button>
+        </li>
+      ))}
+    </ul>
+  );
+}`,
+    },
+  },
+
+  {
+    id: 'react-e8',
+    category: 'React',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'What is `useRef`? When do you use it instead of `useState`?',
+    answer:
+      "`useRef` returns `{ current: initialValue }` — a box you can put any value in. Unlike state, **mutating `.current` does not trigger a re-render**.\n\n**Two main uses:**\n\n**1. Access a DOM node directly** — attach the ref to a JSX element via the `ref` prop:\n- Focus an input programmatically\n- Measure an element's size or position\n- Integrate with a non-React library (chart, map, video player)\n\n**2. Store a mutable value without re-rendering** — like an instance variable:\n- Holding a timer ID so you can cancel it later\n- Tracking the previous value of a prop\n- Flagging whether the component is still mounted during an async operation\n\n**Rule of thumb**: if a value changing should update the UI → use `useState`. If it's just an internal detail the UI doesn't care about → use `useRef`.",
+    code: {
+      language: 'tsx',
+      snippet: `import { useRef, useEffect } from 'react';
+
+// Use 1: access a DOM node
+function SearchInput() {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus(); // focus on mount
+  }, []);
+
+  return <input ref={inputRef} type="text" placeholder="Search..." />;
+}
+
+// Use 2: store a timer ID — changing it shouldn't re-render the component
+function Poller({ url }: { url: string }) {
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function start() {
+    timerRef.current = setInterval(() => fetch(url), 5000);
+  }
+
+  function stop() {
+    if (timerRef.current) clearInterval(timerRef.current);
+  }
+
+  return (
+    <>
+      <button onClick={start}>Start polling</button>
+      <button onClick={stop}>Stop</button>
+    </>
+  );
+}`,
+    },
+  },
+
+  {
+    id: 'react-e9',
+    category: 'React',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'How do you render a list of items in React?',
+    answer:
+      "Use JavaScript's `.map()` inside JSX. Each returned element **must have a `key` prop** — a unique string or number React uses to track items across re-renders.\n\n**Key rules:**\n- Keys must be unique **among siblings** (not globally)\n- Use a stable, unique ID from your data (database ID, slug). **Never use array index** unless the list is fully static — index keys break animations, form state, and reconciliation when items are added, removed, or reordered\n- Keys go on the outermost element returned from `.map()`, not a child inside it\n\n**Handling edge cases:**\n- Empty list → check `.length` and return a fallback message\n- Nested lists → each `.map()` level needs its own `key`\n\n**Never mutate** the array before mapping. Always create a new array with `.filter()`, `.sort()`, etc.",
+    code: {
+      language: 'tsx',
+      snippet: `type Product = { id: string; name: string; price: number };
+
+function ProductList({ products }: { products: Product[] }) {
+  // Empty state guard
+  if (products.length === 0) {
+    return <p>No products found.</p>;
+  }
+
+  return (
+    <ul>
+      {products.map(product => (
+        // key goes on the outermost element of the map callback
+        <li key={product.id}>
+          <span>{product.name}</span>
+          <span>\${product.price.toFixed(2)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// ✗ index as key — breaks when items are added/removed/reordered
+products.map((p, i) => <li key={i}>{p.name}</li>);
+
+// ✓ stable unique ID
+products.map(p => <li key={p.id}>{p.name}</li>);`,
+    },
+  },
+
+  {
+    id: 'react-e10',
+    category: 'React',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'What are React Fragments and why do you need them?',
+    answer:
+      "JSX requires a **single root element** — you can't return two sibling elements side by side. Wrapping them in a `<div>` works but adds an unnecessary DOM node, which can break CSS layouts (flexbox, grid) and semantic HTML (e.g. `<tr>` inside a `<table>`).\n\n**Fragments** let you group elements without adding a real DOM node.\n\n**Two forms:**\n- `<>...</>` — shorthand, most common. Cannot accept props.\n- `<React.Fragment>...</React.Fragment>` — explicit form. Needed when you have to pass a `key` prop (e.g. inside a `.map()` returning multiple elements per item).\n\n**When you'll see them:**\n- Table rows where a component returns `<dt>` and `<dd>` pairs\n- Layout components that return multiple siblings\n- Anywhere a wrapper `<div>` would disturb the DOM structure or CSS",
+    code: {
+      language: 'tsx',
+      snippet: `import { Fragment } from 'react';
+
+// ✗ Extra <div> breaks table structure
+function BadRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>          {/* ← invalid inside <table> */}
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
+
+// ✓ Fragment — no extra DOM node
+function DefinitionRow({ label, value }: { label: string; value: string }) {
+  return (
+    <>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </>
+  );
+}
+
+// When you need a key (inside .map()), use explicit React.Fragment
+const items = [{ id: 1, label: 'Name', value: 'Alice' }];
+
+items.map(item => (
+  <Fragment key={item.id}>   {/* <> shorthand can't have a key prop */}
+    <dt>{item.label}</dt>
+    <dd>{item.value}</dd>
+  </Fragment>
+));`,
+    },
+  },
+
   // ─── React (Medium) ──────────────────────────────────────────────────────────
 
   {
@@ -393,6 +600,121 @@ function UncontrolledForm() {
     </form>
   );
 }`,
+    },
+  },
+
+  {
+    id: 'react-m6',
+    category: 'React',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'How does React Router v6 work? What are the core concepts?',
+    answer:
+      "React Router is the standard routing library for SPAs — it maps URL paths to components without a full page reload.\n\n**Core setup:**\n- `BrowserRouter` — wraps the entire app; listens to URL changes using the browser's History API\n- `Routes` + `Route` — declaratively maps paths to components\n- `Link` — renders an `<a>` tag but intercepts the click, updating the URL via the History API instead of reloading the page\n\n**Reading the URL:**\n- `useParams()` — reads dynamic segments: `/users/:id` → `{ id: '42' }`\n- `useSearchParams()` — reads query strings: `/search?q=react`\n- `useLocation()` — the full location object (pathname, search, hash)\n\n**Navigation in code:**\n- `useNavigate()` — programmatically go to a route: `navigate('/dashboard')`, `navigate(-1)` to go back\n\n**Nested routes + `Outlet`:**\nNest `<Route>` elements to share a layout. The parent renders `<Outlet />` where the child route should appear — great for dashboards with a persistent sidebar.",
+    code: {
+      language: 'tsx',
+      snippet: `import {
+  BrowserRouter, Routes, Route,
+  Link, Outlet, useParams, useNavigate,
+} from 'react-router-dom';
+
+// Root — wrap the app in BrowserRouter
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Layout />}>          {/* parent layout */}
+          <Route index element={<Home />} />            {/* / */}
+          <Route path="users" element={<UserList />} /> {/* /users */}
+          <Route path="users/:id" element={<UserDetail />} /> {/* /users/42 */}
+          <Route path="*" element={<NotFound />} />    {/* catch-all */}
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+// Persistent layout — Outlet renders whichever child route matched
+function Layout() {
+  return (
+    <>
+      <nav>
+        <Link to="/">Home</Link>
+        <Link to="/users">Users</Link>
+      </nav>
+      <main>
+        <Outlet /> {/* child route renders here */}
+      </main>
+    </>
+  );
+}
+
+// Read a URL param
+function UserDetail() {
+  const { id } = useParams(); // /users/42 → id = '42'
+  const navigate = useNavigate();
+
+  return (
+    <>
+      <p>User ID: {id}</p>
+      <button onClick={() => navigate(-1)}>Back</button>
+    </>
+  );
+}`,
+    },
+  },
+
+  {
+    id: 'react-m7',
+    category: 'React',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is component composition in React? How does the `children` prop work?',
+    answer:
+      "**Composition** is the React pattern for building complex UIs from simple, reusable pieces — instead of inheritance. In React, **favor composition over inheritance** (the React docs say this explicitly; class-based inheritance for components is an anti-pattern).\n\n**The `children` prop** — any JSX nested between a component's opening and closing tags is automatically passed as `props.children`. This lets you build generic wrapper/container components without knowing what goes inside them.\n\n**Why it matters:**\n- Avoids prop drilling for layout concerns\n- Makes wrapper components (modal, card, sidebar) truly generic\n- Enables the **slot pattern** — pass multiple named sections as props (like named slots in Vue/Angular)\n\n**Common composition patterns:**\n1. **Containment** — wrapper components that render `children` (Modal, Card, Panel)\n2. **Specialization** — a generic component configured via props into a specific one\n3. **Render props / function as children** — pass a function as `children` for inversion of control (less common since hooks)\n4. **Compound components** — a parent + tightly coupled children (Tabs + Tab, Select + Option)",
+    code: {
+      language: 'tsx',
+      snippet: `// 1. Containment — generic wrapper via children
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="card">
+      <h2>{title}</h2>
+      <div className="card-body">{children}</div>
+    </div>
+  );
+}
+
+// Caller controls what goes inside — Card doesn't need to know
+<Card title="User Profile">
+  <Avatar src={user.avatarUrl} />
+  <p>{user.bio}</p>
+  <FollowButton userId={user.id} />
+</Card>
+
+// 2. Named slots — pass multiple sections as props
+function Dialog({
+  header,
+  body,
+  footer,
+}: {
+  header: React.ReactNode;
+  body: React.ReactNode;
+  footer: React.ReactNode;
+}) {
+  return (
+    <div role="dialog">
+      <header>{header}</header>
+      <section>{body}</section>
+      <footer>{footer}</footer>
+    </div>
+  );
+}
+
+<Dialog
+  header={<h1>Confirm deletion</h1>}
+  body={<p>This action cannot be undone.</p>}
+  footer={<><button>Cancel</button><button>Delete</button></>}
+/>`,
     },
   },
 

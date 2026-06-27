@@ -6,7 +6,7 @@ export const dataStructuresCards: Flashcard[] = [
 
   {
     id: 'ds-1',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'hard',
     type: 'experience',
     question: 'Kth Largest Element in an Array — LeetCode #215\n\nGiven an integer array nums and an integer k, return the kth largest element in the array. Note that it is the kth largest in sorted order, not the kth distinct element.\n\nExample 1:\nInput:  nums = [3,2,1,5,6,4], k = 2\nOutput: 5\n\nExample 2:\nInput:  nums = [3,2,3,1,2,4,5,5,6], k = 4\nOutput: 4\n\nConstraints: Must solve in better than O(n log n) — aim for O(n log k) or O(n) average.',
@@ -51,7 +51,7 @@ console.log(findKthLargest([3,2,3,1,2,4,5,5,6], 4)); // 4`,
 
   {
     id: 'ds-2',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'hard',
     type: 'experience',
     question: 'Design HashMap — LeetCode #706\n\nDesign a HashMap without using any built-in hash table libraries. Implement the following operations:\n- put(key, value) — insert or update\n- get(key) — return value, or -1 if not found\n- remove(key) — remove the key if it exists\n\nExample:\nInput:  ["put",[1,1]], ["put",[2,2]], ["get",[1]], ["get",[3]], ["put",[2,1]], ["get",[2]], ["remove",[2]], ["get",[2]]\nOutput: [null, null, 1, -1, null, 1, null, -1]\n\nConstraints: 0 ≤ key, value ≤ 10⁶ | At most 10⁴ calls',
@@ -101,7 +101,7 @@ console.log(map.get(2));    // -1`,
 
   {
     id: 'ds-3',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'hard',
     type: 'experience',
     question: 'Implement Trie (Prefix Tree) — LeetCode #208\n\nA trie is a tree where each node represents a character. Implement a Trie with:\n- insert(word) — insert a word\n- search(word) — return true if word is in the trie\n- startsWith(prefix) — return true if any word starts with prefix\n\nExample:\nInput:  insert("apple"), search("apple"), search("app"), startsWith("app"), insert("app"), search("app")\nOutput: [null, true, false, true, null, true]\n\nConstraints: 1 ≤ word.length ≤ 2000 | word and prefix consist of lowercase letters only',
@@ -163,7 +163,7 @@ console.log(trie.search('app'));       // true`,
 
   {
     id: 'ds-e1',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'easy',
     type: 'basics',
     question: 'Reverse Linked List — LeetCode #206\n\nGiven the head of a singly linked list, reverse the list and return the reversed list.\n\nExample 1:\nInput:  1 → 2 → 3 → 4 → 5\nOutput: 5 → 4 → 3 → 2 → 1\n\nExample 2:\nInput:  1 → 2\nOutput: 2 → 1\n\nExample 3:\nInput:  []\nOutput: []\n\nConstraints: 0 ≤ number of nodes ≤ 5000 | -5000 ≤ Node.val ≤ 5000\nFollow-up: solve both iteratively and recursively.',
@@ -207,7 +207,7 @@ function fromArray(arr) {
 
   {
     id: 'ds-e2',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'easy',
     type: 'basics',
     question: 'Valid Parentheses — LeetCode #20\n\nGiven a string s containing only \'(\', \')\', \'{\', \'}\', \'[\', \']\', determine if the input string is valid.\n\nA string is valid if:\n- Open brackets are closed by the same type of bracket\n- Open brackets are closed in the correct order\n- Every close bracket has a corresponding open bracket\n\nExample 1: Input: "()"       → Output: true\nExample 2: Input: "()[]{}"   → Output: true\nExample 3: Input: "(]"       → Output: false\nExample 4: Input: "([)]"     → Output: false\nExample 5: Input: "{[]}"     → Output: true\n\nConstraints: 1 ≤ s.length ≤ 10⁴',
@@ -241,7 +241,7 @@ console.log(isValid(']'));      // false (empty stack pop)`,
 
   {
     id: 'ds-e3',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'easy',
     type: 'basics',
     question: 'Maximum Depth of Binary Tree — LeetCode #104\n\nGiven the root of a binary tree, return its maximum depth. Maximum depth is the number of nodes along the longest path from the root node down to the farthest leaf node.\n\nExample 1:\nInput:  [3, 9, 20, null, null, 15, 7]\nOutput: 3\n\nExample 2:\nInput:  [1, null, 2]\nOutput: 2\n\nConstraints: 0 ≤ number of nodes ≤ 10⁴ | -100 ≤ Node.val ≤ 100',
@@ -285,7 +285,7 @@ function maxDepthBFS(root) {
 
   {
     id: 'ds-e4',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'easy',
     type: 'basics',
     question: 'Fibonacci Number — LeetCode #509\n\nThe Fibonacci sequence: F(0) = 0, F(1) = 1, F(n) = F(n-1) + F(n-2) for n > 1.\nGiven n, return F(n).\n\nExample 1: Input: 4  → Output: 3  (0, 1, 1, 2, 3)\nExample 2: Input: 10 → Output: 55\nExample 3: Input: 0  → Output: 0\n\nConstraints: 0 ≤ n ≤ 30\nFollow-up: what is the time complexity of each approach?',
@@ -327,7 +327,7 @@ console.log(fib(10)); // 55`,
 
   {
     id: 'ds-e5',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'easy',
     type: 'basics',
     question: 'Flood Fill — LeetCode #733\n\nGiven an m × n image grid of integers, a starting pixel (sr, sc), and a new color, perform a flood fill.\n\nFlood fill: change the color of the starting pixel and all 4-directionally connected pixels that share the same original color, then do the same for all newly changed pixels (recursively).\n\nExample:\nInput:  image = [[1,1,1],[1,1,0],[1,0,1]], sr = 1, sc = 1, color = 2\nOutput: [[2,2,2],[2,2,0],[2,0,1]]\n\nConstraints:\n- m == image.length, n == image[i].length\n- 1 ≤ m, n ≤ 50 | 0 ≤ image[i][j] ≤ 65535',
@@ -365,7 +365,7 @@ console.log(floodFill(image, 1, 1, 2));
 
   {
     id: 'ds-e6',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'easy',
     type: 'basics',
     question: 'Fizz Buzz — LeetCode #412\n\nGiven an integer n, return a string array answer where:\n- answer[i] == "FizzBuzz" if i is divisible by 3 and 5\n- answer[i] == "Fizz" if i is divisible by 3\n- answer[i] == "Buzz" if i is divisible by 5\n- answer[i] == i (as a string) otherwise\n\nNote: i starts at 1, not 0.\n\nExample 1: Input: 3  → Output: ["1","2","Fizz"]\nExample 2: Input: 5  → Output: ["1","2","Fizz","4","Buzz"]\nExample 3: Input: 15 → Output: ["1","2","Fizz","4","Buzz","Fizz","7","8","Fizz","Buzz","11","Fizz","13","14","FizzBuzz"]\n\nConstraints: 1 ≤ n ≤ 10⁴',
@@ -392,7 +392,7 @@ console.log(fizzBuzz(15));
 
   {
     id: 'ds-e7',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'easy',
     type: 'basics',
     question: 'Valid Palindrome — LeetCode #125\n\nA phrase is a palindrome if, after converting all uppercase letters to lowercase and removing all non-alphanumeric characters, it reads the same forward and backward.\n\nGiven a string s, return true if it is a palindrome, or false otherwise.\n\nExample 1:\nInput:  "A man, a plan, a canal: Panama"\nOutput: true  (→ "amanaplanacanalpanama")\n\nExample 2:\nInput:  "race a car"\nOutput: false  (→ "raceacar")\n\nExample 3:\nInput:  " "\nOutput: true  (→ ""  — empty string is palindrome)\n\nConstraints: 1 ≤ s.length ≤ 2 × 10⁵',
@@ -430,7 +430,7 @@ console.log(isPalindrome(' '));           // true`,
 
   {
     id: 'ds-e8',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'easy',
     type: 'basics',
     question: 'Count Vowels and Consonants\n\nGiven a string s, count the number of vowels (a, e, i, o, u) and consonants. Ignore digits, spaces, and special characters — count alphabetical characters only. The check is case-insensitive.\n\nExample 1:\nInput:  "Hello World!"\nOutput: { vowels: 3, consonants: 7 }\n\nExample 2:\nInput:  "Accenture"\nOutput: { vowels: 4, consonants: 5 }\n\nExample 3:\nInput:  "12345"\nOutput: { vowels: 0, consonants: 0 }\n\nConstraints: 1 ≤ s.length ≤ 10⁴',
@@ -464,7 +464,7 @@ console.log(countVowelsConsonants('12345'));
 
   {
     id: 'ds-e9',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'easy',
     type: 'basics',
     question: 'Find Minimum in Array — Classic Problem\n\nGiven an unsorted array of integers nums, return both the maximum and minimum values in a single pass (do not sort the array).\n\nExample 1:\nInput:  [3, 7, 1, 9, 2, 5]\nOutput: { max: 9, min: 1 }\n\nExample 2:\nInput:  [42]\nOutput: { max: 42, min: 42 }\n\nExample 3:\nInput:  [-3, -1, -7, -5]\nOutput: { max: -1, min: -7 }\n\nConstraints: 1 ≤ nums.length ≤ 10⁵ | Do not use Math.max(...arr) — explain why.',
@@ -497,7 +497,7 @@ console.log(findMaxMin([-3, -1, -7, -5]));   // { max: -1, min: -7 }
 
   {
     id: 'ds-e10',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'easy',
     type: 'basics',
     question: 'Reverse String — LeetCode #344\n\nWrite a function that reverses a string. The input string is given as an array of characters s. You must do this by modifying the input array in-place with O(1) extra memory.\n\nExample 1:\nInput:  ["h","e","l","l","o"]\nOutput: ["o","l","l","e","h"]\n\nExample 2:\nInput:  ["H","a","n","n","a","h"]\nOutput: ["h","a","n","n","a","H"]\n\nBonus: also reverse the words in a sentence ("Hello World" → "World Hello").\n\nConstraints: 1 ≤ s.length ≤ 10⁵',
@@ -533,7 +533,7 @@ console.log(reverseWords('the sky is blue')); // 'blue is sky the'`,
 
   {
     id: 'ds-m1',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'medium',
     type: 'basics',
     question: 'Contains Duplicate — LeetCode #217\n\nGiven an integer array nums, return true if any value appears at least twice in the array, and return false if every element is distinct.\n\nExample 1: Input: [1,2,3,1]     → Output: true\nExample 2: Input: [1,2,3,4]     → Output: false\nExample 3: Input: [1,1,1,3,3,4,3,2,4,2] → Output: true\n\nConstraints: 1 ≤ nums.length ≤ 10⁵ | -10⁹ ≤ nums[i] ≤ 10⁹\nFollow-up: can you solve it in O(n) time and O(1) space? (Hint: you cannot with a general input — explain why.)',
@@ -570,7 +570,7 @@ console.log(containsDuplicate([1,2,3,4])); // false`,
 
   {
     id: 'ds-m2',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'medium',
     type: 'basics',
     question: 'Best Time to Buy and Sell Stock — LeetCode #121\n\nYou are given an array prices where prices[i] is the price of a stock on the ith day. You want to maximize profit by choosing a single day to buy and a single day to sell after the buy day.\n\nReturn the maximum profit. If no profit is possible, return 0.\n\nExample 1:\nInput:  [7, 1, 5, 3, 6, 4]\nOutput: 5  (buy at 1, sell at 6)\n\nExample 2:\nInput:  [7, 6, 4, 3, 1]\nOutput: 0  (prices only decrease — no profitable trade)\n\nConstraints: 1 ≤ prices.length ≤ 10⁵ | 0 ≤ prices[i] ≤ 10⁴',
@@ -607,7 +607,7 @@ console.log(maxProfit([7, 6, 4, 3, 1]));    // 0  (no profitable trade)`,
 
   {
     id: 'ds-m3',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'medium',
     type: 'basics',
     question: 'Climbing Stairs — LeetCode #70\n\nYou are climbing a staircase. It takes n steps to reach the top. Each time you can either climb 1 or 2 steps. In how many distinct ways can you climb to the top?\n\nExample 1: Input: 2 → Output: 2  (1+1, 2)\nExample 2: Input: 3 → Output: 3  (1+1+1, 1+2, 2+1)\nExample 3: Input: 5 → Output: 8\n\nConstraints: 1 ≤ n ≤ 45',
@@ -643,7 +643,7 @@ console.log(climbStairs(10)); // 89`,
 
   {
     id: 'ds-m4',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'medium',
     type: 'basics',
     question: 'Number of Islands — LeetCode #200\n\nGiven an m × n 2D binary grid where \'1\' represents land and \'0\' represents water, return the number of islands. An island is surrounded by water and is formed by connecting adjacent lands horizontally or vertically.\n\nExample 1:\nInput:\n[["1","1","1","1","0"],\n ["1","1","0","1","0"],\n ["1","1","0","0","0"],\n ["0","0","0","0","0"]]\nOutput: 1\n\nExample 2:\nInput:\n[["1","1","0","0","0"],\n ["1","1","0","0","0"],\n ["0","0","1","0","0"],\n ["0","0","0","1","1"]]\nOutput: 3\n\nConstraints: 1 ≤ m, n ≤ 300',
@@ -689,7 +689,7 @@ console.log(numIslands(grid)); // 3`,
 
   {
     id: 'ds-m5',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'medium',
     type: 'basics',
     question: 'Valid Anagram — LeetCode #242\n\nGiven two strings s and t, return true if t is an anagram of s, and false otherwise. An anagram uses the same characters with the same frequencies in a different order.\n\nExample 1: Input: s = "anagram", t = "nagaram" → Output: true\nExample 2: Input: s = "rat",     t = "car"     → Output: false\nExample 3: Input: s = "listen",  t = "silent"  → Output: true\n\nConstraints: 1 ≤ s.length, t.length ≤ 5 × 10⁴ | s and t consist of lowercase English letters\nFollow-up: what if the inputs contain Unicode characters?',
@@ -725,7 +725,7 @@ console.log(isAnagram('listen', 'silent'));   // true`,
 
   {
     id: 'ds-m6',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'medium',
     type: 'basics',
     question: 'First Unique Character in a String — LeetCode #387\n\nGiven a string s, find the first non-repeating character in it and return its index. If it does not exist, return -1.\n\nExample 1: Input: "leetcode"  → Output: 0  (\'l\' appears once)\nExample 2: Input: "loveleetcode" → Output: 2  (\'v\' appears once)\nExample 3: Input: "aabb"      → Output: -1  (no unique character)\n\nConstraints: 1 ≤ s.length ≤ 10⁵ | s consists of only lowercase English letters',
@@ -757,7 +757,7 @@ console.log(firstUniqChar('aabb'));         // -1`,
 
   {
     id: 'ds-m7',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'medium',
     type: 'basics',
     question: 'Missing Number — LeetCode #268\n\nGiven an array nums containing n distinct numbers in the range [0, n], return the only number in the range that is missing from the array.\n\nExample 1: Input: [3,0,1]     → Output: 2\nExample 2: Input: [0,1]       → Output: 2\nExample 3: Input: [9,6,4,2,3,5,7,0,1] → Output: 8\n\nConstraints: n == nums.length | 1 ≤ n ≤ 10⁴ | 0 ≤ nums[i] ≤ n | All numbers are unique\nFollow-up: solve in O(1) extra space and O(n) runtime.',
@@ -790,7 +790,7 @@ console.log(missingNumber([9,6,4,2,3,5,7,0,1]));    // 8`,
 
   {
     id: 'ds-m8',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'medium',
     type: 'basics',
     question: 'Second Largest Element — Classic Problem\n\nGiven an unsorted array of integers, find the second largest distinct value in a single pass (do not sort the array).\n\nExample 1: Input: [3, 7, 1, 9, 2, 5] → Output: 7\nExample 2: Input: [5, 5, 5]           → Output: -1  (no distinct second largest)\nExample 3: Input: [1, 2]              → Output: 1\nExample 4: Input: [9, 1]              → Output: 1\n\nConstraints: 1 ≤ nums.length ≤ 10⁵ | Solve in O(n) time, O(1) space',
@@ -824,7 +824,7 @@ console.log(secondLargest([9, 1]));              // 1`,
 
   {
     id: 'ds-m9',
-    category: 'Data Structures',
+    category: 'Data Structures & Algorithms',
     difficulty: 'medium',
     type: 'basics',
     question: 'Two Sum — LeetCode #1\n\nGiven an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nExample 1:\nInput:  nums = [2,7,11,15], target = 9\nOutput: [0,1]  (nums[0] + nums[1] = 2 + 7 = 9)\n\nExample 2:\nInput:  nums = [3,2,4], target = 6\nOutput: [1,2]\n\nExample 3:\nInput:  nums = [3,3], target = 6\nOutput: [0,1]\n\nConstraints: 2 ≤ nums.length ≤ 10⁴ | Only one valid answer exists.',
@@ -856,6 +856,62 @@ function twoSum(nums, target) {
 console.log(twoSum([2, 7, 11, 15], 9)); // [0, 1]
 console.log(twoSum([3, 2, 4], 6));      // [1, 2]
 console.log(twoSum([3, 3], 6));         // [0, 1]`,
+    },
+  },
+
+  {
+    id: 'ds-e12',
+    category: 'Data Structures & Algorithms',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'How do you check if a string is a palindrome?',
+    answer:
+      "A **palindrome** reads the same forwards and backwards. `\"racecar\"` → palindrome. `\"hello\"` → not.\n\n**Two-pointer approach (O(n) time, O(1) space)**:\nPlace one pointer at the start and one at the end, move them inward comparing characters. If any pair doesn't match, it's not a palindrome. This is the preferred approach in interviews.\n\n**Reverse-and-compare (O(n) time, O(n) space)**:\nReverse the string and check equality. Simple to write but uses extra space.\n\n**Common follow-ups**:\n- *Case-insensitive*: `toLowerCase()` before checking\n- *Ignore non-alphanumeric characters* (e.g. `\"A man, a plan, a canal: Panama\"`): filter out non-letters/digits first\n- *Check a number*: convert to string, or use the modulo/divide approach to reverse the number without string conversion\n\n**Complexity**:\n- Two-pointer: Time O(n) | Space O(1)\n- Reverse: Time O(n) | Space O(n)",
+    code: {
+      language: 'javascript',
+      snippet: `// ── Two-pointer: O(n) time, O(1) space ──────────────
+function isPalindrome(s) {
+  let left = 0, right = s.length - 1;
+
+  while (left < right) {
+    if (s[left] !== s[right]) return false;
+    left++;
+    right--;
+  }
+  return true;
+}
+
+// ── Reverse-and-compare: O(n) time, O(n) space ───────
+function isPalindromeReverse(s) {
+  return s === s.split('').reverse().join('');
+}
+
+// ── Follow-up: ignore case and non-alphanumeric ───────
+// "A man, a plan, a canal: Panama" → true
+function isPalindromeClean(s) {
+  const clean = s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  let left = 0, right = clean.length - 1;
+
+  while (left < right) {
+    if (clean[left] !== clean[right]) return false;
+    left++;
+    right--;
+  }
+  return true;
+}
+
+// ── Follow-up: check a number ─────────────────────────
+// 121 → true  |  -121 → false  |  10 → false
+function isPalindromeNumber(n) {
+  if (n < 0) return false; // negative numbers are never palindromes
+  return n === Number(String(n).split('').reverse().join(''));
+}
+
+console.log(isPalindrome('racecar'));   // true
+console.log(isPalindrome('hello'));     // false
+console.log(isPalindromeClean('A man, a plan, a canal: Panama')); // true
+console.log(isPalindromeNumber(121));   // true
+console.log(isPalindromeNumber(-121));  // false`,
     },
   },
 ];

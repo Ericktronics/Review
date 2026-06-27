@@ -68,7 +68,7 @@ function NavContent({
               }`}
               onClick={() => onSelect(cat)}
             >
-              <span className="truncate">{cat}</span>
+              <span className="text-left leading-tight">{cat}</span>
               <span className={`text-xs px-1.5 py-0.5 rounded-md flex-shrink-0 ml-1 ${selected === cat ? 'bg-indigo-500/20 text-indigo-300' : 'bg-slate-800 text-slate-500'}`}>
                 {counts[cat] ?? 0}
               </span>

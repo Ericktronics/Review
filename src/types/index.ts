@@ -10,7 +10,7 @@ export type Category =
   | 'Microservices'
   | 'DevOps'
   | 'Best Practices'
-  | 'Data Structures'
+  | 'Data Structures & Algorithms'
   | 'Express.js'
   | 'NestJS'
   | 'Compare & Choose'

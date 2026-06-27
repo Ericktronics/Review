@@ -33,7 +33,7 @@ A flashcard web app for studying software engineering concepts — built with Vi
 | Caching | Stampede prevention, eviction policies, cache layers, Redis, TTL, invalidation |
 | Microservices | Circuit breaker, Saga pattern, API gateway, service mesh, Strangler Fig |
 | DevOps | Kubernetes, Docker, CI/CD, blue-green vs canary, Helm, observability |
-| Data Structures | Big O, hash tables, heaps, trees, graphs, DFS/BFS, dynamic programming |
+| Data Structures & Algorithms | Big O, hash tables, heaps, trees, graphs, DFS/BFS, dynamic programming, palindrome |
 | Best Practices | DRY, KISS, testing pyramid, code review, technical debt, semver |
 | Compare & Choose | null vs undefined, == vs ===, JWT vs Sessions, REST vs GraphQL, ORM vs SQL, Monolith vs Microservices, consistency models |
 | Interview Scenarios | Production incidents, debugging under pressure, tech debt prioritization, API migrations, team leadership, scaling |

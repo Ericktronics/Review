@@ -199,6 +199,86 @@ export const interviewCards: Flashcard[] = [
   },
 
   {
+    id: 'int-e8',
+    category: 'Interview Scenarios',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'What is your greatest weakness? How are you working on it?',
+    answer:
+      '**What the interviewer is testing**: self-awareness, honesty, growth mindset. They\'re not looking for fake answers ("I work too hard!") — they\'re looking for evidence that you can identify your own gaps and take action.\n\n**Formula for a strong answer**:\n1. Name a **real weakness** that is relevant but not disqualifying for the role\n2. Show **concrete self-awareness** of when and how it shows up\n3. Describe the **specific steps you\'re taking** to address it\n4. Name the **progress you\'ve seen** so far\n\n**Good examples for a senior engineering role**:\n- "I used to over-engineer solutions — I\'d reach for abstraction too early. I\'ve started defaulting to the simplest thing that works and only adding complexity when I have a concrete reason. I\'ve found my PRs get reviewed and merged faster as a result."\n- "I tend to take on too much rather than delegating. I\'ve been practicing breaking down work and handing off subtasks to junior engineers, which has also helped them grow."\n- "Public speaking — I\'m more comfortable in writing than speaking in front of large groups. I joined an internal speaker series to practice presenting technical topics."\n\n**What to avoid**: answers that are strengths in disguise ("I\'m a perfectionist"), completely non-professional weaknesses, or weaknesses with no action taken. Show you\'re already doing something about it.',
+  },
+
+  {
+    id: 'int-e9',
+    category: 'Interview Scenarios',
+    difficulty: 'easy',
+    type: 'basics',
+    question: 'Why do you want to leave your current role? Why are you interested in this position?',
+    answer:
+      '**What the interviewer is testing**: motivation, culture fit, whether you\'re running toward something vs. just fleeing. They want to know if you\'ll last at the new company.\n\n**How to answer the "why leaving" part**:\n- Be honest but professional. Focus on what you\'re looking for, not what\'s wrong with your current employer.\n- Acceptable reasons: limited growth or ownership, narrow tech scope, company direction shifted, role became stagnant, seeking larger scale or impact\n- **Never badmouth** your current employer, manager, or team — it signals you might do the same to them\n\n**How to answer the "why this role" part**:\n- Be specific. Research the company before the interview. Generic answers ("I love your company culture") are weak signals.\n- Connect their domain/tech/scale to something you genuinely care about\n- Show you\'ve thought about how you can contribute, not just what you\'ll gain\n\n**Strong example framing**:\n"In my current role, I\'ve been focused on internal tools with a small team, and I\'m ready for a higher-scale environment where engineering decisions have more product impact. What drew me to this role specifically is [X] — I\'ve worked on [related thing] and I\'m excited to go deeper on [Y] here."\n\n**What makes this answer strong**: it\'s honest, it\'s specific to *this* company, and it shows you\'ve done your homework.',
+  },
+
+  {
+    id: 'int-m8',
+    category: 'Interview Scenarios',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'Tell me about your biggest professional failure. What happened and what did you learn?',
+    answer:
+      '**What the interviewer is testing**: honesty, accountability, resilience, growth mindset. The failure itself matters far less than how you talk about it. Candidates who can\'t name a real failure are a red flag.\n\n**What makes a strong answer**:\n1. **Choose a real failure** — something with actual impact (not "I missed a small deadline once"). A production outage, a poor architectural decision, a failed project, a miscommunication that cost the team.\n2. **Own it fully** — no deflection, no "the team failed" or "the PM didn\'t..." The question is about *you*.\n3. **Describe what you learned concretely** — not vague lessons ("I learned communication is important") but specific changes in how you work: "I now always write down requirements and get sign-off before starting implementation."\n4. **Show that you applied the lesson** — ideally with an example where you used the lesson afterward.\n\n**STAR structure**:\n- **Situation**: briefly set the context\n- **Task**: what you were responsible for\n- **Action**: what went wrong and why\n- **Result**: the impact, then what you changed\n\n**Example themes that work well**: shipped a bug that caused downtime and didn\'t have a rollback plan; underestimated a migration project and blocked a team for a sprint; built a feature that users didn\'t want because you didn\'t validate the spec early enough.\n\n**What to avoid**: picking something trivial (signals lack of self-awareness), over-explaining why it wasn\'t your fault (signals defensiveness), or having no lesson (signals no growth).',
+  },
+
+  {
+    id: 'int-m9',
+    category: 'Interview Scenarios',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'You\'re given a vague task with no clear requirements or success criteria. How do you move forward?',
+    answer:
+      '**What the interviewer is testing**: ability to operate under ambiguity, initiative, communication with stakeholders, avoiding the two failure modes — paralysis (waiting for perfect clarity) and charging ahead blindly.\n\n**Strong framework**:\n\n1. **Ask targeted clarifying questions** — don\'t ask "what do you want?" Narrow the uncertainty: "What does success look like in 2 weeks?", "Who is the primary user?", "What problem are we trying to solve?", "Are there constraints I should know about (timeline, budget, tech stack)?"\n2. **Write down your understanding** — even before a spec exists, write a short summary of what you understand the task to be and send it for confirmation. This surfaces misalignments before you write code.\n3. **Define your own success criteria** — if no one gives you acceptance criteria, draft them yourself and get sign-off: "I\'m planning to call this done when X, Y, Z. Does that match your expectations?"\n4. **Time-box the uncertainty** — if you can\'t get clarity, pick the most reasonable interpretation, timebox a spike (1–2 days), and produce something concrete to react to. A working prototype reveals requirements faster than a requirements meeting.\n5. **Flag blockers early** — if ambiguity is blocking real decisions (DB schema, API contract), escalate early rather than making a guess that\'s expensive to reverse.\n\n**What makes this answer strong**: showing you\'re neither paralysed nor reckless — you move forward deliberately while reducing risk.',
+  },
+
+  {
+    id: 'int-m10',
+    category: 'Interview Scenarios',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'How do you balance moving fast and shipping features vs. writing clean, maintainable code?',
+    answer:
+      '**What the interviewer is testing**: engineering maturity, pragmatism, whether you understand that speed and quality are not always opposites — and when they genuinely are, how you make the trade-off consciously.\n\n**Strong answer framework**:\n\n**Speed and quality compound each other** — in the short run, cutting corners feels fast. In the long run, it creates drag: slower onboarding, more bugs, harder refactors. The goal is sustainable pace, not maximum short-term throughput.\n\n**Concrete practices that enable both**:\n- **Small, focused PRs** — easier to review, merge faster, easier to revert. Fewer conflicts with other people\'s work.\n- **Automated tests on the happy path** — you don\'t need 100% coverage on day one. Cover the risky paths so you can refactor safely later.\n- **The "good enough" bar** — distinguish between production code that lives for years (invest more) vs. a one-time script, a prototype, or internal tooling (invest less). Match quality investment to longevity.\n- **Boy Scout Rule** — leave the code slightly better than you found it. Quality improves gradually and organically.\n\n**When to consciously take on debt**:\n- Hard deadline with real business consequence → ship, open a tech debt ticket immediately, address it next sprint\n- Validating whether a feature is even wanted → quick prototype, throw it away or rewrite once validated\n\n**What makes this answer strong**: showing you think about trade-offs consciously and have concrete practices, not just "I always write clean code" or "we move fast and fix later."',
+  },
+
+  {
+    id: 'int-h7',
+    category: 'Interview Scenarios',
+    difficulty: 'hard',
+    type: 'experience',
+    question: 'Walk me through the most technically complex project you\'ve worked on. What decisions did you make and what would you do differently?',
+    answer:
+      '**What the interviewer is testing**: technical depth, architectural thinking, ownership, ability to reflect critically on your own work.\n\n**How to structure your answer (STAR + retrospective)**:\n\n1. **Set the context briefly** — what the system did, scale, team size, your specific role. Interviewers want to know what *you* owned, not what the team did.\n2. **Identify the hard technical problem** — what made this complex? Distributed systems? Extreme scale? Tight real-time constraints? Migrating a live system? Data consistency guarantees? Don\'t pick a project that was just large — pick one where you faced genuinely hard trade-offs.\n3. **Walk through 2–3 key decisions** — for each: what were the options, what was the trade-off, what did you choose, and why. "We chose eventual consistency here because the write latency cost of strong consistency would have made the feature unusable — and the impact of stale reads was low for this data type."\n4. **Show what actually happened** — did it go well? Where did it break down? What was the user or business impact?\n5. **Retrospective: what would you do differently** — this is what separates senior engineers. You should be able to critique your own past decisions honestly. "We added too many abstractions early. If I did it again, I\'d start simpler and let the complexity emerge from real usage."\n\n**Pitfalls to avoid**: describing a project without clearly stating your personal contribution, picking a project that was complex because it was large but not because the *engineering problems* were hard, or being unable to identify what you\'d change.',
+  },
+
+  {
+    id: 'int-h8',
+    category: 'Interview Scenarios',
+    difficulty: 'hard',
+    type: 'experience',
+    question: 'How do you stay current with new technologies and decide which ones are worth adopting?',
+    answer:
+      '**What the interviewer is testing**: intellectual curiosity, judgement (knowing what to ignore vs. adopt), and the ability to evaluate tools critically rather than chasing hype.\n\n**Strong answer — two parts:**\n\n**How you stay current**:\n- Curated sources: changelog for languages/frameworks you own (e.g. Node.js release notes, TypeScript release blog), specific newsletters (Node Weekly, JavaScript Weekly), and 2–3 trusted voices on Twitter/X or Substack whose judgement you trust\n- Reading RFCs and ADRs (Architecture Decision Records) from open-source projects you use\n- Side projects: the fastest way to build real intuition about a technology is to use it on something you care about\n- Internal: if colleagues propose a new tool, engage with their RFC rather than tuning it out\n\n**How you decide what to adopt**:\nA useful mental filter:\n1. **What problem does it solve?** If you don\'t currently have that problem, you don\'t need the solution.\n2. **Is this a trend or a pattern?** Trends come and go. Patterns (event-driven, CQRS, hexagonal architecture) have lasted decades. Weight patterns higher.\n3. **What is the operational cost?** Every dependency is a liability: security patches, breaking changes, abandoned maintenance. Evaluate the ecosystem health (GitHub activity, corporate backing, downloads trend).\n4. **Prove it at small scale first** — proposal → timebox spike → decision. No big rewrites based on a blog post.\n\n**What makes this answer strong**: the decision framework. Anyone can list sources. Showing you think critically about adoption — not every new tool deserves to be in production — signals engineering maturity.',
+  },
+
+  {
+    id: 'int-h9',
+    category: 'Interview Scenarios',
+    difficulty: 'hard',
+    type: 'experience',
+    question: 'Your engineering team is burned out: everyone is working overtime, morale is low, and people are starting to leave. What do you do?',
+    answer:
+      '**What the interviewer is testing**: leadership without authority, empathy, systems thinking, ability to address root causes rather than symptoms.\n\n**Burnout is almost always a systems problem, not a people problem.** The team isn\'t burned out because they\'re weak — something in the environment is consuming too much of their energy. Diagnose before prescribing.\n\n**Common root causes:**\n- Chronic underestimation and unpredictable scope changes → no sustainable pace\n- On-call rotation too heavy or alerts too noisy → sleep deprivation\n- Unclear ownership → everyone is responsible for everything → everyone is always on-call\n- No slack in the sprint → no time to pay down debt, so velocity keeps falling → pressure increases\n- Lack of psychological safety → people afraid to say "this is unsustainable"\n\n**What to do:**\n\n1. **Name it publicly** — acknowledge the problem in a team meeting or retro. "We\'re moving too fast and I can see it\'s unsustainable. I want to fix that." Naming it gives the team permission to be honest.\n2. **Do 1:1s to find the root cause** — ask every person: "What\'s taking the most energy? What feels most out of your control?" Don\'t assume you know.\n3. **Negotiate capacity with leadership** — bring data: "Our on-call noise level doubled in 3 months. We need 1 sprint to address alert hygiene before adding new features." Frame it in business terms: attrition and hiring cost far more than one slow sprint.\n4. **Protect focus time** — no-meeting blocks, async by default, clear ownership so people aren\'t pulled into every incident.\n5. **Make sustainability a team value** — celebrate engineers who push back on unrealistic scopes, not just ones who heroically work all night.\n\n**What makes this answer strong**: diagnosing root cause vs. symptoms, and bringing the problem to leadership with data rather than just venting.',
+  },
+
+  {
     id: 'int-h6',
     category: 'Interview Scenarios',
     difficulty: 'hard',

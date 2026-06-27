@@ -198,4 +198,63 @@ queue.consume('order.placed', async (msg) => {
 });`,
     },
   },
+
+  {
+    id: 'sys-5',
+    category: 'System Design',
+    difficulty: 'hard',
+    type: 'experience',
+    question: 'Design a URL shortener (like bit.ly). Walk through your architecture and key decisions.',
+    answer:
+      "This is the classic system design interview question. It's deceptively simple but forces you to discuss encoding, scale, caching, and trade-offs.\n\n**Core requirements**: user submits a long URL → get back a short URL (e.g. `sho.rt/aB3x9z`). Visiting the short URL redirects to the original.\n\n**Write path**:\n1. User POSTs a long URL\n2. Generate a unique short code (6–8 characters)\n3. Store `{ shortCode → longUrl, createdAt, userId, clickCount }` in DB\n4. Return the short URL\n\n**Short code generation strategies**:\n- **Counter + Base62**: auto-increment an integer ID, encode in base62 (a-z, A-Z, 0-9). ID 125 → `cb`. Simple, no collisions, predictable length. Risk: sequential codes are guessable.\n- **Hash**: MD5/SHA256 of the long URL, take first 7 characters. Risk: collisions — check DB and regenerate if taken.\n- **Random**: generate random 7-char base62 string, check uniqueness. Simple but requires a uniqueness check on every write.\n\n**Read path (the critical hot path)**:\n1. Extract short code from URL\n2. Look up in **Redis cache** first\n3. On cache miss: query DB, store in cache with TTL\n4. Return HTTP **301 vs 302** redirect:\n   - `301 Permanent` — browser caches forever, never hits your server again. Reduces load but you lose click analytics.\n   - `302 Temporary` — browser always re-requests. Enables analytics and letting you change the destination. Preferred for URL shorteners.\n\n**Schema** (PostgreSQL):\n```sql\nCREATE TABLE urls (\n  id         BIGSERIAL PRIMARY KEY,\n  short_code VARCHAR(10) UNIQUE NOT NULL,\n  long_url   TEXT NOT NULL,\n  user_id    UUID,\n  expires_at TIMESTAMPTZ,\n  created_at TIMESTAMPTZ DEFAULT NOW()\n);\nCREATE INDEX idx_short_code ON urls(short_code);\n```\n\n**Scale considerations**:\n- Read:write ratio is ~100:1 — optimize the read path\n- Cache top URLs in Redis: ~20% of URLs get 80% of traffic\n- For billions of URLs: shard by short code prefix or use a distributed KV store (DynamoDB, Cassandra)\n- Rate limit: prevent abuse with per-IP or per-user limits\n\n**Analytics** (if required): don't log synchronously on redirect — emit to a message queue (Kafka) and process asynchronously.",
+    code: {
+      language: 'typescript',
+      snippet: `// POST /shorten — write path
+app.post('/shorten', async (req, res) => {
+  const { longUrl } = req.body;
+
+  // Generate short code from auto-increment ID (base62)
+  const result = await db.query(
+    'INSERT INTO urls (long_url) VALUES ($1) RETURNING id',
+    [longUrl]
+  );
+  const shortCode = toBase62(result.rows[0].id); // e.g. id 10000 → "aBc1"
+  await db.query('UPDATE urls SET short_code=$1 WHERE id=$2',
+    [shortCode, result.rows[0].id]);
+
+  res.json({ shortUrl: \`https://sho.rt/\${shortCode}\` });
+});
+
+// GET /:code — read path (hot path, cache-first)
+app.get('/:code', async (req, res) => {
+  const { code } = req.params;
+
+  // 1. Redis cache
+  const cached = await redis.get(\`url:\${code}\`);
+  if (cached) return res.redirect(302, cached);
+
+  // 2. DB lookup
+  const row = await db.query(
+    'SELECT long_url FROM urls WHERE short_code=$1', [code]
+  );
+  if (!row.rows[0]) return res.status(404).send('Not found');
+
+  const longUrl = row.rows[0].long_url;
+
+  // 3. Populate cache with TTL
+  await redis.setex(\`url:\${code}\`, 3600, longUrl);
+
+  // 4. 302 = browser won't cache, lets us track analytics
+  res.redirect(302, longUrl);
+});
+
+// Base62 encoding: maps integers to [a-z, A-Z, 0-9]
+function toBase62(n: number): string {
+  const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let result = '';
+  while (n > 0) { result = chars[n % 62] + result; n = Math.floor(n / 62); }
+  return result || '0';
+}`,
+    },
+  },
 ];

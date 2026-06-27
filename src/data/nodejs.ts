@@ -1099,4 +1099,55 @@ console.log(v8.getHeapStatistics());
 // node --max-old-space-size=4096 app.js`,
     },
   },
+
+  {
+    id: 'node-m12',
+    category: 'Node.js',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What are Worker Threads in Node.js? When do you use them and how are they different from `child_process`?',
+    answer:
+      "Node.js is single-threaded — all JavaScript runs on one event loop thread. This is fine for I/O-bound work (the thread is idle while waiting on the DB or network anyway). But **CPU-bound work** — image processing, video encoding, cryptographic operations, large data transformations — blocks the event loop and stops all other requests from being handled.\n\n**Worker Threads** (`worker_threads` module) spawn additional JavaScript threads within the *same process*. Unlike `child_process`, workers:\n- Share the same memory space (via `SharedArrayBuffer` and `Atomics`)\n- Are cheaper to create than a child process\n- Can pass data back and forth via `postMessage` (structured clone, zero-copy for typed arrays)\n\n**vs `child_process`**:\n- `child_process` = separate OS process, separate V8 instance, separate memory. Communication via IPC or stdio. Higher overhead but better isolation (a crash doesn't take down the parent).\n- `worker_threads` = same process, shared memory possible, lighter overhead, better for compute tasks where you want to pass large data cheaply.\n\n**When to use Worker Threads**:\n- CPU work that would block the event loop for >50–100ms\n- Parallel computation: splitting a task across multiple cores\n- Libraries that do heavy synchronous work (e.g. parsing, compression)\n\n**Thread pool pattern**: creating and destroying workers per-request is expensive. The [`piscina`](https://github.com/piscinajs/piscina) library implements a reusable worker thread pool.",
+    code: {
+      language: 'javascript',
+      snippet: `// heavy-task.js — runs in a worker thread
+const { workerData, parentPort } = require('worker_threads');
+
+// CPU-intensive work: won't block the main event loop
+function compute(n) {
+  let result = 0;
+  for (let i = 0; i < n; i++) result += Math.sqrt(i);
+  return result;
+}
+
+parentPort.postMessage(compute(workerData.n));
+
+// ───────────────────────────────────────────────────
+// main.js — main event loop stays responsive
+const { Worker } = require('worker_threads');
+
+function runInWorker(n) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker('./heavy-task.js', {
+      workerData: { n }, // transferred to worker thread
+    });
+    worker.on('message', resolve);
+    worker.on('error',   reject);
+  });
+}
+
+// Runs on a worker thread — event loop handles other requests concurrently
+const result = await runInWorker(100_000_000);
+console.log('result:', result);
+
+// ── Using piscina for a reusable pool ──────────────
+const Piscina = require('piscina');
+const pool = new Piscina({ filename: './heavy-task.js' });
+
+app.post('/compute', async (req, res) => {
+  const result = await pool.run({ n: req.body.n });
+  res.json({ result });
+});`,
+    },
+  },
 ];

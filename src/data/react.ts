@@ -718,6 +718,54 @@ function Dialog({
     },
   },
 
+  {
+    id: 'react-m8',
+    category: 'React',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What are React Portals? When do you need them?',
+    answer:
+      "**Problem**: modals, tooltips, and dropdowns often need to render in a different part of the DOM (usually `document.body`) to avoid CSS stacking context issues — `overflow: hidden`, `z-index`, or `transform` on an ancestor can clip or hide them.\n\nBut if you move the component out of the React tree (e.g., append a `<div>` to body with vanilla JS), you lose React features: the component can't access parent Context, events don't bubble up the React tree correctly, and React can't manage its lifecycle.\n\n**Portals** let you render a component's output into a *different DOM node* while keeping it fully inside the React component tree. You get both: the DOM position you need and the React tree membership you need.\n\n**API**: `createPortal(children, domNode)` from `react-dom`.\n\n**Key behaviour**: even though the modal renders into `document.body` in the DOM, React events fired inside the portal still bubble up through the *React* component tree to the portal's logical parent — not through the DOM tree. This means a click inside a portal will still trigger `onClick` handlers on React ancestors.\n\n**Common use cases**: modal dialogs, tooltips, popovers, context menus, drag previews.",
+    code: {
+      language: 'tsx',
+      snippet: `import { createPortal } from 'react-dom';
+import { useState } from 'react';
+
+// The modal is rendered into document.body — escapes any
+// overflow:hidden or z-index stacking context in the parent.
+// But it's still inside the React tree: it can use Context,
+// and events bubble up to React parents normally.
+function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return createPortal(
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()}>
+        {children}
+        <button onClick={onClose}>Close</button>
+      </div>
+    </div>,
+    document.body  // render target — any existing DOM node works
+  );
+}
+
+// Usage — Modal lives inside a deeply nested component
+// but its DOM will be a direct child of <body>
+function ProductPage() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div style={{ overflow: 'hidden' }}> {/* would clip a regular modal */}
+      <button onClick={() => setOpen(true)}>Open Modal</button>
+      {open && (
+        <Modal onClose={() => setOpen(false)}>
+          <h2>Confirm Purchase</h2>
+        </Modal>
+      )}
+    </div>
+  );
+}`,
+    },
+  },
+
   // ─── React (Hard) ────────────────────────────────────────────────────────────
 
   {

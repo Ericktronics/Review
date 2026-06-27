@@ -496,4 +496,90 @@ type Readonly<T> = { readonly [K in keyof T]: T[K] };
 type IsString<T> = T extends string ? true : false;`,
     },
   },
+
+  {
+    id: 'ts-m5',
+    category: 'TypeScript',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is the difference between `any`, `unknown`, and `never` in TypeScript?',
+    answer:
+      "These three types sit at the extremes of TypeScript's type system and are commonly confused.\n\n**`any`** — opts out of type checking entirely. A value typed as `any` is assignable to and from everything. TypeScript trusts you completely and checks nothing.\n- **Problem**: `any` spreads silently. If a function returns `any`, every caller that uses that return value also becomes `any`.\n- **Use it**: only when migrating JS to TS incrementally, or when genuinely impossible to type (very rare).\n\n**`unknown`** — the type-safe counterpart of `any`. Like `any`, it can receive any value. But unlike `any`, you cannot *do* anything with an `unknown` value without first narrowing its type.\n- **Use it**: for data you don't control — `JSON.parse()` return values, error objects in `catch` blocks, third-party API responses before validation.\n- Rule: prefer `unknown` over `any` whenever the value is externally sourced.\n\n**`never`** — represents values that never exist. A function that always throws or loops forever returns `never`. A code path that TypeScript proves is unreachable is typed as `never`.\n- **Use it**: for exhaustive union checks — TypeScript will error if you forget a case.\n\n**Quick mental model**: `any` = I give up. `unknown` = something is here but I don't know what. `never` = nothing can ever be here.",
+    code: {
+      language: 'typescript',
+      snippet: `// any — escapes type checking, spreads silently
+function parseConfig(raw: any) {
+  return raw.database.host; // no error — TypeScript trusts you
+}
+
+// unknown — forces you to narrow before using
+function processResponse(data: unknown) {
+  if (typeof data === 'string') {
+    return data.toUpperCase(); // safe — narrowed to string
+  }
+  // data.toUpperCase(); ← TS error: Object is of type 'unknown'
+}
+
+// error catch: always unknown in strict mode
+try {
+  riskyOperation();
+} catch (err) {
+  // err is unknown — must narrow before reading properties
+  if (err instanceof Error) console.error(err.message);
+}
+
+// never — exhaustive union check
+type Shape = 'circle' | 'square' | 'triangle';
+
+function area(shape: Shape): number {
+  switch (shape) {
+    case 'circle':   return Math.PI;
+    case 'square':   return 1;
+    case 'triangle': return 0.5;
+    default:
+      // If you add a new Shape and forget this switch, TypeScript
+      // errors here because shape would NOT be 'never'
+      const _exhaustive: never = shape;
+      throw new Error(\`Unhandled shape: \${_exhaustive}\`);
+  }
+}`,
+    },
+  },
+
+  {
+    id: 'ts-m6',
+    category: 'TypeScript',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is the `satisfies` operator in TypeScript (4.9+)? What problem does it solve?',
+    answer:
+      "**Problem it solves**: before `satisfies`, validating a value against a type required a type annotation, which *widened* the inferred type and lost specific information.\n\nExample: if you annotate `const palette: Record<string, string>`, TypeScript treats `palette.red` as `string | undefined` — it lost the knowledge that `red` is a specific key.\n\n**`satisfies`** — checks that a value is compatible with a type *without changing its inferred type*. You get type validation AND the precise narrowed type.\n\n**When to use it:**\n- Object literals where you want to validate shape but keep specific key types\n- Config objects where each value has a different specific type\n- Any case where you want to `as const` behaviour but with type checking\n\n**Rule**: use `satisfies` when you want TypeScript to *validate* but not *widen*. Use a type annotation when you want to *constrain* the type the caller sees.",
+    code: {
+      language: 'typescript',
+      snippet: `type Color = string | [number, number, number];
+
+// ✗ Type annotation — widens 'red' to Color, loses the string literal info
+const palette1: Record<string, Color> = {
+  red: '#ff0000',
+  green: [0, 255, 0],
+};
+palette1.red.toUpperCase(); // TS error: Color doesn't have toUpperCase
+                             // (it could be a tuple)
+
+// ✓ satisfies — validates against Record<string, Color>
+//   but preserves the specific inferred types per key
+const palette2 = {
+  red: '#ff0000',      // inferred as string
+  green: [0, 255, 0], // inferred as number[]
+} satisfies Record<string, Color>;
+
+palette2.red.toUpperCase();   // ✅ TypeScript knows it's a string
+palette2.green.map(x => x*2); // ✅ TypeScript knows it's a number[]
+
+// ✗ This still errors — satisfies validates the shape
+const palette3 = {
+  red: 42, // TS error: number is not assignable to Color
+} satisfies Record<string, Color>;`,
+    },
+  },
 ];

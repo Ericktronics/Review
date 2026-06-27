@@ -4,7 +4,7 @@ A flashcard web app for studying software engineering concepts — built with Vi
 
 ## Features
 
-- **305+ flashcards** across 20 categories
+- **320+ flashcards** across 20 categories
 - **Two card types** with filter chips
   - **Must Know Basics** — fundamentals every developer should know (easy + medium)
   - **Must Know for Exp. Hires** — senior/production-level knowledge (hard)

@@ -151,28 +151,35 @@ createHandler('FETCH /users',   getUsers);       // ✗ compile error`,
     type: 'experience',
     question: 'What is variance in TypeScript generics? Explain covariance vs contravariance with function parameters.',
     answer:
-      '**Variance** describes how subtype relationships of complex types relate to subtype relationships of their component types.\n\n**Covariant** (read position): if `Dog extends Animal`, then `Producer<Dog> extends Producer<Animal>` — you can substitute a more specific producer. Array elements are covariant.\n\n**Contravariant** (write / parameter position): if `Dog extends Animal`, then `Consumer<Animal> extends Consumer<Dog>` — a function expecting `Animal` can handle any `Dog` (but not vice versa). Function parameters are contravariant.\n\n**Bivariant** (TypeScript default for method signatures — a soundness hole): TypeScript 4.7 introduced `in`/`out` variance annotations to be explicit.',
+      '**Variance** describes how subtype relationships of complex types (like `Array<T>` or `Handler<T>`) relate to their component types (`T`).\n\n**Covariant** (output/read position): if `Dog extends Animal`, `Producer<Dog>` is assignable to `Producer<Animal>`. Arrays are covariant in TypeScript — `Dog[]` is assignable to `Animal[]` — but this is a **known soundness hole**: you can then push a `Cat` into what is secretly a `Dog[]` at runtime.\n\n**Contravariant** (input/write position): if `Dog extends Animal`, `Consumer<Animal>` is assignable to `Consumer<Dog>` — NOT the other way around. A handler that accepts any `Animal` can safely handle a `Dog`, but a handler that only accepts `Dog` cannot handle a `Cat`. Function parameters are contravariant.\n\n**Bivariant** (TypeScript default for method shorthand — a soundness hole): method signature `method(x: T)` is bivariant; function property `method: (x: T) => void` is properly contravariant.\n\nTypeScript 4.7 added explicit `in`/`out` variance annotations.',
     code: {
       language: 'typescript',
-      snippet: `// Covariance: return types are covariant
-type Producer<out T> = () => T;
-declare const dogProducer: Producer<Dog>;
-const animalProducer: Producer<Animal> = dogProducer; // ✓ safe
+      snippet: `class Animal { move() {} }
+class Dog extends Animal { bark() {} }
+class Cat extends Animal { meow() {} }
 
-// Contravariance: parameter types are contravariant
-type Consumer<in T> = (x: T) => void;
-declare const animalConsumer: Consumer<Animal>;
-const dogConsumer: Consumer<Dog> = animalConsumer; // ✓ safe
-// An animalConsumer can handle any Animal, including a Dog
+// ── Covariance (arrays — TypeScript allows, but unsound) ────────────
+const dogs: Dog[] = [new Dog()];
+const animals: Animal[] = dogs; // ✅ TS accepts (covariant) — but dangerous:
+// animals.push(new Cat());      // no TS error, but dogs[1] is now a Cat at runtime!
 
-// TypeScript method shorthand is bivariant (unsound):
-interface Unsound { method(x: Dog): void; }
-// Whereas function property is properly contravariant:
-interface Sound { method: (x: Dog) => void; }
+// ── Contravariance (function parameters — correct) ──────────────────
+type Handler<T> = (value: T) => void;
 
-// TypeScript 4.7 explicit variance markers
-type ReadonlyBox<out T>   = { get(): T };       // covariant
-type WriteOnlyBox<in T>   = { set(v: T): void }; // contravariant`,
+const handleAnimal: Handler<Animal> = (a) => a.move(); // handles any Animal
+const handleDog: Handler<Dog>       = (d) => d.bark(); // handles Dogs only
+
+// Handler<Animal> is assignable to Handler<Dog> (contravariant — safe)
+const h: Handler<Dog> = handleAnimal; // ✅ safe: animalHandler can handle any Dog
+// const h2: Handler<Animal> = handleDog; // ❌ Error: dogHandler can't handle a Cat
+
+// ── Explicit variance markers (TS 4.7) ──────────────────────────────
+type Producer<out T> = () => T;       // covariant:     out = can only produce T
+type Consumer<in T>  = (x: T) => void; // contravariant: in  = can only consume T
+
+// Method shorthand is bivariant (unsound), function property is contravariant:
+interface Bivariant  { method(x: Dog): void; }           // ⚠️ bivariant
+interface Contravariant { method: (x: Dog) => void; }    // ✅ properly contravariant`,
     },
   },
 
@@ -580,6 +587,111 @@ palette2.green.map(x => x*2); // ✅ TypeScript knows it's a number[]
 const palette3 = {
   red: 42, // TS error: number is not assignable to Color
 } satisfies Record<string, Color>;`,
+    },
+  },
+
+  // ── TypeScript typed event bus ──────────────────────────────────────────
+  {
+    id: 'ts-6',
+    category: 'TypeScript',
+    difficulty: 'hard',
+    type: 'experience',
+    question: 'How do you implement a fully type-safe event bus in TypeScript so that `emit` and `on` are constrained to known event names and their correct payload types?',
+    answer:
+      '**Core idea**: define an `EventMap` type that maps event names (string keys) to their payload types. Then make `emit` and `on` generic over `K extends keyof EventMap` so TypeScript infers `EventMap[K]` as the payload type from the event name alone.\n\n**Why this matters**: a naive `EventBus` with `emit(event: string, payload: any)` loses all type information. With the generic approach:\n- Autocomplete suggests valid event names.\n- TypeScript enforces the correct payload shape for each event.\n- Typos in event names are a compile-time error.\n- The handler receives a properly typed payload — no casting.\n\n**Key TypeScript mechanics**:\n- `T extends Record<string, unknown>` — constrains the type parameter to an object type.\n- `K extends keyof T` — `K` is inferred from the literal event name you pass.\n- `T[K]` — indexed access type: given the event name `K`, look up the payload type in `T`.\n- The `on` method returns an unsubscribe function `() => void` — a clean way to handle cleanup without needing a separate `off` call.',
+    code: {
+      language: 'typescript',
+      snippet: `// 1. Define the event map — event name → payload type
+type AppEvents = {
+  'user:created':   { id: string; name: string };
+  'order:placed':   { orderId: string; total: number };
+  'session:expired':{ userId: string };
+};
+
+// 2. Generic typed event bus
+class TypedEventBus<T extends Record<string, unknown>> {
+  private listeners = new Map<keyof T, Array<(payload: unknown) => void>>();
+
+  on<K extends keyof T>(event: K, handler: (payload: T[K]) => void): () => void {
+    const handlers = this.listeners.get(event) ?? [];
+    handlers.push(handler as (p: unknown) => void);
+    this.listeners.set(event, handlers);
+    return () => this.off(event, handler); // returns unsubscribe fn
+  }
+
+  off<K extends keyof T>(event: K, handler: (payload: T[K]) => void): void {
+    const handlers = this.listeners.get(event) ?? [];
+    this.listeners.set(event, handlers.filter(h => h !== handler));
+  }
+
+  emit<K extends keyof T>(event: K, payload: T[K]): void {
+    this.listeners.get(event)?.forEach(h => h(payload));
+  }
+}
+
+// 3. Usage — fully type-safe
+const bus = new TypedEventBus<AppEvents>();
+
+// handler receives { id: string; name: string } — TypeScript infers it
+const unsub = bus.on('user:created', ({ id, name }) => {
+  console.log(\`User \${name} created with ID \${id}\`);
+});
+
+bus.emit('user:created', { id: '1', name: 'Alice' });  // ✅
+// bus.emit('user:created', { id: 1 });                // ❌ number not assignable to string
+// bus.emit('unknown:event', {});                       // ❌ 'unknown:event' not in AppEvents
+
+unsub(); // clean up the listener`,
+    },
+  },
+
+  // ── Generic constraints (T extends) ────────────────────────────────────
+  {
+    id: 'ts-m7',
+    category: 'TypeScript',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What are generic constraints in TypeScript (`T extends`)? How do you use them and why?',
+    answer:
+      'Generic constraints narrow the set of types a type parameter `T` can be — ensuring TypeScript knows what properties/methods are available on `T` inside the generic function or class.\n\n**`T extends SomeType`** — `T` must be assignable to `SomeType`. Inside the function, you can safely access anything on `SomeType`.\n\n**Common constraint patterns**:\n- `T extends object` — exclude primitives\n- `T extends keyof U` — constrain to the known keys of another type\n- `T extends A & B` — multiple constraints via intersection\n- `T extends { length: number }` — structural (duck-type) constraint — any type with a `length`\n\n**The classic `getProperty` example** is the canonical TypeScript interview question: `K extends keyof T` ensures the key exists on the object, and the return type `T[K]` is inferred automatically — no `any`, no casting.\n\n**Default type parameters**: `T extends object = Record<string, unknown>` gives a fallback when the caller doesn\'t specify.',
+    code: {
+      language: 'typescript',
+      snippet: `// ── Basic constraint ───────────────────────────────────────────────
+function identity<T extends string | number>(value: T): T {
+  return value;
+}
+identity('hello');  // ✅ T = string
+identity(42);       // ✅ T = number
+// identity(true);  // ❌ boolean not assignable to string | number
+
+// ── keyof constraint — the canonical interview example ──────────────
+function getProperty<T, K extends keyof T>(obj: T, key: K): T[K] {
+  return obj[key]; // TypeScript knows this is safe and types T[K] correctly
+}
+const user = { id: 1, name: 'Alice', role: 'admin' };
+const name = getProperty(user, 'name');   // ✅ type: string
+const id   = getProperty(user, 'id');     // ✅ type: number
+// getProperty(user, 'email');            // ❌ 'email' not in keyof typeof user
+
+// ── Structural constraint (duck typing) ────────────────────────────
+function getLength<T extends { length: number }>(value: T): number {
+  return value.length; // works for string, array, NodeList, anything with .length
+}
+getLength('hello');     // ✅
+getLength([1, 2, 3]);   // ✅
+// getLength(42);        // ❌ number has no length
+
+// ── Multiple constraints via intersection ───────────────────────────
+function merge<T extends object, U extends object>(a: T, b: U): T & U {
+  return { ...a, ...b };
+}
+
+// ── Default type parameter ──────────────────────────────────────────
+type ApiResponse<T extends object = Record<string, unknown>> = {
+  data: T;
+  status: number;
+  message: string;
+};`,
     },
   },
 ];

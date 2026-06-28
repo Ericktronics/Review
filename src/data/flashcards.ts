@@ -18,12 +18,20 @@ import { reactCards } from './react';
 import { angularCards } from './angular';
 import { nextjsCards } from './nextjs';
 import { testingCards } from './testing';
+import { javascriptCards } from './javascript';
 import type { Flashcard } from '../types';
 
 export const flashcards: Flashcard[] = [
   ...nodejsCards,
   ...expressCards,
   ...nestjsCards,
+  ...javascriptCards,
+  ...reactCards,
+  ...angularCards,
+  ...nextjsCards,
+  ...interviewCards,
+  ...bestPracticesCards,
+  ...comparisonsCards,
   ...oopCards,
   ...typescriptCards,
   ...restCards,
@@ -34,11 +42,5 @@ export const flashcards: Flashcard[] = [
   ...microservicesCards,
   ...devopsCards,
   ...dataStructuresCards,
-  ...bestPracticesCards,
-  ...comparisonsCards,
-  ...interviewCards,
-  ...reactCards,
-  ...angularCards,
-  ...nextjsCards,
   ...testingCards,
 ];

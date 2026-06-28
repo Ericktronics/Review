@@ -1,6 +1,12 @@
 export type Category =
   | 'Node.js'
   | 'TypeScript'
+  | 'React'
+  | 'Angular'
+  | 'Express.js'
+  | 'NestJS'
+  | 'Next.js'
+  | 'JavaScript'
   | 'OOP'
   | 'REST & HTTP'
   | 'Databases'
@@ -11,13 +17,8 @@ export type Category =
   | 'DevOps'
   | 'Best Practices'
   | 'Data Structures & Algorithms'
-  | 'Express.js'
-  | 'NestJS'
   | 'Compare & Choose'
   | 'Interview Scenarios'
-  | 'React'
-  | 'Angular'
-  | 'Next.js'
   | 'Testing';
 
 export interface Flashcard {

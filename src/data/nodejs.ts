@@ -1150,4 +1150,54 @@ app.post('/compute', async (req, res) => {
 });`,
     },
   },
+
+  // ── AsyncLocalStorage — correlation/trace ID propagation ────────────────
+  {
+    id: 'node-m13',
+    category: 'Node.js',
+    difficulty: 'medium',
+    type: 'experience',
+    question: 'What is `AsyncLocalStorage` and how do you use it to carry a trace/correlation ID across async boundaries without passing it through every function?',
+    answer:
+      '`AsyncLocalStorage` (from `node:async_hooks`, stable since Node 16) provides **request-scoped storage** that flows automatically through async operations — `await`, Promises, `setTimeout`, callbacks — without you threading a value through every function signature.\n\n**The problem it solves**: in an HTTP server, a single request spans many async hops: middleware → service → DB query → logging. Sharing a correlation ID without `AsyncLocalStorage` means either passing it as an argument to every function, or attaching it to the request object and threading that everywhere.\n\n**API**:\n- `als.run(store, fn)` — creates a new async context with `store`, then calls `fn`. Everything that runs inside `fn` (including all `await`ed calls) inherits this context.\n- `als.getStore()` — retrieves the current context\'s store from anywhere in the async call chain.\n\n**Pattern**: set the correlation ID once in Express middleware via `als.run()`, then call `next()`. The entire request handler tree — and every `await`ed function it calls — can call `als.getStore()` to read it.',
+    code: {
+      language: 'typescript',
+      snippet: `import { AsyncLocalStorage } from 'node:async_hooks';
+import { randomUUID } from 'node:crypto';
+import express from 'express';
+
+interface RequestContext { traceId: string; }
+
+// One singleton per process — shared across all requests
+const als = new AsyncLocalStorage<RequestContext>();
+
+// Helper callable from anywhere in the async chain
+export const getTraceId = () => als.getStore()?.traceId;
+
+// Structured logger that automatically includes the trace ID
+const log = (msg: string) =>
+  console.log(JSON.stringify({ msg, traceId: getTraceId() }));
+
+// ── Middleware — sets context once for the entire request ──────────
+const app = express();
+app.use((req, res, next) => {
+  const traceId = (req.headers['x-trace-id'] as string) ?? randomUUID();
+  res.setHeader('x-trace-id', traceId);
+  als.run({ traceId }, () => next()); // everything inside next() inherits this context
+});
+
+// ── Route handler ──────────────────────────────────────────────────
+app.get('/users/:id', async (req, res) => {
+  log('Fetching user');                   // ← traceId included automatically
+  const user = await findUser(req.params.id);
+  res.json(user);
+});
+
+// ── Deep in the call stack — no traceId parameter needed ──────────
+async function findUser(id: string) {
+  log(\`Querying DB for user \${id}\`);    // ← still has the traceId
+  return db.query('SELECT * FROM users WHERE id = $1', [id]);
+}`,
+    },
+  },
 ];

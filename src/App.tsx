@@ -159,7 +159,7 @@ export default function App() {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col min-h-screen min-w-0 overflow-x-hidden">
         {/* ── Top bar ─────────────────────────────────────── */}
         <header className="sticky top-0 z-10 bg-slate-950/90 backdrop-blur border-b border-slate-800">
           {/* Row 1: view mode + shuffle */}
@@ -225,7 +225,7 @@ export default function App() {
           </div>
 
           {/* Row 3: difficulty filter */}
-          <div className="flex items-center flex-wrap gap-2 px-3 pt-1 pb-3">
+          <div className="flex items-center flex-wrap gap-2 px-3 pt-1 pb-3 overflow-x-hidden">
             <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest mr-1 flex-shrink-0">
               Difficulty
             </span>
@@ -262,11 +262,11 @@ export default function App() {
         </header>
 
         {/* ── Content ─────────────────────────────────────── */}
-        <main className="flex-1">
+        <main className="flex-1 flex flex-col">
 
           {/* Quiz */}
           {viewMode === 'quiz' && (
-            <div className="flex flex-col items-center gap-7 p-8 min-h-[calc(100vh-100px)]">
+            <div className="flex-1 flex flex-col items-center gap-4 sm:gap-7 p-4 sm:p-8 justify-start pt-6 sm:pt-10">
               {card ? (
                 <>
                   <div className="w-full max-w-2xl">

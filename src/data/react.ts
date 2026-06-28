@@ -903,4 +903,149 @@ const Dashboard = React.lazy(() => import('./Dashboard'));
 <Suspense fallback={<Spinner />}><Dashboard /></Suspense>`,
     },
   },
+
+  // ── useCallback: exact conditions that prevent a child re-render ────────
+  {
+    id: 'react-m9',
+    category: 'React',
+    difficulty: 'medium',
+    type: 'experience',
+    question: 'What exact conditions must ALL be true for `useCallback` to actually prevent a child component from re-rendering?',
+    answer:
+      '`useCallback(fn, deps)` returns the **same function reference** between renders while deps are stable. But that alone prevents nothing — three conditions must ALL be true:\n\n1. **The callback is passed as a prop to a child component** — `useCallback` used for a local handler has zero effect on any renders.\n\n2. **The child is wrapped in `React.memo`** — without it, the child re-renders every time the parent does, regardless of prop stability. `useCallback` without `React.memo` is wasted overhead.\n\n3. **The `useCallback` dependencies don\'t change between renders** — if a dep changes, a new function reference is created anyway, and the child re-renders.\n\nFail any one condition → `useCallback` provides no re-render benefit.\n\n**Common mistake**: sprinkling `useCallback` everywhere "for performance" without `React.memo` on the receiving child — this adds memoization overhead with zero benefit.',
+    code: {
+      language: 'tsx',
+      snippet: `// ✅ Pattern that actually prevents re-renders (all 3 conditions met)
+const Parent = () => {
+  const [count, setCount] = useState(0);
+  const [text, setText] = useState('');   // changing this triggers parent re-render
+
+  // 1. Stable deps (setCount never changes) → stable function ref
+  const handleIncrement = useCallback(() => setCount(c => c + 1), []);
+
+  return (
+    <>
+      <input onChange={e => setText(e.target.value)} />   {/* changes parent state */}
+      <Child onClick={handleIncrement} />  {/* 3. child skips re-render when text changes */}
+    </>
+  );
+};
+
+// 2. Child MUST be wrapped in React.memo
+const Child = React.memo(({ onClick }: { onClick: () => void }) => {
+  console.log('Child rendered');
+  return <button onClick={onClick}>+</button>;
+});
+
+// ❌ useCallback without React.memo — pure overhead, zero benefit
+const Parent2 = () => {
+  const handleClick = useCallback(() => {}, []);  // waste
+  return <Child2 onClick={handleClick} />;         // re-renders every time anyway
+};
+const Child2 = ({ onClick }: { onClick: () => void }) => (  // no React.memo!
+  <button onClick={onClick}>click</button>
+);`,
+    },
+  },
+
+  // ── useMemo vs useCallback vs React.memo ────────────────────────────────
+  {
+    id: 'react-m10',
+    category: 'React',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is the difference between `useMemo`, `useCallback`, and `React.memo`? When do you use each?',
+    answer:
+      'Three separate memoization tools — each caches something different:\n\n**`useMemo(fn, deps)`** — memoizes a **computed value**. Runs `fn` once and caches the return value. Re-runs only when `deps` change. Use for: expensive computations (sorting/filtering large arrays, complex derivations) that shouldn\'t repeat every render.\n\n**`useCallback(fn, deps)`** — memoizes a **function reference**. Returns the same function object between renders unless deps change. This is `useMemo(() => fn, deps)` with nicer syntax. Use for: passing callbacks as props to memoized child components so they don\'t see a "new" function every render.\n\n**`React.memo(Component)`** — memoizes a **component render**. HOC that wraps a component and skips re-rendering if all props are shallowly equal to the last render. Use for: leaf or expensive components that receive stable props.\n\n**They work together**: `React.memo` makes the child skip re-renders; `useMemo`/`useCallback` make the props passed TO that child referentially stable.\n\n**Don\'t over-memoize** — every hook call has a small cost. Profile before adding memoization.',
+    code: {
+      language: 'tsx',
+      snippet: `// useMemo — cache a COMPUTED VALUE
+const filteredItems = useMemo(
+  () => items.filter(item => item.active && item.score > threshold),
+  [items, threshold]   // only re-filter when these change
+);
+
+// useCallback — cache a FUNCTION REFERENCE
+const handleDelete = useCallback(
+  (id: string) => dispatch(deleteItem(id)),
+  [dispatch]           // stable if dispatch is stable (RTK guarantees this)
+);
+
+// React.memo — skip re-rendering a COMPONENT
+const ItemRow = React.memo(({ item, onDelete }: { item: Item; onDelete: (id: string) => void }) => {
+  console.log('ItemRow rendered:', item.id);
+  return (
+    <div>
+      {item.name}
+      <button onClick={() => onDelete(item.id)}>Delete</button>
+    </div>
+  );
+});
+
+// All three working together in a parent:
+const List = ({ items }: { items: Item[] }) => {
+  const [threshold, setThreshold] = useState(0);
+
+  const filtered = useMemo(             // 1. stable computed value
+    () => items.filter(i => i.score > threshold),
+    [items, threshold]
+  );
+  const handleDelete = useCallback(     // 2. stable function ref
+    (id: string) => removeItem(id),
+    []
+  );
+
+  return filtered.map(item =>
+    <ItemRow key={item.id} item={item} onDelete={handleDelete} />  // 3. memo'd component
+  );
+};`,
+    },
+  },
+
+  // ── Redux Toolkit createSelector — memoized selectors ───────────────────
+  {
+    id: 'react-4',
+    category: 'React',
+    difficulty: 'hard',
+    type: 'experience',
+    question: 'What problem does `createSelector` from Redux Toolkit solve, and how does it prevent unnecessary re-renders?',
+    answer:
+      '**The problem**: `useSelector(selector)` runs the selector after every dispatch. If the selector returns a **new array or object reference** on each call — even with identical data — React treats it as changed and re-renders the component. Selectors that derive data with `.filter()`, `.map()`, or object spread always do this.\n\n**`createSelector` solution** (from reselect, re-exported by Redux Toolkit): creates a **memoized selector** from input selectors and a result function. The result function only re-runs when the OUTPUT of an input selector actually changes. Same inputs → same cached reference → no re-render.\n\n**How it works internally**:\n1. Run each input selector with `(state, ...args)`.\n2. Compare results to last call with `===`.\n3. All same → return the cached result reference.\n4. Any changed → re-run the result function, cache and return the new value.\n\n**Caveat — single-call memoization**: `createSelector` only remembers the last set of inputs. If multiple component instances use the same selector with different args (e.g., different item IDs), they stomp each other\'s cache. Fix: use a **selector factory** — a function that returns a fresh `createSelector` per component instance.',
+    code: {
+      language: 'typescript',
+      snippet: `import { createSelector } from '@reduxjs/toolkit';
+import type { RootState } from './store';
+
+// ── Input selectors — extract raw slices ───────────────
+const selectAllItems = (state: RootState) => state.items.list;
+const selectFilter   = (state: RootState) => state.items.statusFilter;
+
+// ── Memoized selector — result fn only runs when inputs change ─────
+export const selectFilteredItems = createSelector(
+  [selectAllItems, selectFilter],
+  (items, filter) => items.filter(item => item.status === filter) // potentially O(n)
+);
+
+// In component — stable reference, no spurious re-renders
+const ItemList = () => {
+  const items = useSelector(selectFilteredItems); // ✅ same ref if state unchanged
+  return <ul>{items.map(i => <li key={i.id}>{i.name}</li>)}</ul>;
+};
+
+// ── Selector factory for per-instance memoization ──────────────────
+// Problem: two <ItemDetail id="1" /> and <ItemDetail id="2" /> share one cache → bust each other
+const makeSelectItemById = () =>
+  createSelector(
+    [(state: RootState) => state.items.list, (_: RootState, id: string) => id],
+    (items, id) => items.find(item => item.id === id)
+  );
+
+const ItemDetail = ({ id }: { id: string }) => {
+  // useMemo creates one selector instance per component mount
+  const selectItem = useMemo(makeSelectItemById, []);
+  const item = useSelector(state => selectItem(state, id));
+  return <div>{item?.name ?? 'Not found'}</div>;
+};`,
+    },
+  },
 ];

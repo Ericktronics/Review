@@ -571,4 +571,82 @@ export class TimeoutInterceptor implements NestInterceptor {
 // app.useGlobalInterceptors(new ResponseWrapInterceptor());`,
     },
   },
+
+  // ── NestJS testing with Test.createTestingModule ───────────────────────
+  {
+    id: 'nest-m6',
+    category: 'NestJS',
+    difficulty: 'medium',
+    type: 'experience',
+    question: 'How do you unit-test a NestJS service and controller using `Test.createTestingModule`?',
+    answer:
+      '`Test.createTestingModule()` creates an isolated NestJS module for testing — it wires up NestJS\'s DI container with whatever providers you configure, letting you mock dependencies cleanly.\n\n**Unit testing a service**: provide the real service but replace its dependencies (repositories, other services) with `jest.fn()` mocks. Call `module.get(ServiceName)` to get the DI-resolved instance.\n\n**Unit testing a controller**: provide the real controller but mock the service it depends on. Same pattern.\n\n**Integration / E2E testing**: compile the full module with `app.init()` and use `supertest` to drive HTTP requests end-to-end, hitting your actual guards, pipes, and interceptors.\n\n**Key methods**:\n- `Test.createTestingModule({ providers: [...] }).compile()` — build the module\n- `module.get(Token)` — resolve a provider from the DI container\n- `{ provide: RealService, useValue: mockService }` — swap a provider with a mock\n- `jest.spyOn(service, \'method\')` — spy on a real method without fully replacing it',
+    code: {
+      language: 'typescript',
+      snippet: `import { Test, TestingModule } from '@nestjs/testing';
+import { UsersService } from './users.service';
+import { UsersRepository } from './users.repository';
+
+// ── Unit test: service with mocked repository ───────────────────────
+describe('UsersService', () => {
+  let service: UsersService;
+  let repo: jest.Mocked<UsersRepository>;
+
+  beforeEach(async () => {
+    const mockRepo = {
+      findById: jest.fn(),
+      save: jest.fn(),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        { provide: UsersRepository, useValue: mockRepo }, // swap real repo with mock
+      ],
+    }).compile();
+
+    service = module.get<UsersService>(UsersService);
+    repo    = module.get(UsersRepository) as jest.Mocked<UsersRepository>;
+  });
+
+  it('returns user when found', async () => {
+    const mockUser = { id: '1', name: 'Alice' };
+    repo.findById.mockResolvedValue(mockUser); // arrange
+
+    const result = await service.findOne('1');  // act
+
+    expect(result).toEqual(mockUser);           // assert
+    expect(repo.findById).toHaveBeenCalledWith('1');
+  });
+
+  it('throws NotFoundException when user does not exist', async () => {
+    repo.findById.mockResolvedValue(null);
+    await expect(service.findOne('999')).rejects.toThrow('User not found');
+  });
+});
+
+// ── E2E / integration test with supertest ──────────────────────────
+import * as request from 'supertest';
+import { INestApplication } from '@nestjs/common';
+import { AppModule } from '../app.module';
+
+describe('UsersController (e2e)', () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    app = module.createNestApplication();
+    await app.init();
+  });
+
+  afterAll(() => app.close());
+
+  it('GET /users/:id returns 200 with user', () =>
+    request(app.getHttpServer())
+      .get('/users/1')
+      .expect(200)
+      .expect(res => expect(res.body).toHaveProperty('name')));
+});`,
+    },
+  },
 ];

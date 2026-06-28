@@ -4,7 +4,7 @@ A flashcard web app for studying software engineering concepts — built with Vi
 
 ## Features
 
-- **320+ flashcards** across 20 categories
+- **335+ flashcards** across 21 categories
 - **Two card types** with filter chips
   - **Must Know Basics** — fundamentals every developer should know (easy + medium)
   - **Must Know for Exp. Hires** — senior/production-level knowledge (hard)
@@ -41,6 +41,7 @@ A flashcard web app for studying software engineering concepts — built with Vi
 | Angular | Components, directives, lifecycle hooks, two-way data binding, DI, RxJS, Observables, pipes, route guards |
 | Next.js | SSR, SSG, ISR, CSR, App Router vs Pages Router, React Server Components, API routes, middleware, authentication |
 | Testing | Unit, integration, E2E, Jest, React Testing Library, mocking, TDD, supertest, NestJS testing, Playwright |
+| JavaScript | Hoisting, closures, event loop, `this`, prototypal inheritance, scope chain, debounce/throttle, async/await pitfalls, currying, memory leaks, generators, event delegation |
 
 ## Requirements
 

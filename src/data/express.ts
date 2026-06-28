@@ -456,4 +456,66 @@ app.use((err, req, res, next) => {
 });`,
     },
   },
+
+  // ── Express security best practices ────────────────────────────────────
+  {
+    id: 'exp-m6',
+    category: 'Express.js',
+    difficulty: 'medium',
+    type: 'experience',
+    question: 'What are the essential security middleware and practices for a production Express API?',
+    answer:
+      '**`helmet`** — sets a suite of security HTTP headers in one line: `Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Strict-Transport-Security`, etc. Add it first so every response gets the headers.\n\n**`express-rate-limit`** — protects against brute-force and DoS. Apply a global limit early; tighten it further on auth routes.\n\n**Input validation** — never trust request data. Validate and sanitize with `zod` (or `express-validator`) before it touches your business logic or DB. Return 400 on invalid input, not 500.\n\n**CORS** — configure `cors()` with an explicit `origin` allowlist. Never use `origin: *` on an API that handles credentials.\n\n**Cookie security** — set `httpOnly`, `secure`, and `sameSite: \'strict\'` on session/auth cookies.\n\n**Middleware ordering matters**: `helmet` → CORS → rate limit → body parser → validation → auth → routes → error handler.',
+    code: {
+      language: 'typescript',
+      snippet: `import express from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+import rateLimit from 'express-rate-limit';
+import { z } from 'zod';
+
+const app = express();
+
+// 1. Security headers — must be first
+app.use(helmet());
+
+// 2. CORS — explicit allowlist, never '*' with credentials
+app.use(cors({
+  origin: ['https://app.example.com'],
+  credentials: true,
+}));
+
+// 3. Global rate limit — before body parser so it's cheap to reject
+const globalLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
+app.use(globalLimit);
+
+// 4. Body parser — after rate limit
+app.use(express.json({ limit: '10kb' })); // size limit prevents payload bombs
+
+// 5. Tighter limit on auth routes
+const authLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
+app.post('/auth/login', authLimit, loginHandler);
+
+// 6. Input validation with zod before any business logic
+const CreateUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8).max(128),
+});
+
+app.post('/users', (req, res, next) => {
+  const result = CreateUserSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ errors: result.error.flatten() });
+  // result.data is typed and validated — safe to use
+  createUser(result.data).then(user => res.status(201).json(user)).catch(next);
+});
+
+// 7. Secure cookies
+res.cookie('sessionId', token, {
+  httpOnly: true,  // inaccessible to JS — blocks XSS token theft
+  secure: true,    // HTTPS only
+  sameSite: 'strict', // blocks CSRF
+  maxAge: 3600_000,
+});`,
+    },
+  },
 ];

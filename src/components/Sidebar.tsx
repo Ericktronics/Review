@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Category } from '../types';
 
 interface Props {
@@ -13,6 +14,12 @@ interface Props {
 function NavContent({
   categories, selected, counts, total, onSelect, showClose, onClose,
 }: Props & { showClose?: boolean }) {
+  const [query, setQuery] = useState('');
+
+  const filtered = query.trim()
+    ? categories.filter(c => c.toLowerCase().includes(query.trim().toLowerCase()))
+    : categories;
+
   return (
     <>
       <div className="flex items-center gap-2.5 px-4 py-5 border-b border-slate-800">
@@ -58,7 +65,38 @@ function NavContent({
           </p>
         </li>
 
-        {categories.map((cat) => (
+        {/* Search input — below the CATEGORIES label */}
+        <li className="px-1 pb-1">
+          <div className="relative">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search categories…"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-7 pr-7 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                aria-label="Clear search"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </li>
+
+        {filtered.length === 0 && query && (
+          <li className="px-3 py-3 text-xs text-slate-500 text-center">No categories found</li>
+        )}
+
+        {filtered.map((cat) => (
           <li key={cat}>
             <button
               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${

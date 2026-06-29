@@ -532,4 +532,14 @@ CREATE INDEX idx_orders_user_id ON orders(user_id);
 CREATE INDEX idx_users_email_active ON users(email) WHERE deleted_at IS NULL;`,
     },
   },
+
+  {
+    id: 'db-m8',
+    category: 'Databases',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is a database connection pool? How does Prisma handle it?',
+    answer:
+      "**A connection pool is a cache of reusable database connections.** Opening a new TCP connection to Postgres on every query is expensive — it involves a TCP handshake, authentication, and SSL negotiation. A pool keeps N connections alive and hands them out to incoming requests, returning them when done.\n\n**Without a pool:**\n```\nRequest → open connection → query → close connection  (repeated every time)\n```\n\n**With a pool:**\n```\nStartup → open 10 connections and hold them\n\nRequest A → borrow conn #1 → query → return conn #1\nRequest B → borrow conn #2 → query → return conn #2\n```\n\n**Why it matters at scale**: Postgres has a hard connection ceiling (~100 by default). At 50 app servers × 10 threads = 500 connections — this exceeds the limit and crashes the DB. **PgBouncer** solves this by sitting in front of Postgres and multiplexing thousands of app connections down to a small pool the DB can handle.\n\n**Prisma connection pool**:\nPrisma configures the pool via the connection string:\n```\nDATABASE_URL=\"postgresql://user:pass@host/db?connection_limit=10&pool_timeout=30\"\n```\n- `connection_limit` — max concurrent connections Prisma holds open\n- `pool_timeout` — seconds to wait for a free connection before throwing an error\n- Default `connection_limit` = `num_cpus * 2 + 1`\n\nPrisma also offers **Prisma Accelerate** (cloud connection pooler) as a managed solution for serverless environments where each function invocation would otherwise open a new connection.",
+  },
 ];

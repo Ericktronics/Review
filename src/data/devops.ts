@@ -329,6 +329,16 @@ git checkout develop && git merge hotfix/critical-auth-bug`,
   },
 
   {
+    id: 'devops-m5',
+    category: 'DevOps',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is the difference between a liveness probe and a readiness probe in Kubernetes?',
+    answer:
+      "**Both probes are health checks Kubernetes runs against your pod — but they trigger different actions on failure.**\n\n| | **Liveness** | **Readiness** |\n|---|---|---|\n| Question | \"Is this container still alive?\" | \"Is this container ready to serve traffic?\" |\n| Failure action | Kubernetes **restarts** the container | Kubernetes **removes it from the Service** (stops routing traffic) |\n| Use case | Deadlocks, infinite loops, unrecoverable crash | Warmup period, dependency not ready (DB, cache) |\n\n**Liveness probe** — detects a container that is running but stuck in a broken state it can't recover from on its own. If the probe fails, Kubernetes kills and restarts the pod.\n\n**Readiness probe** — detects a container that is alive but not yet ready to handle requests. On failure, the pod is pulled from the load balancer endpoint — no traffic is sent — but it is **not** restarted. Once the probe passes again, traffic resumes.\n\n**Concrete example**:\n```yaml\nlivenessProbe:\n  httpGet:\n    path: /healthz\n    port: 3000\n  initialDelaySeconds: 10\n  periodSeconds: 15\n\nreadinessProbe:\n  httpGet:\n    path: /ready\n    port: 3000\n  initialDelaySeconds: 5\n  periodSeconds: 5\n```\n- `/healthz` — always returns 200 unless the app is in a deadlock or crash loop\n- `/ready` — returns 200 only after DB connection is established and migrations are complete\n\n**Startup scenario**: app starts, DB migrations take 10s → readiness fails → no traffic → migrations finish → readiness passes → traffic begins. Container is never restarted unnecessarily.\n\n**Rule of thumb**: if the app can heal itself (waiting for a dependency), use readiness. If it's stuck and needs a restart, use liveness. Production apps typically need both.",
+  },
+
+  {
     id: 'devops-m2',
     category: 'DevOps',
     difficulty: 'medium',

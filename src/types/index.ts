@@ -21,7 +21,8 @@ export type Category =
   | 'Interview Scenarios'
   | 'Testing'
   | 'Python'
-  | 'Django';
+  | 'Django'
+  | 'MongoDB';
 
 export interface Flashcard {
   id: string;

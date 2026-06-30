@@ -358,4 +358,114 @@ export async function POST() {
 }`,
     },
   },
+
+  // ─── Next.js 14/15 Specific ──────────────────────────────────────────────────
+
+  {
+    id: 'next-h3',
+    category: 'Next.js',
+    difficulty: 'hard',
+    type: 'basics',
+    question: 'What are Server Actions in Next.js 14+? How do they replace API routes for mutations?',
+    answer:
+      '**Server Actions** are async functions marked with `"use server"` that run exclusively on the server. They can be called directly from Client Components as if they were regular async functions — Next.js handles the HTTP request/response under the hood.\n\n**How they work:**\n- You define an async function with `"use server"` directive\n- Next.js serializes the arguments, sends them to the server via POST, executes the function, and returns the result\n- No manual `fetch` or API route needed for mutations\n\n**When to use Server Actions vs Route Handlers:**\n- **Server Actions** — form submissions, mutations triggered from components, revalidation after mutation\n- **Route Handlers** — public APIs consumed by third parties, webhooks, GET endpoints for data fetching from external clients\n\n**Key integrations:**\n- Use `revalidatePath()` or `revalidateTag()` inside an action to invalidate cached data\n- Works with `useFormState` / `useFormStatus` for progressive enhancement (works without JS)\n- Can be defined inline in a Server Component or in a separate `actions.ts` file',
+    code: {
+      language: 'typescript',
+      snippet: `// app/actions/post.ts
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { db } from '@/lib/db';
+import { auth } from '@/lib/auth';
+
+export async function createPost(formData: FormData) {
+  const session = await auth();
+  if (!session) throw new Error('Unauthorized');
+
+  const title   = formData.get('title') as string;
+  const content = formData.get('content') as string;
+
+  if (!title || title.length < 3) {
+    return { error: 'Title must be at least 3 characters' };
+  }
+
+  const post = await db.post.create({
+    data: { title, content, authorId: session.user.id },
+  });
+
+  revalidatePath('/posts');       // bust the /posts cache
+  redirect(\`/posts/\${post.id}\`); // navigate after mutation
+}
+
+// app/posts/new/page.tsx — Client Component using the action
+'use client';
+import { createPost } from '@/actions/post';
+import { useFormState } from 'react-dom';
+
+export default function NewPostForm() {
+  const [state, action] = useFormState(createPost, null);
+
+  return (
+    <form action={action}>
+      <input name="title" placeholder="Title" />
+      <textarea name="content" />
+      {state?.error && <p className="error">{state.error}</p>}
+      <button type="submit">Create Post</button>
+    </form>
+  );
+}`,
+    },
+  },
+
+  {
+    id: 'next-h4',
+    category: 'Next.js',
+    difficulty: 'hard',
+    type: 'basics',
+    question: 'What is Partial Prerendering (PPR) in Next.js 15? How does it combine static and dynamic rendering?',
+    answer:
+      '**Partial Prerendering (PPR)** is a Next.js 15 rendering model that splits a single route into a **static shell** (prerendered at build time) and **dynamic holes** (streamed at request time) — all within a single HTTP response.\n\n**Before PPR:** a route was either fully static OR fully dynamic. Any dynamic data forced the entire page to be server-rendered on every request.\n\n**With PPR:**\n1. Next.js prebuilds the static shell (layout, nav, static content) at build time\n2. At request time, it serves the static shell immediately (fast TTFB)\n3. Dynamic parts wrapped in `<Suspense>` are streamed in as they resolve\n\n**How to opt in:**\n- Enable `ppr: true` in `next.config.js`\n- Wrap dynamic components in `<Suspense fallback={<Skeleton />}>`\n- Components that use `cookies()`, `headers()`, or `searchParams` are automatically dynamic\n\n**Performance impact:** users see the page layout instantly (from CDN cache), dynamic data streams in milliseconds later — the best of SSG and SSR in one response.',
+    code: {
+      language: 'typescript',
+      snippet: `// next.config.js — enable PPR
+const nextConfig = {
+  experimental: { ppr: true },
+};
+
+// app/dashboard/page.tsx
+import { Suspense } from 'react';
+import { StaticNav }      from '@/components/StaticNav';       // static shell
+import { UserGreeting }   from '@/components/UserGreeting';     // static
+import { RecentOrders }   from '@/components/RecentOrders';     // dynamic (DB query)
+import { LiveStats }      from '@/components/LiveStats';        // dynamic (real-time)
+import { OrdersSkeleton, StatsSkeleton } from '@/components/Skeletons';
+
+export default function DashboardPage() {
+  return (
+    <div>
+      {/* Static shell — served from CDN instantly */}
+      <StaticNav />
+      <UserGreeting />
+
+      {/* Dynamic holes — streamed in after static shell */}
+      <Suspense fallback={<OrdersSkeleton />}>
+        <RecentOrders />   {/* uses db query, auto-detected as dynamic */}
+      </Suspense>
+
+      <Suspense fallback={<StatsSkeleton />}>
+        <LiveStats />      {/* uses headers(), auto-detected as dynamic */}
+      </Suspense>
+    </div>
+  );
+}
+
+// RecentOrders.tsx — this component is dynamic
+// Next.js detects the DB call and excludes it from the static shell
+async function RecentOrders() {
+  const orders = await db.order.findMany({ take: 5, orderBy: { createdAt: 'desc' } });
+  return <OrderList orders={orders} />;
+}`,
+    },
+  },
 ];

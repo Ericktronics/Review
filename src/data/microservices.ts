@@ -250,4 +250,196 @@ async function placeOrderSaga(orderId: string) {
 }`,
     },
   },
+
+  // ─── Message Queues ──────────────────────────────────────────────────────────
+
+  {
+    id: 'ms-mq1',
+    category: 'Microservices',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'How does RabbitMQ work? Explain exchanges, queues, bindings, and routing keys.',
+    answer:
+      '**RabbitMQ** is a message broker that decouples producers and consumers using the AMQP protocol.\n\n**Core concepts:**\n\n- **Producer** — publishes messages to an **exchange** (never directly to a queue)\n- **Exchange** — receives messages and routes them to queues based on routing rules\n- **Queue** — holds messages until a consumer processes them. Messages are acknowledged (ack) or rejected (nack)\n- **Binding** — the link between an exchange and a queue, with an optional **routing key**\n- **Consumer** — subscribes to a queue and processes messages\n\n**Exchange types:**\n\n| Type | Routing behavior |\n|---|---|\n| `direct` | Routes to queues whose binding key exactly matches the routing key |\n| `fanout` | Broadcasts to ALL bound queues (ignores routing key) — pub/sub |\n| `topic` | Pattern matching: `*` matches one word, `#` matches zero or more |\n| `headers` | Routes based on message header attributes instead of routing key |\n\n**Acknowledgements:**\n- **Auto-ack** — message deleted immediately on delivery (risk of data loss)\n- **Manual ack** — consumer explicitly acks after successful processing (safe)\n- **nack + requeue** — message goes back to the queue for retry\n- Use a **Dead Letter Exchange (DLX)** for messages that fail repeatedly',
+    code: {
+      language: 'typescript',
+      snippet: `import amqp from 'amqplib';
+
+// Producer
+async function publishOrder(order: Order) {
+  const conn    = await amqp.connect('amqp://localhost');
+  const channel = await conn.createChannel();
+
+  const exchange = 'orders';
+  await channel.assertExchange(exchange, 'topic', { durable: true });
+
+  channel.publish(
+    exchange,
+    'order.created',                          // routing key
+    Buffer.from(JSON.stringify(order)),
+    { persistent: true }                      // survive broker restart
+  );
+  console.log('Published:', order.id);
+  await conn.close();
+}
+
+// Consumer — binds to topic pattern
+async function startOrderWorker() {
+  const conn    = await amqp.connect('amqp://localhost');
+  const channel = await conn.createChannel();
+
+  await channel.assertExchange('orders', 'topic', { durable: true });
+  const { queue } = await channel.assertQueue('order-processor', {
+    durable: true,
+    arguments: {
+      'x-dead-letter-exchange': 'orders.dlx',  // failed messages go here
+    },
+  });
+
+  // Subscribe to order.created and order.updated
+  await channel.bindQueue(queue, 'orders', 'order.*');
+  channel.prefetch(1);   // process one message at a time
+
+  channel.consume(queue, async (msg) => {
+    if (!msg) return;
+    try {
+      const order = JSON.parse(msg.content.toString());
+      await processOrder(order);
+      channel.ack(msg);                         // acknowledge success
+    } catch (err) {
+      channel.nack(msg, false, false);          // send to DLX, don't requeue
+    }
+  });
+}`,
+    },
+  },
+
+  {
+    id: 'ms-mq2',
+    category: 'Microservices',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'How does Apache Kafka work? Explain topics, partitions, offsets, and consumer groups.',
+    answer:
+      '**Kafka** is a distributed event streaming platform designed for high-throughput, durable, replayable message streams.\n\n**Core concepts:**\n\n- **Topic** — a named, ordered, immutable log of events. Think of it as a table in a database, but append-only.\n- **Partition** — a topic is split into N partitions for parallelism. Each partition is an ordered log. Messages within a partition are ordered; across partitions they are not.\n- **Offset** — the position of a message within a partition. Consumers track their own offset, so they can replay or resume from any point.\n- **Consumer Group** — a set of consumers sharing the work. Each partition is consumed by exactly one consumer in the group at a time — enabling parallel processing. Multiple groups can read the same topic independently.\n- **Retention** — messages are kept for a configurable period (default 7 days), not deleted after consumption. This enables replay.\n\n**Kafka vs RabbitMQ:**\n\n| | Kafka | RabbitMQ |\n|---|---|---|\n| Model | Pull-based log | Push-based queue |\n| Retention | Configurable (days/weeks) | Deleted after ack |\n| Replay | Yes (seek to offset) | No |\n| Throughput | Millions/sec | Hundreds of thousands/sec |\n| Use case | Event sourcing, audit log, stream processing | Task queues, RPC, routing |',
+    code: {
+      language: 'typescript',
+      snippet: `import { Kafka } from 'kafkajs';
+
+const kafka = new Kafka({ clientId: 'my-app', brokers: ['kafka:9092'] });
+
+// Producer
+async function publishEvent(event: OrderEvent) {
+  const producer = kafka.producer();
+  await producer.connect();
+
+  await producer.send({
+    topic: 'order-events',
+    messages: [
+      {
+        // Partition by userId so all events for a user are ordered
+        key:   event.userId,
+        value: JSON.stringify(event),
+        headers: { 'event-type': event.type },
+      },
+    ],
+  });
+
+  await producer.disconnect();
+}
+
+// Consumer group — 3 instances share the partitions
+async function startConsumer(groupId: string) {
+  const consumer = kafka.consumer({ groupId });
+  await consumer.connect();
+  await consumer.subscribe({ topic: 'order-events', fromBeginning: false });
+
+  await consumer.run({
+    eachMessage: async ({ topic, partition, message }) => {
+      const event = JSON.parse(message.value!.toString());
+      console.log(\`[P\${partition} O\${message.offset}]\`, event);
+
+      try {
+        await handleEvent(event);
+        // Kafka auto-commits offset after eachMessage resolves
+      } catch (err) {
+        // DLQ pattern: publish to a dead-letter topic
+        await publishToDLQ(message);
+      }
+    },
+  });
+}`,
+    },
+  },
+
+  {
+    id: 'ms-mq3',
+    category: 'Microservices',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What is BullMQ? How do you use it with NestJS for background job processing?',
+    answer:
+      '**BullMQ** is a Node.js queue library backed by Redis. It handles background jobs, retries, delays, priority queues, and job scheduling.\n\n**When to use BullMQ vs Kafka/RabbitMQ:**\n- **BullMQ** — job queues within a Node.js ecosystem (email sending, PDF generation, image resizing, scheduled tasks). Simpler, Redis-only, excellent DX in NestJS.\n- **Kafka** — high-throughput event streams shared across many services/languages, event sourcing, replay.\n- **RabbitMQ** — cross-language task routing, complex exchange patterns.\n\n**BullMQ features:**\n- Automatic retries with exponential backoff\n- Delayed jobs (`delay: 5000` ms)\n- Priority queues\n- Repeatable (cron-like) jobs\n- Job progress tracking\n- Concurrency control (`concurrency: 5`)\n- Sandboxed processors (run jobs in separate worker threads)\n- Rate limiting',
+    code: {
+      language: 'typescript',
+      snippet: `// 1. Install: npm install @nestjs/bullmq bullmq ioredis
+
+// app.module.ts
+import { BullModule } from '@nestjs/bullmq';
+
+@Module({
+  imports: [
+    BullModule.forRoot({ connection: { host: 'redis', port: 6379 } }),
+    BullModule.registerQueue({ name: 'email' }),
+    BullModule.registerQueue({ name: 'pdf' }),
+  ],
+})
+export class AppModule {}
+
+// email.service.ts — add jobs to the queue
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+
+@Injectable()
+export class EmailService {
+  constructor(@InjectQueue('email') private emailQueue: Queue) {}
+
+  async sendWelcomeEmail(userId: string) {
+    await this.emailQueue.add(
+      'welcome',
+      { userId },
+      {
+        attempts: 3,                   // retry up to 3 times
+        backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: 100,         // keep last 100 completed jobs
+        removeOnFail: 500,
+      }
+    );
+  }
+
+  async scheduleReminder(userId: string, delayMs: number) {
+    await this.emailQueue.add('reminder', { userId }, { delay: delayMs });
+  }
+}
+
+// email.processor.ts — worker that processes jobs
+import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Job } from 'bullmq';
+
+@Processor('email')
+export class EmailProcessor extends WorkerHost {
+  async process(job: Job) {
+    switch (job.name) {
+      case 'welcome':
+        await this.mailer.sendWelcome(job.data.userId);
+        break;
+      case 'reminder':
+        await this.mailer.sendReminder(job.data.userId);
+        break;
+    }
+    return { sent: true };
+  }
+}`,
+    },
+  },
 ];

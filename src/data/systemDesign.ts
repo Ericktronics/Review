@@ -257,4 +257,115 @@ function toBase62(n: number): string {
 }`,
     },
   },
+
+  // ─── ERD & System Architecture ───────────────────────────────────────────────
+
+  {
+    id: 'sys-erd1',
+    category: 'System Design',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'How do you design an ERD (Entity Relationship Diagram)? What are the key elements and relationship types?',
+    answer:
+      '**ERD (Entity Relationship Diagram)** visualizes the data model — entities, their attributes, and how they relate. It is the blueprint before writing any migrations or ORM models.\n\n**Key elements:**\n- **Entity** — a real-world object that has data (Users, Orders, Products). Maps to a DB table.\n- **Attribute** — a property of an entity (name, email, price). Maps to a column.\n- **Primary Key (PK)** — uniquely identifies each row.\n- **Foreign Key (FK)** — references the PK of another table to establish a relationship.\n\n**Cardinality (relationship types):**\n\n| Type | Example | Implementation |\n|---|---|---|\n| One-to-One (1:1) | User ↔ Profile | FK in one table |\n| One-to-Many (1:N) | User → Orders | FK on the "many" side |\n| Many-to-Many (M:N) | Students ↔ Courses | Junction/pivot table |\n\n**ERD design process:**\n1. Identify entities (nouns in the requirements)\n2. Define attributes and PKs for each entity\n3. Identify relationships and their cardinality\n4. Add FKs and junction tables for M:N\n5. Normalize to remove redundancy (at least 3NF)\n6. Add indexes on FK columns and frequent query fields\n\n**Tools:** dbdiagram.io, Lucidchart, draw.io, pgAdmin ERD tool',
+    code: {
+      language: 'sql',
+      snippet: `-- E-commerce ERD as SQL schema
+
+CREATE TABLE users (
+  id         SERIAL PRIMARY KEY,
+  email      VARCHAR(255) UNIQUE NOT NULL,
+  name       VARCHAR(100) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE categories (
+  id   SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL
+);
+
+-- Products: many products → one category (1:N)
+CREATE TABLE products (
+  id          SERIAL PRIMARY KEY,
+  name        VARCHAR(200) NOT NULL,
+  price       NUMERIC(10,2) NOT NULL,
+  stock       INT NOT NULL DEFAULT 0,
+  category_id INT REFERENCES categories(id)
+);
+
+-- Orders: one user → many orders (1:N)
+CREATE TABLE orders (
+  id         SERIAL PRIMARY KEY,
+  user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status     VARCHAR(20) DEFAULT 'pending',
+  total      NUMERIC(10,2),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Order_Items: orders ↔ products (M:N junction table)
+CREATE TABLE order_items (
+  order_id   INT NOT NULL REFERENCES orders(id)   ON DELETE CASCADE,
+  product_id INT NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
+  quantity   INT NOT NULL,
+  unit_price NUMERIC(10,2) NOT NULL,   -- price snapshot at purchase time
+  PRIMARY KEY (order_id, product_id)
+);
+
+-- Always index FK columns used in JOINs
+CREATE INDEX idx_orders_user_id    ON orders(user_id);
+CREATE INDEX idx_order_items_order ON order_items(order_id);`,
+    },
+  },
+
+  {
+    id: 'sys-arch1',
+    category: 'System Design',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'How do you document and communicate system architecture? What diagrams do you produce for an interview?',
+    answer:
+      '**The C4 Model** (Context → Container → Component → Code) is the most practical framework for documenting architecture at different levels of zoom.\n\n**The 4 levels:**\n1. **Context** — system as a black box, who uses it, what external systems it talks to\n2. **Container** — what runs inside: API server, web app, queue, DB, cache. Shows tech choices and protocols.\n3. **Component** — inside a single container: modules, services, repositories\n4. **Code** — class/sequence diagrams. Usually skipped in interviews.\n\n**For a senior interview, you should produce:**\n- A **container diagram** — the most common whiteboard ask\n- A **data flow diagram** — how data moves from request → response, including async paths\n- An **ERD** — for any question involving persistent data\n\n**Whiteboard interview framework (5 steps):**\n1. Clarify requirements & scale (DAU, requests/sec, data size, SLAs)\n2. Define system boundaries (in scope / out of scope)\n3. Draw container diagram top-down: Client → CDN → API → DB / Cache / Queue\n4. Call out trade-offs at each decision point\n5. Address the bottleneck — where will this break at 10× traffic?',
+    code: {
+      language: 'typescript',
+      snippet: `/*
+  Container Diagram — E-commerce Platform (interview whiteboard)
+
+  [Browser / Mobile]
+        │ HTTPS
+        ▼
+  [CDN / Vercel Edge]         ← static assets, cached SSR pages
+        │
+        ▼
+  [Next.js App Server]        ← SSR, Server Actions, BFF
+    │               │
+    │ REST/JSON      │ Internal call
+    ▼               ▼
+  [NestJS API]                ← auth, business logic, validation
+    │        │        │
+    ▼        ▼        ▼
+  [PostgreSQL] [MongoDB]  [Redis]
+  (orders,     (catalog,  (sessions,
+   users,       CMS)       cache,
+   payments)               rate limit)
+                    │
+              [BullMQ Queue]  ← async job processing
+                    │
+              [Worker Service]
+                    │
+              [AWS SES / S3]  ← email + file storage
+
+  Key data flows:
+  1. Checkout: Browser → Next.js → NestJS → PostgreSQL (transaction)
+              → BullMQ (enqueue confirmation email) → Worker → SES
+
+  2. Product list: Browser → CDN (cache hit) → serve in <50ms
+                  (cache miss) → Next.js ISR → MongoDB → rebuild cache
+
+  Trade-offs to mention:
+  - MongoDB for catalog: flexible schema, easy to add product attributes
+  - PostgreSQL for orders: ACID, strong consistency for financial data
+  - BullMQ over direct email: decoupled, retryable, no timeout pressure
+*/`,
+    },
+  },
 ];

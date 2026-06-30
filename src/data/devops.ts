@@ -338,6 +338,116 @@ git checkout develop && git merge hotfix/critical-auth-bug`,
       "**Both probes are health checks Kubernetes runs against your pod — but they trigger different actions on failure.**\n\n| | **Liveness** | **Readiness** |\n|---|---|---|\n| Question | \"Is this container still alive?\" | \"Is this container ready to serve traffic?\" |\n| Failure action | Kubernetes **restarts** the container | Kubernetes **removes it from the Service** (stops routing traffic) |\n| Use case | Deadlocks, infinite loops, unrecoverable crash | Warmup period, dependency not ready (DB, cache) |\n\n**Liveness probe** — detects a container that is running but stuck in a broken state it can't recover from on its own. If the probe fails, Kubernetes kills and restarts the pod.\n\n**Readiness probe** — detects a container that is alive but not yet ready to handle requests. On failure, the pod is pulled from the load balancer endpoint — no traffic is sent — but it is **not** restarted. Once the probe passes again, traffic resumes.\n\n**Concrete example**:\n```yaml\nlivenessProbe:\n  httpGet:\n    path: /healthz\n    port: 3000\n  initialDelaySeconds: 10\n  periodSeconds: 15\n\nreadinessProbe:\n  httpGet:\n    path: /ready\n    port: 3000\n  initialDelaySeconds: 5\n  periodSeconds: 5\n```\n- `/healthz` — always returns 200 unless the app is in a deadlock or crash loop\n- `/ready` — returns 200 only after DB connection is established and migrations are complete\n\n**Startup scenario**: app starts, DB migrations take 10s → readiness fails → no traffic → migrations finish → readiness passes → traffic begins. Container is never restarted unnecessarily.\n\n**Rule of thumb**: if the app can heal itself (waiting for a dependency), use readiness. If it's stuck and needs a restart, use liveness. Production apps typically need both.",
   },
 
+  // ─── AWS Services ────────────────────────────────────────────────────────────
+
+  {
+    id: 'devops-aws1',
+    category: 'DevOps',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'What are the core AWS services a full-stack developer must know? (S3, CloudFront, SQS, SNS, Lambda, RDS)',
+    answer:
+      '**Storage & CDN:**\n- **S3 (Simple Storage Service)** — object storage for files, images, videos, backups, static websites. Infinite scale, 99.999999999% durability. Use pre-signed URLs for secure temporary access.\n- **CloudFront** — AWS CDN. Caches content at 400+ edge locations globally. Pair with S3 for static assets or API responses.\n\n**Messaging:**\n- **SQS (Simple Queue Service)** — managed message queue. Pull-based, at-least-once delivery. Use for decoupling services and background jobs. Standard queue (unordered) or FIFO queue (ordered, exactly-once).\n- **SNS (Simple Notification Service)** — pub/sub. One message fans out to multiple subscribers (email, SMS, SQS queues, Lambda). Use for event broadcasting.\n\n**Compute:**\n- **Lambda** — serverless functions. Pay per invocation, auto-scale to zero. Best for event-driven tasks, webhooks, lightweight APIs. Cold starts can add 100ms–1s latency.\n- **EC2** — virtual machines. Full control, persistent processes, predictable pricing for sustained workloads.\n- **ECS (Elastic Container Service)** — run Docker containers. Fargate mode = serverless containers (no EC2 to manage).\n\n**Database:**\n- **RDS** — managed relational DB (PostgreSQL, MySQL, Aurora). Handles backups, patching, Multi-AZ failover.',
+    code: {
+      language: 'typescript',
+      snippet: `import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+
+const s3  = new S3Client({ region: 'ap-southeast-1' });
+const sqs = new SQSClient({ region: 'ap-southeast-1' });
+
+// Upload file to S3
+async function uploadFile(key: string, body: Buffer, contentType: string) {
+  await s3.send(new PutObjectCommand({
+    Bucket:      process.env.S3_BUCKET!,
+    Key:         key,             // e.g. 'avatars/user-123.jpg'
+    Body:        body,
+    ContentType: contentType,
+  }));
+}
+
+// Generate a pre-signed URL (temporary, secure access — no public bucket needed)
+async function getDownloadUrl(key: string, expiresIn = 3600) {
+  const command = new GetObjectCommand({ Bucket: process.env.S3_BUCKET!, Key: key });
+  return getSignedUrl(s3, command, { expiresIn });   // URL valid for 1 hour
+}
+
+// Send message to SQS queue (e.g., after user registers)
+async function enqueueWelcomeEmail(userId: string) {
+  await sqs.send(new SendMessageCommand({
+    QueueUrl:    process.env.SQS_EMAIL_QUEUE_URL!,
+    MessageBody: JSON.stringify({ type: 'welcome', userId }),
+    MessageAttributes: {
+      eventType: { DataType: 'String', StringValue: 'welcome' },
+    },
+  }));
+}
+
+// Lambda handler — triggered by SQS event
+export const handler = async (event: SQSEvent) => {
+  for (const record of event.Records) {
+    const { type, userId } = JSON.parse(record.body);
+    await sendEmail(userId, type);
+  }
+};`,
+    },
+  },
+
+  {
+    id: 'devops-aws2',
+    category: 'DevOps',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'When do you use Lambda vs ECS vs EC2? What are the trade-offs?',
+    answer:
+      '**Choosing the right compute service** comes down to workload characteristics: duration, concurrency needs, control requirements, and cost profile.\n\n| | Lambda | ECS (Fargate) | EC2 |\n|---|---|---|---|\n| **Model** | Serverless function | Serverless containers | Virtual machine |\n| **Max duration** | 15 minutes | Unlimited | Unlimited |\n| **Cold start** | 100ms–1s+ | ~10–30s | Minutes |\n| **Scale to zero** | Yes | Yes (Fargate) | No |\n| **State** | Stateless | Stateless | Can be stateful |\n| **Cost model** | Per invocation | Per vCPU/memory-second | Per hour (even idle) |\n| **Best for** | Event-driven, sporadic, <15min | APIs, microservices, containers | Long-running, GPU, custom OS |\n\n**Lambda use cases:**\n- Webhooks, S3 triggers, SQS consumers\n- Lightweight scheduled jobs (CloudWatch Events)\n- API endpoints with spiky, unpredictable traffic\n\n**ECS / Fargate use cases:**\n- Long-running APIs and services (NestJS, Next.js)\n- Consistent traffic — no cold start tax\n- When you need Docker but not the overhead of managing EC2 instances\n\n**EC2 use cases:**\n- ML inference (needs GPU)\n- Databases, Redis (need persistent local disk)\n- Legacy apps needing specific OS config\n- Spot instances for cost-sensitive batch jobs',
+    code: {
+      language: 'yaml',
+      snippet: `# ECS Task Definition (Fargate) — NestJS API
+{
+  "family": "nestjs-api",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "containerDefinitions": [
+    {
+      "name": "api",
+      "image": "123456789.dkr.ecr.ap-southeast-1.amazonaws.com/nestjs-api:latest",
+      "portMappings": [{ "containerPort": 3000 }],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" }
+      ],
+      "secrets": [
+        { "name": "DATABASE_URL", "valueFrom": "arn:aws:ssm:...:DATABASE_URL" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/nestjs-api",
+          "awslogs-region": "ap-southeast-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
+
+# Lambda — SQS consumer (serverless.yml)
+functions:
+  processEmail:
+    handler: dist/handlers/email.handler
+    timeout: 30
+    memorySize: 256
+    events:
+      - sqs:
+          arn: !GetAtt EmailQueue.Arn
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures`,
+    },
+  },
+
   {
     id: 'devops-m2',
     category: 'DevOps',

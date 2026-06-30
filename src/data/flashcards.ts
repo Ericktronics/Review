@@ -21,6 +21,7 @@ import { testingCards } from './testing';
 import { javascriptCards } from './javascript';
 import { pythonCards } from './python';
 import { djangoCards } from './django';
+import { mongodbCards } from './mongodb';
 import type { Flashcard } from '../types';
 
 export const flashcards: Flashcard[] = [
@@ -47,4 +48,5 @@ export const flashcards: Flashcard[] = [
   ...testingCards,
   ...pythonCards,
   ...djangoCards,
+  ...mongodbCards,
 ];

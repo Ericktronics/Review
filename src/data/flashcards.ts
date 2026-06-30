@@ -19,6 +19,8 @@ import { angularCards } from './angular';
 import { nextjsCards } from './nextjs';
 import { testingCards } from './testing';
 import { javascriptCards } from './javascript';
+import { pythonCards } from './python';
+import { djangoCards } from './django';
 import type { Flashcard } from '../types';
 
 export const flashcards: Flashcard[] = [
@@ -43,4 +45,6 @@ export const flashcards: Flashcard[] = [
   ...devopsCards,
   ...dataStructuresCards,
   ...testingCards,
+  ...pythonCards,
+  ...djangoCards,
 ];

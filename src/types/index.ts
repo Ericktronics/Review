@@ -19,7 +19,9 @@ export type Category =
   | 'Data Structures & Algorithms'
   | 'Compare & Choose'
   | 'Interview Scenarios'
-  | 'Testing';
+  | 'Testing'
+  | 'Python'
+  | 'Django';
 
 export interface Flashcard {
   id: string;

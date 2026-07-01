@@ -505,4 +505,51 @@ def notify_warehouse(sender, order, **kwargs):
     WarehouseTask.objects.create(order=order)`,
     },
   },
+
+  {
+    id: 'dj-h4',
+    category: 'Django',
+    difficulty: 'hard',
+    type: 'basics',
+    question:
+      'How does Celery work under the hood? Explain the broker, workers, result backend, retries, and Celery Beat.',
+    answer:
+      "**Celery is a distributed task queue** — it moves slow or scheduled work out of the Django request/response cycle and onto separate worker processes.\n\n**The pieces:**\n- **Broker** — a message queue (Redis or RabbitMQ) that holds pending tasks. When your Django view calls `task.delay(...)`, Celery serializes the function name + arguments and pushes that onto the broker. Redis is simpler to run; RabbitMQ (AMQP) offers richer routing (exchanges, priority queues) for larger systems.\n- **Workers** — separate long-running processes (`celery -A myapp worker`) that pull tasks off the broker and execute them. Workers scale horizontally (run more of them) and use a concurrency model — `prefork` (separate processes, default, good for CPU-bound work), `eventlet`/`gevent` (greenlets, good for I/O-bound work like many concurrent API calls).\n- **Result backend** — optional separate store (Redis, the DB, or a dedicated result store) that holds a task's return value and status (`PENDING`, `SUCCESS`, `FAILURE`) if the caller needs to check on it later. Skip it entirely for fire-and-forget tasks (e.g. sending an email) — it's pure overhead you don't need.\n- **Celery Beat** — a separate scheduler process that fires periodic tasks (cron-like: \"run this every 10 minutes\" or \"daily at midnight\") by pushing them onto the broker at the scheduled time. Beat itself doesn't execute tasks — it just enqueues them for workers to pick up.\n\n**Retries:**\n- Decorate a task with `bind=True` to get `self`, then call `self.retry(exc=e, countdown=5)` on failure, or declare `autoretry_for=(RequestException,)` with `retry_backoff=True` for automatic exponential backoff\n- Set `max_retries` to avoid infinite retry loops on a permanently broken dependency\n\n**Gotchas that come up in interviews:**\n- **At-least-once delivery** — a task can be delivered and executed more than once (worker crash after execution but before ack). Tasks must be **idempotent**.\n- **Never pass Django model instances as task arguments** — pass primary key IDs and re-fetch inside the task. The object could be stale, unpicklable, or the DB row could have changed by the time the task runs.\n- **Monitor with Flower** — a web UI for inspecting queue depth, worker health, and task history in production.",
+    code: {
+      language: 'python',
+      snippet: `# tasks.py
+from celery import shared_task
+from celery.utils.log import get_task_logger
+
+logger = get_task_logger(__name__)
+
+@shared_task(bind=True, autoretry_for=(ConnectionError,), retry_backoff=True, max_retries=5)
+def send_order_confirmation(self, order_id: int):
+    # re-fetch by ID — never pass the model instance itself into a task
+    order = Order.objects.get(pk=order_id)
+    try:
+        email_client.send(order.user.email, template='order_confirmed', order=order)
+    except ConnectionError as exc:
+        logger.warning(f"Email provider down, retrying task {self.request.id}")
+        raise self.retry(exc=exc)
+
+# views.py — enqueue, return immediately
+def place_order(request):
+    order = Order.objects.create(user=request.user, total=request.data['total'])
+    send_order_confirmation.delay(order.pk)   # non-blocking — pushed to the broker
+    return JsonResponse({'orderId': order.pk}, status=202)
+
+# celery.py — Celery Beat periodic schedule
+app.conf.beat_schedule = {
+    'cleanup-expired-carts': {
+        'task': 'cart.tasks.cleanup_expired_carts',
+        'schedule': crontab(hour=0, minute=0),   # every day at midnight
+    },
+}
+
+# settings.py
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'   # omit entirely for fire-and-forget tasks`,
+    },
+  },
 ];

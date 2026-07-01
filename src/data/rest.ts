@@ -408,4 +408,47 @@ app.post('/reports', async (req, res) => {
 });`,
     },
   },
+
+  {
+    id: 'rest-m7',
+    category: 'REST & HTTP',
+    difficulty: 'medium',
+    type: 'basics',
+    question:
+      'How do you design a secure, reliable webhook receiver for a third-party integration (e.g., Stripe, GitHub)?',
+    answer:
+      "**A webhook receiver is a public endpoint the third party calls — that makes it a trust boundary. Five things separate a naive implementation from a production one:**\n\n**1. Verify the signature before trusting anything.** Providers sign the payload with a shared secret and send the signature in a header (Stripe: `Stripe-Signature`, GitHub: `X-Hub-Signature-256`). Recompute the HMAC over the **raw request body** (not the parsed/re-serialized JSON — whitespace differences break the hash) and compare using a constant-time comparison to avoid timing attacks. Reject with `401`/`400` on mismatch. Skipping this means anyone who finds your endpoint URL can forge events.\n\n**2. Respond fast, process slow.** Acknowledge with `200`/`202` within a few seconds — before doing any real work. Providers enforce a timeout and will **retry** on timeout or a non-2xx response, so a slow handler causes duplicate deliveries on top of the request that already succeeded.\n\n**3. Process asynchronously.** After verifying the signature, enqueue the payload (Celery, SQS, RabbitMQ) and return immediately. A worker does the actual DB writes / downstream API calls outside the HTTP request path.\n\n**4. Make the handler idempotent.** Webhook delivery is at-least-once — the same event can arrive twice. Providers include a unique event ID (Stripe's `evt_...`); store processed IDs and skip anything already handled, exactly like an idempotent event consumer.\n\n**5. Store the raw payload before processing.** Persist the verified raw body (even if processing later fails) — this gives you an audit trail and lets you replay/reprocess an event when debugging, without asking the provider to resend it.\n\n**Also worth mentioning**: webhooks can arrive **out of order** (network retries, provider-side queueing) — design your state transitions to tolerate that (check timestamps, or only apply transitions that make sense from the current state) rather than assuming strict delivery order.",
+    code: {
+      language: 'python',
+      snippet: `# Flask/Django-style webhook receiver
+import hashlib
+import hmac
+
+WEBHOOK_SECRET = settings.STRIPE_WEBHOOK_SECRET
+
+def verify_signature(raw_body: bytes, signature_header: str) -> bool:
+    expected = hmac.new(WEBHOOK_SECRET.encode(), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature_header)  # constant-time compare
+
+@app.route('/webhooks/payments', methods=['POST'])
+def handle_payment_webhook():
+    raw_body = request.get_data()  # raw bytes — signature must be computed over this, not request.json
+    signature = request.headers.get('X-Signature', '')
+
+    if not verify_signature(raw_body, signature):
+        return jsonify({'error': 'invalid signature'}), 401
+
+    event = json.loads(raw_body)
+
+    # idempotency — provider may redeliver the same event ID
+    if ProcessedWebhookEvent.objects.filter(event_id=event['id']).exists():
+        return jsonify({'status': 'already processed'}), 200
+
+    # store raw payload for audit/replay, then hand off to a worker
+    ProcessedWebhookEvent.objects.create(event_id=event['id'], payload=raw_body)
+    process_payment_event.delay(event['id'])   # Celery task — slow work happens off-request
+
+    return jsonify({'status': 'accepted'}), 202  # ack fast, before processing finishes`,
+    },
+  },
 ];

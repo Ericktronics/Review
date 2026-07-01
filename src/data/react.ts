@@ -1002,6 +1002,59 @@ const List = ({ items }: { items: Item[] }) => {
     },
   },
 
+  {
+    id: 'react-m11',
+    category: 'React',
+    difficulty: 'medium',
+    type: 'basics',
+    question:
+      'What is Redux? Explain the core principles (single store, actions, reducers, unidirectional data flow) and when you\'d reach for it over Context or Zustand.',
+    answer:
+      "**Redux is a predictable state container** built on three principles:\n\n1. **Single source of truth** — the entire app state lives in one store (a plain object tree), not scattered across components.\n2. **State is read-only** — the only way to change state is to `dispatch` an **action**, a plain object describing *what happened* (`{ type: 'cart/itemAdded', payload: { id, qty } }`). Components never mutate state directly.\n3. **Changes are made with pure functions** — a **reducer** is `(state, action) => newState`. Given the same inputs it always returns the same output, with no side effects. This is what makes Redux state predictable and time-travel debugging possible.\n\n**Redux Toolkit (RTK)** is the modern standard — plain Redux's boilerplate (action types, action creators, immutable update spreads) is no longer written by hand:\n- `createSlice` generates action creators and a reducer from a single object, and lets you write \"mutating\" logic that Immer converts into safe immutable updates under the hood\n- `configureStore` sets up the store with good defaults (Redux DevTools, thunk middleware, dev-only mutation checks)\n- `createAsyncThunk` standardizes async logic (API calls) into `pending`/`fulfilled`/`rejected` actions automatically\n\n**Middleware for async logic:**\n- **redux-thunk** (RTK's default) — an action creator can return a function instead of an object; that function receives `dispatch`/`getState` and can call APIs, then dispatch real actions. Simple, covers most cases.\n- **redux-saga** — generator-based middleware for complex async flows: cancellable requests, debouncing, race conditions between multiple async operations (`takeLatest`, `race`, `fork`). More power, steeper learning curve — reach for it only when thunks get unwieldy.\n\n**Redux/RTK vs Context vs Zustand:**\n\n| | Redux Toolkit | Context | Zustand |\n|---|---|---|---|\n| Boilerplate | Low (with RTK) | Very low | Very low |\n| Re-render control | Fine-grained (`useSelector` per slice) | Coarse (every consumer re-renders on change) | Fine-grained |\n| DevTools / time-travel | Yes | No | Limited |\n| Best for | Large apps, complex shared state touched by many features, need for middleware/async orchestration | Simple, infrequently-changing global values (theme, auth user, locale) | Small-to-mid apps wanting global state without Redux's ceremony |\n\n**Rule of thumb**: reach for Redux/RTK when many features read and write the same state and you need predictability, devtools, and testable reducers at scale — not for a single toggle or theme flag.",
+    code: {
+      language: 'typescript',
+      snippet: `// Redux Toolkit — slice, async thunk, and store setup
+import { createSlice, createAsyncThunk, configureStore, PayloadAction } from '@reduxjs/toolkit';
+
+// Async thunk — handles pending/fulfilled/rejected automatically
+export const fetchCart = createAsyncThunk('cart/fetch', async (userId: string) => {
+  const res = await fetch(\`/api/cart/\${userId}\`);
+  return res.json() as Promise<CartItem[]>;
+});
+
+const cartSlice = createSlice({
+  name: 'cart',
+  initialState: { items: [] as CartItem[], status: 'idle' as 'idle' | 'loading' | 'error' },
+  reducers: {
+    // Looks like a mutation — Immer converts this to an immutable update
+    itemAdded(state, action: PayloadAction<CartItem>) {
+      state.items.push(action.payload);
+    },
+    itemRemoved(state, action: PayloadAction<string>) {
+      state.items = state.items.filter(i => i.id !== action.payload);
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchCart.pending, (state) => { state.status = 'loading'; })
+      .addCase(fetchCart.fulfilled, (state, action) => {
+        state.items = action.payload;
+        state.status = 'idle';
+      });
+  },
+});
+
+export const { itemAdded, itemRemoved } = cartSlice.actions;
+export const store = configureStore({ reducer: { cart: cartSlice.reducer } });
+
+// In a component
+const items = useSelector((state: RootState) => state.cart.items);
+const dispatch = useDispatch();
+dispatch(itemAdded({ id: 'sku_1', qty: 1 }));   // dispatch an action
+dispatch(fetchCart(userId));                     // dispatch a thunk`,
+    },
+  },
+
   // ── Redux Toolkit createSelector — memoized selectors ───────────────────
   {
     id: 'react-4',

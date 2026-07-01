@@ -449,6 +449,58 @@ functions:
   },
 
   {
+    id: 'devops-aws3',
+    category: 'DevOps',
+    difficulty: 'hard',
+    type: 'basics',
+    question:
+      'Walk through a production AWS serverless architecture end-to-end: API Gateway, Lambda, DynamoDB, EventBridge, and Step Functions. How do you deal with cold starts?',
+    answer:
+      "**Request path:**\n- **API Gateway** — the front door. Terminates HTTPS, runs a Cognito/JWT authorizer, validates the request against a schema, applies throttling/usage plans, and proxies to Lambda. It never runs business logic itself.\n- **Lambda** — stateless business logic behind the API, or an async consumer triggered by S3 events, SQS messages, DynamoDB Streams, or EventBridge rules. Scales per-request automatically; billed per millisecond; hard 15-minute execution ceiling.\n- **DynamoDB** — the data store. Single-digit millisecond latency at any scale, on-demand or provisioned capacity. The partition key design is the whole game — a poorly chosen key creates a hot partition that throttles regardless of overall table capacity. **DynamoDB Streams** emits a change log you can feed into Lambda or EventBridge.\n\n**Decoupling and orchestration:**\n- **EventBridge** — a serverless event bus. Producers publish events without knowing who consumes them; **rules** match event patterns and fan out to multiple targets (Lambda, Step Functions, SQS). Prefer it over SNS when you need pattern-based routing, a schema registry, or third-party SaaS event sources.\n- **Step Functions** — orchestrates multi-step Lambda workflows as an explicit state machine: sequential steps, parallel branches, `Map` over a list, built-in retry/catch per state. Use it whenever a workflow needs more than one Lambda invocation chained together, or exceeds the 15-minute single-function limit (e.g. a Saga across several services).\n\n**Cold starts** — the latency spike (100ms–1s+) when Lambda provisions a new execution environment:\n- **Provisioned concurrency** — keep N environments warm at all times; use for latency-sensitive, low-traffic-variance endpoints (adds cost — you're paying for idle capacity)\n- **Smaller deployment package** — tree-shake with esbuild, avoid bundling the whole AWS SDK, lazy-load rarely used dependencies inside the handler\n- **Avoid attaching Lambda to a VPC unless required** — VPC-attached Lambdas pay an extra ENI provisioning penalty on cold start (largely mitigated since Hyperplane ENIs, but still a factor on burst scale)\n- **Language choice matters** — Node.js/Python cold start in tens of ms; JVM-based runtimes are the slowest\n\n**Deploy as code**: AWS SAM or CDK define the entire stack — API Gateway routes, Lambda functions, DynamoDB tables, EventBridge rules, Step Functions definitions — as one reproducible unit (`sam deploy` / `cdk deploy`), instead of clicking through the console.",
+    code: {
+      language: 'typescript',
+      snippet: `// AWS CDK — API Gateway → Lambda → DynamoDB, plus an EventBridge rule
+import { RestApi, LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
+import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
+import { Table, AttributeType, StreamViewType } from 'aws-cdk-lib/aws-dynamodb';
+import { Rule } from 'aws-cdk-lib/aws-events';
+import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
+import { StateMachine, DefinitionBody } from 'aws-cdk-lib/aws-stepfunctions';
+
+const ordersTable = new Table(this, 'Orders', {
+  partitionKey: { name: 'orderId', type: AttributeType.STRING },
+  billingMode: BillingMode.PAY_PER_REQUEST,      // on-demand — no capacity planning
+  stream: StreamViewType.NEW_AND_OLD_IMAGES,     // feeds EventBridge below
+});
+
+const createOrderFn = new Function(this, 'CreateOrder', {
+  runtime: Runtime.NODEJS_20_X,
+  handler: 'index.handler',
+  code: Code.fromAsset('dist/create-order'),
+  environment: { TABLE_NAME: ordersTable.tableName },
+  reservedConcurrentExecutions: 20,               // caps blast radius on a bad deploy
+});
+ordersTable.grantReadWriteData(createOrderFn);
+
+const api = new RestApi(this, 'OrdersApi');
+api.root.addResource('orders').addMethod('POST', new LambdaIntegration(createOrderFn));
+
+// react to order writes without the producer knowing who's listening
+new Rule(this, 'OrderPlacedRule', {
+  eventPattern: { source: ['orders.service'], detailType: ['OrderPlaced'] },
+  targets: [new LambdaFunction(notifyInventoryFn)],
+});
+
+// multi-step saga that exceeds a single Lambda's 15-minute ceiling
+new StateMachine(this, 'FulfillmentWorkflow', {
+  definitionBody: DefinitionBody.fromChainable(
+    chargePaymentTask.next(reserveInventoryTask).next(shipOrderTask)
+  ),
+});`,
+    },
+  },
+
+  {
     id: 'devops-m2',
     category: 'DevOps',
     difficulty: 'medium',

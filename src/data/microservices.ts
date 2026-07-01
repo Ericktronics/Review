@@ -442,4 +442,74 @@ export class EmailProcessor extends WorkerHost {
 }`,
     },
   },
+
+  {
+    id: 'ms-eda1',
+    category: 'Microservices',
+    difficulty: 'hard',
+    type: 'basics',
+    question:
+      'What is the Transactional Outbox pattern? What problem does it solve in event-driven systems?',
+    answer:
+      "**The dual-write problem**: a service typically needs to (1) write to its own database and (2) publish an event about that write. These are two separate systems — a DB commit and a broker publish can't be wrapped in one atomic transaction. If the DB commit succeeds but the publish fails (network blip, broker down), downstream services never learn about a change that actually happened. If you publish first and the DB write then fails, you've announced something that never happened.\n\n**The fix — write the event to your own database, in the same transaction as the business data.** An `outbox` table lives in the same DB, so the business row and its outbox row commit atomically — standard ACID guarantees, no distributed transaction needed. A separate **relay process** then reads the outbox and publishes to the broker (Kafka/RabbitMQ/EventBridge), marking rows as sent (or deleting them) once delivery is confirmed.\n\n**Two ways to build the relay:**\n- **Polling publisher** — a background job polls the outbox table for unsent rows on an interval. Simple, but adds polling latency and load.\n- **Change Data Capture (CDC)** — a tool like **Debezium** tails the DB's write-ahead log (WAL/binlog) and streams inserts to the broker in near real time, with no polling and no extra load on the app.\n\n**Guarantee**: at-least-once delivery — the event will eventually be published if the write committed. It does not give you exactly-once; the consumer side still needs to be idempotent (see [[ms-eda2]]) because the relay can crash after publishing but before marking the row sent, causing a duplicate.\n\n**When to reach for it**: any time a service's local write must be reliably reflected as an event to other services — order placement, payment state changes, inventory updates. Skipping it is the classic cause of \"the event never fired\" bugs that only show up under broker outages.",
+    code: {
+      language: 'sql',
+      snippet: `-- Same transaction: business write + outbox write commit or roll back together
+BEGIN;
+
+INSERT INTO orders (id, user_id, status, total)
+VALUES ('ord_123', 'user_456', 'PLACED', 4999);
+
+INSERT INTO outbox (id, aggregate_type, aggregate_id, event_type, payload, created_at)
+VALUES (
+  gen_random_uuid(),
+  'Order',
+  'ord_123',
+  'OrderPlaced',
+  '{"orderId":"ord_123","userId":"user_456","total":4999}',
+  now()
+);
+
+COMMIT;
+
+-- Relay (polling variant) — runs on an interval, publishes unsent rows
+-- SELECT * FROM outbox WHERE published_at IS NULL ORDER BY created_at LIMIT 100;
+-- for each row: publish to Kafka/RabbitMQ, then:
+-- UPDATE outbox SET published_at = now() WHERE id = $1;`,
+    },
+  },
+
+  {
+    id: 'ms-eda2',
+    category: 'Microservices',
+    difficulty: 'hard',
+    type: 'basics',
+    question:
+      'Event-driven systems promise "exactly-once" processing, but is that actually achievable? How do you design consumers and evolve event schemas safely?',
+    answer:
+      "**Exactly-once delivery across a network is not achievable** — a message can always be lost (retry needed) or delivered twice (ack lost after processing, broker redelivers). Kafka's \"exactly-once semantics\" only holds *inside* the Kafka ecosystem (producer→topic→consumer with transactional APIs); the moment a consumer does something external (write to a DB, call another service, send an email), that guarantee doesn't extend.\n\n**The practical target is at-least-once delivery + idempotent consumers**, which together behave like exactly-once from the business's point of view:\n- Every event carries a stable, unique **event ID** (or the aggregate ID + version)\n- The consumer checks a **processed-events table** (or a unique constraint on the write itself) before acting — if the ID was already handled, skip it and ack\n- Design the side effect itself to be naturally idempotent where possible: `UPSERT` instead of `INSERT`, `SET status = 'shipped'` instead of `increment`, a payment charge keyed by an idempotency key rather than a bare \"charge $50\" command\n\n**Ordering** is a related trap: most brokers only guarantee order *within a partition/queue*, not globally. If event order matters (e.g. `OrderCreated` must be processed before `OrderShipped`), partition by aggregate ID (all events for the same order go to the same partition) so a single consumer processes them in order.\n\n**Schema evolution** — producers and consumers deploy independently, so the event schema is a public contract:\n- **Additive changes only** for a non-breaking change: add optional fields, never remove or repurpose a field, never change a field's type\n- Version the event type explicitly (`OrderPlaced.v2`) or embed a `schemaVersion` field when a breaking change is unavoidable, and keep the old consumer path alive until every consumer has migrated\n- A **schema registry** (Confluent Schema Registry, AWS EventBridge Schema Registry) enforces compatibility rules (backward/forward) at publish time, catching a breaking change before it reaches consumers instead of after\n\n**What this signals in an interview**: understanding that \"exactly-once\" is a marketing simplification, and that real event-driven systems are engineered around idempotency and schema discipline rather than a delivery-layer guarantee.",
+    code: {
+      language: 'typescript',
+      snippet: `// Idempotent consumer — dedup on event ID before applying the side effect
+async function handleOrderPlaced(event: { id: string; orderId: string; total: number }) {
+  const alreadyProcessed = await db.processedEvents.findUnique({ where: { id: event.id } });
+  if (alreadyProcessed) return; // safe re-delivery — no-op
+
+  await db.$transaction([
+    db.inventory.update({
+      where: { orderId: event.orderId },
+      data: { status: 'reserved' },     // idempotent write, not an increment
+    }),
+    db.processedEvents.create({ data: { id: event.id, processedAt: new Date() } }),
+  ]);
+}
+
+// Partition key ensures all events for one order land on the same partition,
+// so this consumer sees OrderPlaced before OrderShipped for that order.
+producer.send({
+  topic: 'orders',
+  messages: [{ key: event.orderId, value: JSON.stringify(event) }],
+});`,
+    },
+  },
 ];

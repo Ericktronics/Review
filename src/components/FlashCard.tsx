@@ -11,6 +11,9 @@ interface Props {
   quizMode?: boolean;
   /** studyWide = full-width two-column layout for Study mode */
   studyWide?: boolean;
+  /** controlled reveal state for quizMode (e.g. driven by keyboard shortcuts in the parent) */
+  revealed?: boolean;
+  onRevealChange?: (revealed: boolean) => void;
 }
 
 const DIFF: Record<Flashcard['difficulty'], string> = {
@@ -47,11 +50,21 @@ function CodeBlock({ code }: { code: NonNullable<Flashcard['code']> }) {
   );
 }
 
-export function FlashCard({ card, compact = false, quizMode = false, studyWide = false }: Props) {
-  const [revealed, setRevealed] = useState(!quizMode);
+export function FlashCard({
+  card,
+  compact = false,
+  quizMode = false,
+  studyWide = false,
+  revealed: revealedProp,
+  onRevealChange,
+}: Props) {
+  const [internalRevealed, setInternalRevealed] = useState(!quizMode);
 
-  // Reset when the card or mode changes
-  useEffect(() => { setRevealed(!quizMode); }, [card.id, quizMode]);
+  // Reset when the card or mode changes (uncontrolled usage only)
+  useEffect(() => { setInternalRevealed(!quizMode); }, [card.id, quizMode]);
+
+  const revealed = revealedProp ?? internalRevealed;
+  const setRevealed = onRevealChange ?? setInternalRevealed;
 
   const pad = compact ? 'p-4' : 'p-6';
 

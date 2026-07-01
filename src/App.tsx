@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { flashcards } from './data/flashcards';
 import type { Category, Flashcard } from './types';
 import { FlashCard } from './components/FlashCard';
@@ -78,6 +78,7 @@ export default function App() {
   const [deck, setDeck] = useState<Flashcard[]>(flashcards);
   const [viewMode, setViewMode] = useState<ViewMode>('study');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [revealed, setRevealed] = useState(false);
 
   // Category filter first, then difficulty filter
   const byCat = useMemo(
@@ -145,7 +146,47 @@ export default function App() {
     setIndex(0);
   }
 
+  function handlePrev() {
+    setIndex((i) => Math.max(0, i - 1));
+  }
+
+  function handleNext() {
+    setIndex((i) => Math.min(filtered.length - 1, i + 1));
+  }
+
   const card = filtered[index];
+
+  // Reset the reveal state whenever the current quiz card changes
+  useEffect(() => {
+    setRevealed(false);
+  }, [card?.id]);
+
+  // Quiz mode keyboard shortcuts: ←/→ to navigate, Space to reveal/hide the answer
+  useEffect(() => {
+    if (viewMode !== 'quiz') return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      const isTyping =
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if (isTyping) return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setRevealed((r) => !r);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNext();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrev();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewMode, filtered.length]);
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
@@ -270,15 +311,24 @@ export default function App() {
               {card ? (
                 <>
                   <div className="w-full max-w-2xl">
-                    <FlashCard key={card.id} card={card} quizMode />
+                    <FlashCard
+                      key={card.id}
+                      card={card}
+                      quizMode
+                      revealed={revealed}
+                      onRevealChange={setRevealed}
+                    />
                   </div>
                   <Controls
                     current={index}
                     total={filtered.length}
-                    onPrev={() => setIndex((i) => Math.max(0, i - 1))}
-                    onNext={() => setIndex((i) => Math.min(filtered.length - 1, i + 1))}
+                    onPrev={handlePrev}
+                    onNext={handleNext}
                     onShuffle={handleShuffle}
                   />
+                  <p className="text-xs text-slate-600 -mt-2">
+                    ← → to navigate · Space to {revealed ? 'hide' : 'show'} answer
+                  </p>
                 </>
               ) : (
                 <p className="text-slate-500 mt-20">No cards match this filter.</p>

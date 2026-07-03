@@ -633,6 +633,36 @@ await Promise.all([
   },
 
   {
+    id: 'cmp-h5',
+    category: 'Compare & Choose',
+    difficulty: 'medium',
+    type: 'basics',
+    question: 'Load Balancer vs API Gateway — what is the difference, and how do they work together?',
+    answer:
+      "**Load Balancer** — distributes traffic across multiple instances of the *same* service to spread load and provide failover. Its job is availability/scaling, not API semantics.\n- **L4 (transport layer)** — routes by IP/port only, never looks at HTTP content. Fast, simple. (e.g. AWS NLB, raw TCP load balancing)\n- **L7 (application layer)** — can route by path/host/header (e.g. AWS ALB, Nginx), but it's still just picking *which backend instance* handles the request.\n\n**API Gateway** — a single entry point in front of potentially many *different* services, aware of API-specific concerns that a load balancer has no concept of:\n- Authentication/authorization (verify a JWT once, forward identity downstream)\n- Rate limiting/throttling per client or API key\n- Request/response transformation, protocol translation (REST ↔ gRPC), API versioning\n- Aggregation (BFF pattern — one client call fans out to multiple services)\n- It often *includes* load balancing as one of its jobs, but that's a side effect, not the point\n\n**Mental model**: a load balancer answers *\"which instance handles this request?\"* An API gateway answers *\"is this request even allowed, and which service should handle it?\"*\n\n**How they combine in a real system**: traffic typically hits an L4/L7 load balancer first (ALB/NLB) → an API Gateway (Kong, AWS API Gateway) for auth/routing/rate-limiting → individual microservices, each of which may have its own internal load balancing (a Kubernetes Service) across pods. They're complementary layers, not competing choices.\n\n| | Load Balancer | API Gateway |\n|---|---|---|\n| Primary job | Distribute traffic across instances | Manage and secure API traffic |\n| Content-aware | No (L4) or shallow (L7 path/host) | Yes — full request/response |\n| Auth | No | Yes |\n| Rate limiting | No | Yes |\n| Protocol translation | No | Yes |\n| Examples | AWS NLB/ALB, HAProxy | Kong, AWS API Gateway, Apigee |",
+    code: {
+      language: 'yaml',
+      snippet: `# Typical request path in a multi-cloud microservices setup
+
+# 1. L4/L7 Load Balancer — just picks a healthy instance
+Client -> AWS ALB (health checks, TLS termination, path-based routing)
+
+# 2. API Gateway — API-aware cross-cutting concerns
+     -> Kong / AWS API Gateway
+          - verify JWT
+          - rate limit per API key
+          - route /orders/* -> Orders service, /users/* -> Users service
+
+# 3. Each microservice — its own internal load balancing across pods
+     -> Kubernetes Service (orders-svc)
+          - load balances across N healthy Orders pods
+
+# A load balancer alone can't do step 2.
+# An API gateway alone still needs something like step 3 behind it.`,
+    },
+  },
+
+  {
     id: 'cmp-h4',
     category: 'Compare & Choose',
     difficulty: 'hard',

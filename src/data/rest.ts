@@ -451,4 +451,52 @@ def handle_payment_webhook():
     return jsonify({'status': 'accepted'}), 202  # ack fast, before processing finishes`,
     },
   },
+
+  {
+    id: 'rest-m8',
+    category: 'REST & HTTP',
+    difficulty: 'hard',
+    type: 'experience',
+    question:
+      'How do you build a GraphQL API? Walk through schema definition, resolvers, mutations, and how you avoid the N+1 query problem.',
+    answer:
+      "**Schema-first design** — you define the shape of your data and operations before writing resolver logic, using the GraphQL **Schema Definition Language (SDL)**: `type`s for objects, `Query` for reads, `Mutation` for writes, `Subscription` for real-time updates.\n\n**Resolvers** — one function per field, responsible for returning that field's data. A resolver receives `(parent, args, context, info)`:\n- `parent` — the result of the parent resolver (lets you resolve nested fields)\n- `args` — the arguments passed in the query\n- `context` — shared per-request state (auth user, DB connections, loaders)\n- `info` — metadata about the query itself (rarely needed)\n\n**Mutations** — same mechanics as queries, but by convention should return the mutated object so the client can update its cache without a second round-trip.\n\n**The N+1 problem** — GraphQL's biggest operational pitfall. If a query asks for 50 posts and each post's `author`, a naive resolver fires one query for the posts, then 50 separate queries for each author (N+1 total).\n- **DataLoader** solves this: it batches all `author` lookups requested within a single event-loop tick into one `WHERE id IN (...)` query, and caches results per-request so the same ID is never fetched twice.\n- Without a DataLoader (or equivalent), GraphQL's flexibility becomes a database that falls over under real traffic — this is the single most common thing interviewers probe for with GraphQL experience.\n\n**Other production concerns**: query depth/complexity limiting (a malicious or naive client can request deeply nested fields and DoS your DB), persisted queries (whitelist known queries in production instead of accepting arbitrary strings), and field-level authorization (REST secures endpoints; GraphQL needs per-field checks since one endpoint exposes the whole graph).",
+    code: {
+      language: 'typescript',
+      snippet: `// Schema (SDL)
+const typeDefs = \`
+  type Author { id: ID!, name: String! }
+  type Post   { id: ID!, title: String!, author: Author! }
+  type Query    { posts: [Post!]! }
+  type Mutation { createPost(title: String!, authorId: ID!): Post! }
+\`;
+
+// DataLoader — batches + caches author lookups within one request
+import DataLoader from 'dataloader';
+
+const authorLoader = new DataLoader(async (ids: readonly string[]) => {
+  const authors = await db.author.findMany({ where: { id: { in: ids as string[] } } });
+  const byId = new Map(authors.map(a => [a.id, a]));
+  return ids.map(id => byId.get(id));   // must return in the same order as ids
+});
+
+const resolvers = {
+  Query: {
+    posts: () => db.post.findMany(),
+  },
+  Post: {
+    // called once per post, but DataLoader collapses all calls into 1 query
+    author: (post: { authorId: string }, _args: unknown, ctx: { authorLoader: DataLoader<string, unknown> }) =>
+      ctx.authorLoader.load(post.authorId),
+  },
+  Mutation: {
+    createPost: (_: unknown, args: { title: string; authorId: string }) =>
+      db.post.create({ data: args }),
+  },
+};
+
+// context created fresh per request — loader cache must not leak across requests
+const context = () => ({ authorLoader });`,
+    },
+  },
 ];

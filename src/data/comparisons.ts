@@ -706,4 +706,14 @@ async function createUser(data: UserDto) {
 }`,
     },
   },
+
+  {
+    id: 'cmp-h6',
+    category: 'Compare & Choose',
+    difficulty: 'hard',
+    type: 'experience',
+    question: 'Waterfall vs Agile — what is the difference, and how do you work effectively in a Waterfall-run team?',
+    answer:
+      "**Waterfall**: a linear, sequential SDLC — Requirements → Design → Implementation → Testing → Deployment → Maintenance. Each phase must be fully completed and signed off before the next begins; going back a phase is treated as an exception, not routine.\n\n**Agile**: iterative, incremental delivery in short cycles (sprints), with continuous re-planning as requirements evolve and working software delivered every iteration.\n\n| | Waterfall | Agile |\n|---|---|---|\n| Requirements | Fixed upfront, formally signed off | Expected to evolve; captured as a backlog |\n| Delivery | One big release at the end | Working increments every sprint |\n| Change | Expensive — requires formal change control | Cheap — reprioritize the backlog |\n| Documentation | Heavy, contractual (specs, sign-offs) | Lighter, living (README, tickets) |\n| Best fit | Fixed-scope contracts, regulated/compliance-heavy domains, hardware-adjacent projects where late changes are physically costly | Products with evolving requirements, fast user feedback loops |\n| Risk | Discovered late (at integration/UAT, near the end) | Discovered early (each sprint surfaces problems) |\n\n**Why some teams still choose Waterfall on purpose** — it isn't just \"the old way\": in regulated industries (finance, healthcare, government contracts), a fixed, auditable, sign-off-driven process is often a compliance requirement, not a process failure. Predictability and paper trail matter more than iteration speed.\n\n**How to work effectively inside Waterfall if you're used to Agile:**\n- Front-load your questions — once a phase is signed off, raising a design concern later is a formal change request, not a quick Slack message. Push hard for clarity *during* the requirements/design phase.\n- Write more upfront documentation than an Agile habit would — it's not bureaucracy for its own sake, it's the mechanism that replaces the fast feedback loop Agile gets from frequent releases.\n- Still push for internal checkpoints (design reviews, code walkthroughs) even if the customer-facing process is phase-gated — you can run Agile-like practices *inside* a Waterfall-shaped contract.\n- Frame this in an interview as adaptability, not a downgrade: \"I default to iterative delivery, but I understand why a fixed-phase, audit-friendly process is the right call in a regulated/financial context, and I know how to work rigorously within it.\"",
+  },
 ];

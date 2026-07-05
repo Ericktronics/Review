@@ -537,4 +537,15 @@ Team needed             None          Small                Dedicated DevOps
   websocket gateways, or persistent DB connection pools.`,
     },
   },
+
+  {
+    id: 'devops-gcp1',
+    category: 'DevOps',
+    difficulty: 'medium',
+    type: 'experience',
+    question:
+      'What are the core GCP services a full-stack/data engineer must know, and how do they map to their AWS equivalents?',
+    answer:
+      "If your hands-on experience is AWS-heavy, the fastest way to get GCP-fluent for an interview is to map each service to what you already know.\n\n| Purpose | AWS | GCP |\n|---|---|---|\n| Serverless compute | Lambda | Cloud Functions / **Cloud Run** (container-based, no cold-start-prone VPC ENI issue) |\n| Managed Kubernetes | EKS | **GKE** — generally considered the most mature managed k8s offering; GCP invented Kubernetes internally (Borg) |\n| Object storage | S3 | Cloud Storage |\n| Relational DB | RDS | Cloud SQL |\n| Data warehouse / analytics | Redshift / Athena | **BigQuery** — serverless, pay-per-query-scanned, extremely fast on huge datasets; this is GCP's signature strength and the one most likely to come up for a data-platform role |\n| Pub/sub messaging | SNS + SQS combined | **Pub/Sub** — one service that does both fan-out and queuing |\n| IAM | IAM | IAM (broadly similar concepts: roles, service accounts, least privilege) |\n| Infra as code | CloudFormation/CDK | Deployment Manager / **Terraform** (Terraform is the de facto standard on GCP more so than AWS-native tooling) |\n\n**Where GCP's story differs from AWS, not just renamed:**\n- **Cloud Run** — the more idiomatic 'serverless' default on GCP: you ship a container, it scales to zero, no VPC cold-start penalty the way Lambda-in-a-VPC has. Often the answer to 'how would you deploy this API serverlessly on GCP.'\n- **BigQuery** — for a data-ingestion-heavy platform (ETL, analytics), this is the single GCP service most worth knowing cold: it separates storage and compute, queries petabyte-scale data in seconds, and is priced by bytes scanned — so partitioning/clustering tables to avoid full scans is the main cost-control lever, directly analogous to indexing in a relational DB.\n- **Pub/Sub** — one mental model instead of AWS's SNS (fan-out) + SQS (queue) split; at-least-once delivery, ordering keys available per-region.\n\n**GKE vs EKS in an interview**: both are managed control planes; the practical difference is GKE's Autopilot mode (fully managed nodes, pay per pod resource request, no node management at all) has no direct AWS equivalent — Fargate for EKS is the closest analog but is less mature.",
+  },
 ];

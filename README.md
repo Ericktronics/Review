@@ -4,7 +4,7 @@ A flashcard web app for studying software engineering concepts — built with Vi
 
 ## Features
 
-- **335+ flashcards** across 21 categories
+- **400+ flashcards** across 24 categories
 - **Two card types** with filter chips
   - **Must Know Basics** — fundamentals every developer should know (easy + medium)
   - **Must Know for Exp. Hires** — senior/production-level knowledge (hard)
@@ -14,6 +14,7 @@ A flashcard web app for studying software engineering concepts — built with Vi
   - **Study** — all cards fully expanded for reading through
   - **Browse All** — grid overview of all Q&A
 - **Shuffle** — randomise card order at any time
+- **Keyboard shortcuts** in Quiz mode for reveal/navigation
 - **Syntax-highlighted code snippets** via highlight.js
 - **Category sidebar** with per-category card counts
 
@@ -42,6 +43,9 @@ A flashcard web app for studying software engineering concepts — built with Vi
 | Next.js | SSR, SSG, ISR, CSR, App Router vs Pages Router, React Server Components, API routes, middleware, authentication |
 | Testing | Unit, integration, E2E, Jest, React Testing Library, mocking, TDD, supertest, NestJS testing, Playwright |
 | JavaScript | Hoisting, closures, event loop, `this`, prototypal inheritance, scope chain, debounce/throttle, async/await pitfalls, currying, memory leaks, generators, event delegation |
+| Python | Lists vs tuples, decorators, `==` vs `is`, comprehensions/generators, GIL, `*args`/`**kwargs`, dunder methods, shallow vs deep copy |
+| Django | MTV architecture, ORM queries, migrations, DRF serializers/views/ViewSets, N+1 detection, auth/permissions, caching, transactions |
+| MongoDB | Document model, Mongoose schemas, aggregation pipeline, indexing, embed vs reference, transactions and replica sets |
 
 ## Requirements
 
@@ -61,7 +65,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173).
+Open [http://localhost:5173/flash-cards/](http://localhost:5173/flash-cards/).
 
 ## Build
 

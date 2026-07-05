@@ -85,6 +85,9 @@ export function FlashCard({
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${TYPE[card.type].cls}`}>
             {TYPE[card.type].label}
           </span>
+          <span className="text-xs font-mono text-slate-500 bg-slate-800/60 border border-slate-700/60 px-2.5 py-1 rounded-full">
+            {card.id}
+          </span>
 
           <button
             onClick={() => setFolded(f => !f)}
@@ -148,6 +151,9 @@ export function FlashCard({
           </span>
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${TYPE[card.type].cls}`}>
             {TYPE[card.type].label}
+          </span>
+          <span className="text-xs font-mono text-slate-500 bg-slate-800/60 border border-slate-700/60 px-2.5 py-1 rounded-full">
+            {card.id}
           </span>
         </div>
 

@@ -509,4 +509,32 @@ new StateMachine(this, 'FulfillmentWorkflow', {
     answer:
       "**Kubernetes (k8s) is a container orchestration platform** — it runs, scales, and manages containers across a cluster of multiple machines.\n\n**Analogy**: Docker is like hiring a single worker to do a job. Kubernetes is the manager who decides which worker does what, replaces workers who get sick, hires more workers when demand increases, and ensures the right workers are handling the right tasks at all times.\n\n**Problems Docker alone does not solve** (and Kubernetes does):\n- **Scheduling** — which physical node should run this container? Kubernetes picks based on available resources.\n- **Self-healing** — if a pod crashes, Kubernetes detects it within seconds and starts a replacement automatically.\n- **Scaling** — `kubectl scale deployment my-api --replicas=10`; the **HorizontalPodAutoscaler** (HPA) can scale automatically based on CPU/memory.\n- **Rolling deployments** — update containers one at a time; if the new version is unhealthy, the rollout stops automatically.\n- **Service discovery** — pods have dynamic IPs that change on restart. Kubernetes **Services** provide a stable DNS name (`my-api.default.svc.cluster.local`) that always routes to healthy pods.\n- **Config and secrets management** — `ConfigMaps` and `Secrets` inject configuration into pods without rebuilding the image.\n- **Resource limits** — prevent one misbehaving container from starving others on the same node.\n\n**Key objects**: Pod (one or more containers), Deployment (manages pod replicas + rollouts), Service (stable network endpoint), Ingress (HTTP routing), ConfigMap, Secret, HorizontalPodAutoscaler.",
   },
+
+  {
+    id: 'devops-cloud1',
+    category: 'DevOps',
+    difficulty: 'hard',
+    type: 'experience',
+    question:
+      'Vercel vs AWS vs DigitalOcean — how do you choose a hosting platform for a Next.js + Nest.js app, and what are the trade-offs?',
+    answer:
+      "There's no universally correct answer — it's a trade-off between **developer velocity**, **control**, and **cost predictability**.\n\n**Vercel** — built by the Next.js team, so it is the path of least resistance for the frontend:\n- Zero-config deploys straight from a Git push; automatic **preview deployments** per PR\n- Edge network out of the box — static assets and ISR pages served from the nearest region\n- **ISR (Incremental Static Regeneration)** and Server Actions are first-class; `revalidate` and on-demand revalidation just work\n- Serverless Functions have execution time limits and cold starts; not a fit for long-running jobs, websockets, or heavy background processing\n- Cost scales with traffic/bandwidth and can surprise you at scale — not ideal for the Nest.js API layer or anything stateful (queues, long DB connections)\n\n**DigitalOcean** — the middle ground:\n- **App Platform** gives you Heroku-style git-push deploys with predictable flat pricing — a good fit for a Nest.js API + worker + managed Postgres/Mongo, without needing a DevOps team\n- **Droplets** (raw VMs) if you need full control (custom nginx config, specific OS packages) but then you own patching, scaling, and failover yourself\n- Much simpler IAM/networking model than AWS — faster to reason about, but fewer building blocks (no equivalent to SQS/EventBridge/Step Functions natively)\n\n**AWS** — most control, most complexity:\n- Right choice once you need fine-grained IAM, VPC peering, compliance requirements, or you're already composing SQS/RDS/ElastiCache/CloudFront into the architecture\n- Steeper learning curve and slower to iterate on than Vercel or DO for a small team\n- Best cost efficiency **at scale** with reserved instances/Savings Plans; worst cost efficiency for a small app (many moving parts to keep configured correctly)\n\n**Practical answer for a Next.js + Nest.js system**: Vercel for the Next.js frontend (best fit for its rendering model), DigitalOcean App Platform or AWS ECS/Fargate for the Nest.js API and background workers depending on team size and existing infra, managed Postgres/MongoDB (RDS/Atlas or DO managed databases) rather than self-hosting either.",
+    code: {
+      language: 'text',
+      snippet: `Decision matrix (typical answer in an interview):
+
+                    Vercel        DigitalOcean       AWS
+Frontend (Next.js)   Best fit      Works (custom)     Works (more setup)
+API (Nest.js)        Poor fit*     Good (App Platform) Best (full control)
+Background jobs       No            Droplet/worker      SQS/EventBridge/ECS
+Managed DB            No (BYO)      Managed PG/Mongo    RDS/DocumentDB/Atlas
+Setup speed            Fastest       Fast                Slowest
+Ceiling at scale       Lower         Medium              Highest
+Team needed             None          Small                Dedicated DevOps
+
+* Vercel Functions have execution time + memory limits and are
+  stateless/serverless — a bad fit for long-lived Nest.js processes,
+  websocket gateways, or persistent DB connection pools.`,
+    },
+  },
 ];

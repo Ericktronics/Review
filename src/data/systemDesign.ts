@@ -368,4 +368,61 @@ CREATE INDEX idx_order_items_order ON order_items(order_id);`,
 */`,
     },
   },
+
+  {
+    id: 'sys-erd2',
+    category: 'System Design',
+    difficulty: 'hard',
+    type: 'experience',
+    question:
+      'How do you model self-referential relationships, polymorphic associations, and soft deletes in an ERD? Where does each pattern break down?',
+    answer:
+      "These three patterns show up in almost every real schema and are a common step up from the basic 1:1/1:N/M:N ERD question.\n\n**Self-referential (adjacency list)** — a table that references itself, e.g. `categories.parent_id → categories.id` for nested categories, or `employees.manager_id → employees.id` for an org chart.\n- Cheap to write, but recursive queries (\"all descendants of X\") need a recursive CTE (`WITH RECURSIVE`) or a separate closure table if the tree is read far more than written.\n- Breaks down at deep, frequently-queried hierarchies — each level is another recursive join. A **closure table** (every ancestor-descendant pair pre-computed) trades write cost for O(1) descendant lookups.\n\n**Polymorphic associations** — one table needs to belong to more than one parent type, e.g. `comments` on both `posts` and `videos`.\n- Common (Rails/ActiveRecord-style) implementation: `commentable_id` + `commentable_type` columns. Works, but you **lose real foreign key constraints** — the DB can't enforce that `commentable_id` actually exists in the right table, and you can't cleanly `JOIN` without a `CASE`/conditional join.\n- More normalized alternative: a junction table per relationship (`post_comments`, `video_comments`), or a shared parent table (`commentable_items`) that both `posts` and `videos` reference — restores real FKs at the cost of an extra join.\n- In an interview, name the trade-off explicitly: polymorphic columns are fast to build and flexible, but sacrifice referential integrity — mention this is exactly the kind of shortcut a senior engineer should flag, not silently ship.\n\n**Soft deletes / audit trail** — `deleted_at TIMESTAMPTZ NULL` instead of a real `DELETE`.\n- Every query needs a `WHERE deleted_at IS NULL` filter (or a view/default scope in the ORM) — forgetting it is the #1 bug source with this pattern.\n- Unique constraints get tricky: `email UNIQUE` blocks re-registering a soft-deleted user's email unless the constraint is scoped to `WHERE deleted_at IS NULL` (Postgres partial index) or the deleted row's email is nulled/suffixed on delete.\n- For financial/compliance data, pair soft deletes with a proper **audit log table** (who changed what, when, old/new values) rather than relying on `deleted_at` alone — that's what 'do you understand data flow and system architecture' is really probing for.",
+    code: {
+      language: 'sql',
+      snippet: `-- 1. Self-referential: nested categories + recursive lookup
+CREATE TABLE categories (
+  id        SERIAL PRIMARY KEY,
+  name      VARCHAR(100) NOT NULL,
+  parent_id INT REFERENCES categories(id) ON DELETE CASCADE
+);
+
+WITH RECURSIVE subtree AS (
+  SELECT id, name, parent_id FROM categories WHERE id = 5
+  UNION ALL
+  SELECT c.id, c.name, c.parent_id
+  FROM categories c
+  JOIN subtree s ON c.parent_id = s.id
+)
+SELECT * FROM subtree;
+
+-- 2. Polymorphic association (common shortcut — loses FK integrity)
+CREATE TABLE comments (
+  id               SERIAL PRIMARY KEY,
+  body             TEXT NOT NULL,
+  commentable_id   INT NOT NULL,
+  commentable_type VARCHAR(20) NOT NULL   -- 'post' | 'video'
+  -- no real FK possible here — enforced only in application code
+);
+
+-- More normalized alternative: shared parent table restores real FKs
+CREATE TABLE commentable_items (id SERIAL PRIMARY KEY);
+CREATE TABLE posts  (id INT PRIMARY KEY REFERENCES commentable_items(id), title TEXT);
+CREATE TABLE videos (id INT PRIMARY KEY REFERENCES commentable_items(id), url   TEXT);
+CREATE TABLE comments2 (
+  id        SERIAL PRIMARY KEY,
+  item_id   INT NOT NULL REFERENCES commentable_items(id),
+  body      TEXT NOT NULL
+);
+
+-- 3. Soft delete with a partial unique index (allows re-registering email)
+CREATE TABLE users (
+  id         SERIAL PRIMARY KEY,
+  email      VARCHAR(255) NOT NULL,
+  deleted_at TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX users_email_active_uidx
+  ON users(email) WHERE deleted_at IS NULL;`,
+    },
+  },
 ];

@@ -425,4 +425,41 @@ CREATE UNIQUE INDEX users_email_active_uidx
   ON users(email) WHERE deleted_at IS NULL;`,
     },
   },
+
+  {
+    id: 'sys-etl1',
+    category: 'System Design',
+    difficulty: 'hard',
+    type: 'experience',
+    question:
+      'How do you design a data ingestion pipeline that normalizes large volumes of data from multiple sources? How do you handle schema drift and bad records, and how do you decide between batch and streaming?',
+    answer:
+      "This is the core architecture question for any data-platform role (analytics, retail/CPG data, observability pipelines) — different flavor from typical CRUD system design because the bottleneck is throughput and data quality, not request latency.\n\n**Pipeline stages (the standard shape)**:\n1. **Ingest** — pull or receive raw data from each source (vendor feeds, file drops, webhooks, DB replication). Land it as-is in a raw/bronze layer before touching it — never transform on the way in. If a transform bug ships, you can always replay from raw.\n2. **Validate** — schema-check and quarantine bad records rather than failing the whole batch. A dead-letter queue/table for rejected records with the reason attached is what separates a production pipeline from a script.\n3. **Normalize/transform** — map each source's field names, units, and formats into one canonical schema (silver layer). This is where most of the actual engineering effort goes: source A calls it `sku`, source B calls it `product_code` — someone has to own the mapping.\n4. **Load** — write into the query-optimized destination (warehouse table, search index) for consumption (gold layer).\n\n**Handling schema drift** — upstream sources change shape without warning (a vendor renames a column, adds a new required field, changes a type):\n- Version your ingestion schema explicitly and validate incoming data against it before transforming — fail loud into the dead-letter path, not silently into a null column.\n- Prefer additive-only assumptions: treat new unexpected fields as ignorable, not as an error, so vendors can add fields without breaking you. But treat removed/retyped fields as a hard failure requiring a human look.\n- Keep a schema registry (even a simple versioned JSON schema per source) so \"what changed and when\" is answerable during an incident.\n\n**Handling bad records**:\n- Never let one malformed record fail an entire batch — validate row-by-row (or micro-batch), quarantine failures, and keep processing the rest.\n- Make bad records replayable: store the raw payload + failure reason so a fix can be backfilled without re-pulling from the source.\n- Track a bad-record rate metric — a sudden spike is usually the first signal of an upstream schema change, before anyone files a ticket.\n\n**Batch vs. streaming — the actual trade-off**:\n| | Batch | Streaming |\n|---|---|---|\n| Latency | Minutes–hours | Seconds |\n| Complexity | Lower — simpler retries, easier backfills | Higher — ordering, windowing, exactly-once semantics |\n| Cost model | Cheaper — process in scheduled chunks | Pricier — infra runs continuously |\n| Best for | Nightly aggregates, reporting, non-time-critical joins | Fraud detection, real-time dashboards, alerting |\n\n**Default answer for most data platforms**: start batch (simpler to build, easier to reason about, easier to backfill/replay), and move specific pipelines to streaming only where a real latency requirement justifies the added operational complexity — not because streaming is trendier. Many production systems land on a **hybrid (Lambda-style)**: streaming for fresh-but-approximate results, with a nightly batch job that recomputes the authoritative numbers.\n\n**What makes this answer strong**: naming the raw/normalized/curated layering, treating data quality as a first-class pipeline stage (not an afterthought), and giving a principled reason for batch-by-default rather than reflexively reaching for Kafka.",
+    code: {
+      language: 'python',
+      snippet: `# Row-level validation with quarantine, not all-or-nothing batch failure
+
+def process_batch(raw_records, source_schema):
+    accepted, quarantined = [], []
+
+    for record in raw_records:
+        try:
+            validate_schema(record, source_schema)   # raises on missing/retyped required fields
+            normalized = normalize(record)            # map to canonical field names/units
+            accepted.append(normalized)
+        except SchemaValidationError as e:
+            quarantined.append({
+                'raw': record,
+                'reason': str(e),
+                'source_schema_version': source_schema.version,
+            })
+
+    if quarantined:
+        dead_letter_store.bulk_insert(quarantined)    # replayable after a fix ships
+        metrics.increment('pipeline.bad_records', len(quarantined))
+
+    warehouse.bulk_upsert(accepted)
+    return len(accepted), len(quarantined)`,
+    },
+  },
 ];

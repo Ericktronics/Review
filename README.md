@@ -5,18 +5,22 @@ A flashcard web app for studying software engineering concepts — built with Vi
 ## Features
 
 - **400+ flashcards** across 24 categories
-- **Two card types** with filter chips
-  - **Must Know Basics** — fundamentals every developer should know (easy + medium)
-  - **Must Know for Exp. Hires** — senior/production-level knowledge (hard)
-- **Three difficulty levels** — Easy, Medium, Hard — with filter chips
-- **Three view modes**
-  - **Quiz** — one card at a time, answer hidden until revealed
-  - **Study** — all cards fully expanded for reading through
-  - **Browse All** — grid overview of all Q&A
-- **Shuffle** — randomise card order at any time
-- **Keyboard shortcuts** in Quiz mode for reveal/navigation
+- **Today home** — daily goal ring, day streak, last 7 days and one button to start reviewing
+- **Spaced review** — cards you know come back after 1, 3, 7, 14 and 30 days; missed cards stay due
+- **Two levels** — Fundamentals (easy + medium) and Senior (hard)
+- **Three difficulty levels** — Easy, Medium, Hard
+- **Four views**
+  - **Today** — your goal, streak and topic progress
+  - **Quiz** — one card at a time, graded with Review again or Got it
+  - **Study** — every question beside its answer
+  - **Browse** — a list of questions; open any to see its answer
+- **Search** across questions and answers (press `/`)
+- **Shuffle** — randomize card order at any time
+- **Keyboard shortcuts** in Quiz: `Space` reveal, `1` review again, `2` got it, `←` `→` navigate
 - **Syntax-highlighted code snippets** via highlight.js
-- **Category sidebar** with per-category card counts
+- **Dark by default**, with a one-tap flip to light that is remembered
+
+Progress and streaks are stored in the browser's `localStorage`, so each device keeps its own.
 
 ## Categories
 

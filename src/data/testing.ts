@@ -339,6 +339,7 @@ it('returns user from db', async () => {
 });
 
 // ── jest.spyOn() — spy on real implementation ─────────────────
+// Works when modules compile to CommonJS; native ESM namespaces can't be spied on this way
 import * as emailModule from './email';
 
 it('sends a confirmation email', async () => {
@@ -387,9 +388,9 @@ describe('slugify', () => {
 export function slugify(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')   // remove non-alphanumeric
+    .replace(/[^a-z0-9\\s]/g, '')   // remove non-alphanumeric
     .trim()
-    .replace(/\s+/g, '-');          // spaces → hyphens
+    .replace(/\\s+/g, '-');          // spaces → hyphens
 }
 
 // Run → ✓ all tests pass  (GREEN)

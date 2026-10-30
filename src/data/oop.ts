@@ -49,7 +49,7 @@ class UserService {
     type: 'experience',
     question: 'Why prefer composition over inheritance, and how do you implement it in TypeScript?',
     answer:
-      'Inheritance creates tight coupling between base and derived classes — the **fragile base class** problem means a change in the base can silently break subclasses. It also forces you into a single inheritance hierarchy, while objects often need behaviours from multiple orthogonal concerns.\n\n**Composition**: build objects by assembling small, focused behaviours. Each behaviour is a strategy/mixin that can be reused independently.\n\n**When inheritance is fine**: pure "is-a" relationships with stable base classes (e.g., `HttpError extends Error`).\n\n**Prefer**: composition for behaviour reuse, interfaces for type contracts, inheritance only for genuine specialisation hierarchies.',
+      'Inheritance creates tight coupling between base and derived classes — the **fragile base class** problem means a change in the base can silently break subclasses. It also forces you into a single inheritance hierarchy, while objects often need behaviors from multiple orthogonal concerns.\n\n**Composition**: build objects by assembling small, focused behaviors. Each behavior is a strategy/mixin that can be reused independently.\n\n**When inheritance is fine**: pure "is-a" relationships with stable base classes (e.g., `HttpError extends Error`).\n\n**Prefer**: composition for behavior reuse, interfaces for type contracts, inheritance only for genuine specialization hierarchies.',
     code: {
       language: 'typescript',
       snippet: `// Inheritance problem: what if a Duck can Swim AND Fly but not Quack?
@@ -91,7 +91,7 @@ class OrderService {
     type: 'experience',
     question: 'What is the Repository pattern and how does it help with testability and persistence ignorance?',
     answer:
-      'The Repository pattern encapsulates all data-access logic behind an interface. The domain layer depends only on the interface — not on Prisma, TypeORM, or any specific driver.\n\n**Benefits**:\n- **Persistence ignorance** — swap PostgreSQL for MongoDB by replacing one implementation\n- **Testability** — unit tests use an in-memory repository; no real DB needed\n- **Boundary enforcement** — keeps raw SQL / ORM queries out of services\n- **Centralised query logic** — complex queries live in one place\n\n**Pitfall**: don\'t leak ORM entities through the interface — return domain models, not Prisma types. Otherwise you re-couple the layer you meant to decouple.',
+      'The Repository pattern encapsulates all data-access logic behind an interface. The domain layer depends only on the interface — not on Prisma, TypeORM, or any specific driver.\n\n**Benefits**:\n- **Persistence ignorance** — swap PostgreSQL for MongoDB by replacing one implementation\n- **Testability** — unit tests use an in-memory repository; no real DB needed\n- **Boundary enforcement** — keeps raw SQL / ORM queries out of services\n- **Centralized query logic** — complex queries live in one place\n\n**Pitfall**: don\'t leak ORM entities through the interface — return domain models, not Prisma types. Otherwise you re-couple the layer you meant to decouple.',
     code: {
       language: 'typescript',
       snippet: `// Domain model (no ORM decorators)
@@ -180,7 +180,7 @@ const svc = new UserService(
     type: 'experience',
     question: 'Explain the Strategy and Decorator design patterns with a real backend example for each.',
     answer:
-      '**Strategy** — defines a family of algorithms, encapsulates each one, and makes them interchangeable. The context delegates work to a strategy object set at runtime.\n\nBackend example: a payment processor that supports Stripe, PayPal, and crypto via swappable strategy objects.\n\n**Decorator** — wraps an object to add behaviour without subclassing. Decorators stack, each calling the inner object after adding its logic.\n\nBackend example: a logging decorator wraps any repository, adding before/after log lines without touching the real implementation. Middleware in Express is essentially a chain of decorators.',
+      '**Strategy** — defines a family of algorithms, encapsulates each one, and makes them interchangeable. The context delegates work to a strategy object set at runtime.\n\nBackend example: a payment processor that supports Stripe, PayPal, and crypto via swappable strategy objects.\n\n**Decorator** — wraps an object to add behavior without subclassing. Decorators stack, each calling the inner object after adding its logic.\n\nBackend example: a logging decorator wraps any repository, adding before/after log lines without touching the real implementation. Middleware in Express is essentially a chain of decorators.',
     code: {
       language: 'typescript',
       snippet: `// ── Strategy ──────────────────────────────────────────
@@ -232,7 +232,7 @@ const repo = new LoggingUserRepository(
     type: 'experience',
     question: 'What is polymorphism, and how does the Open/Closed Principle rely on it to eliminate conditionals?',
     answer:
-      'Polymorphism lets you call the same method on different types and get type-appropriate behaviour. At the call site you don\'t need to know the concrete type.\n\n**OCP + polymorphism** eliminate `if/switch` chains that must be extended whenever a new variant is added:\n- Every `if (type === \'X\')` block is an OCP violation waiting to happen\n- Replace with an interface: each variant implements it; the calling code is generic\n\nThis is the essence of the **Replace Conditional with Polymorphism** refactoring. Combined with a factory or DI container for construction, you can add new variants without touching existing code.',
+      'Polymorphism lets you call the same method on different types and get type-appropriate behavior. At the call site you don\'t need to know the concrete type.\n\n**OCP + polymorphism** eliminate `if/switch` chains that must be extended whenever a new variant is added:\n- Every `if (type === \'X\')` block is an OCP violation waiting to happen\n- Replace with an interface: each variant implements it; the calling code is generic\n\nThis is the essence of the **Replace Conditional with Polymorphism** refactoring. Combined with a factory or DI container for construction, you can add new variants without touching existing code.',
     code: {
       language: 'typescript',
       snippet: `// ✗ OCP violation – must edit this every time a new report type is added
@@ -275,7 +275,7 @@ function generateReport(type: string, data: unknown): Buffer {
     type: 'basics',
     question: 'What are the four pillars of Object-Oriented Programming?',
     answer:
-      "The four pillars describe how OOP organizes code to make it easier to understand, change, and reuse.\n\n**1. Encapsulation** — bundling data (fields) and the behaviour that operates on it (methods) into one class, and hiding internal details with `private`/`protected`. External code cannot accidentally break internals it was never supposed to touch. *Analogy: a car's engine is encapsulated — you use the steering wheel, not the fuel injector directly.*\n\n**2. Abstraction** — exposing only what callers need. Interfaces and abstract classes define *what* something does, not *how*. Callers depend on the contract, so the implementation can change without breaking them.\n\n**3. Inheritance** — a child class inherits all non-private members of its parent, enabling code reuse via an 'is-a' relationship (`Dog` is-an `Animal`). Use sparingly — prefer composition for 'has-a' relationships.\n\n**4. Polymorphism** — the same method call behaves differently depending on the actual object type at runtime. A `Shape.area()` call on a `Circle` returns `πr²`; on a `Square` it returns `side²`. The caller doesn't need to know which type it is.",
+      "The four pillars describe how OOP organizes code to make it easier to understand, change, and reuse.\n\n**1. Encapsulation** — bundling data (fields) and the behavior that operates on it (methods) into one class, and hiding internal details with `private`/`protected`. External code cannot accidentally break internals it was never supposed to touch. *Analogy: a car's engine is encapsulated — you use the steering wheel, not the fuel injector directly.*\n\n**2. Abstraction** — exposing only what callers need. Interfaces and abstract classes define *what* something does, not *how*. Callers depend on the contract, so the implementation can change without breaking them.\n\n**3. Inheritance** — a child class inherits all non-private members of its parent, enabling code reuse via an 'is-a' relationship (`Dog` is-an `Animal`). Use sparingly — prefer composition for 'has-a' relationships.\n\n**4. Polymorphism** — the same method call behaves differently depending on the actual object type at runtime. A `Shape.area()` call on a `Circle` returns `πr²`; on a `Square` it returns `side²`. The caller doesn't need to know which type it is.",
     code: {
       language: 'typescript',
       snippet: `abstract class Shape {              // Abstraction
@@ -305,7 +305,7 @@ shapes.forEach(s => console.log(s.describe())); // polymorphic dispatch`,
     type: 'basics',
     question: 'What is the difference between a class and an object? What is instantiation?',
     answer:
-      "A **class** is a **blueprint** — it defines the structure (properties) and behaviour (methods) that instances will have. It exists at the code level.\n\nAn **object** is an **instance** of a class — a concrete value in memory created from the blueprint. Many objects can share the same class.\n\n**Instantiation** is the act of creating an object from a class using the `new` keyword, which:\n1. Allocates memory on the heap\n2. Calls the `constructor` to initialise state\n3. Returns a reference to the new object\n\n**Analogy**: the class is the architectural drawing; the object is the built house. Many houses (objects) can be built from the same drawing (class).",
+      "A **class** is a **blueprint** — it defines the structure (properties) and behavior (methods) that instances will have. It exists at the code level.\n\nAn **object** is an **instance** of a class — a concrete value in memory created from the blueprint. Many objects can share the same class.\n\n**Instantiation** is the act of creating an object from a class using the `new` keyword, which:\n1. Allocates memory on the heap\n2. Calls the `constructor` to initialize state\n3. Returns a reference to the new object\n\n**Analogy**: the class is the architectural drawing; the object is the built house. Many houses (objects) can be built from the same drawing (class).",
     code: {
       language: 'typescript',
       snippet: `class Car {
@@ -333,7 +333,7 @@ console.log(ferrari.speed); // 0 — independent state`,
     type: 'basics',
     question: 'What is an abstract class and how is it different from an interface?',
     answer:
-      "**Abstract class**: a class that **cannot be instantiated directly** — it exists to be subclassed. It can contain:\n- Abstract methods (declared but not implemented — subclasses must implement them)\n- Concrete methods (fully implemented, inherited by subclasses)\n- Constructor logic\n- Instance fields\n\n**Interface**: a pure type contract — it only describes the shape (what methods/properties exist), with **no implementation at all**.\n\n| | Abstract Class | Interface |\n|---|---|---|\n| Can be instantiated | No | No |\n| Can have implementation | Yes | No (pre-TS 4.2) |\n| Fields with state | Yes | No |\n| Multiple inheritance | No (single extends) | Yes (multiple implements) |\n| Runtime presence | Yes (compiled to JS) | No (erased at compile time) |\n\n**Rule of thumb**: use an interface when you only need a type contract. Use an abstract class when you want to share implementation (default behaviour) across subclasses.",
+      "**Abstract class**: a class that **cannot be instantiated directly** — it exists to be subclassed. It can contain:\n- Abstract methods (declared but not implemented — subclasses must implement them)\n- Concrete methods (fully implemented, inherited by subclasses)\n- Constructor logic\n- Instance fields\n\n**Interface**: a pure type contract — it only describes the shape (what methods/properties exist), with **no implementation at all**.\n\n| | Abstract Class | Interface |\n|---|---|---|\n| Can be instantiated | No | No |\n| Can have implementation | Yes | No |\n| Fields with state | Yes | No |\n| Multiple inheritance | No (single extends) | Yes (multiple implements) |\n| Runtime presence | Yes (compiled to JS) | No (erased at compile time) |\n\n**Rule of thumb**: use an interface when you only need a type contract. Use an abstract class when you want to share implementation (default behavior) across subclasses.",
     code: {
       language: 'typescript',
       snippet: `// Abstract class — shares implementation, enforces contract
@@ -374,7 +374,7 @@ class MyError extends HttpError implements Serializable {
     type: 'basics',
     question: 'What is method overloading?',
     answer:
-      "**Method overloading** lets you define multiple signatures for the same method name, allowing it to be called with different argument types or counts. The single implementation handles all variants.\n\n**In TypeScript**: you declare multiple overload signatures above the implementation. The implementation signature is not directly visible to callers — only the overload signatures are.\n\n**Why it matters**: overloading gives callers precise return types based on what they pass in, without creating multiple differently-named functions.\n\n**In JavaScript** (no compile-time types): overloading is simulated by checking `typeof arguments` or using optional parameters — there's no native support.",
+      "**Method overloading** lets you define multiple signatures for the same method name, allowing it to be called with different argument types or counts. The single implementation handles all variants.\n\n**In TypeScript**: you declare multiple overload signatures above the implementation. The implementation signature is not directly visible to callers — only the overload signatures are.\n\n**Why it matters**: overloading gives callers precise return types based on what they pass in, without creating multiple differently-named functions.\n\n**In JavaScript** (no compile-time types): overloading is simulated by checking `arguments.length`, the `typeof` each argument, or using optional parameters — there's no native support.",
     code: {
       language: 'typescript',
       snippet: `// TypeScript overloads — declare multiple signatures
@@ -454,7 +454,7 @@ class Counter2 {
     type: 'basics',
     question: 'What is the Factory design pattern?',
     answer:
-      "The **Factory pattern** provides an interface for creating objects without specifying the exact class to instantiate. The decision of which class to create is delegated to the factory.\n\n**Why use it**:\n- Decouple creation logic from business logic — callers don't need to know which concrete class to use\n- Centralise complex creation (e.g., configuring dependencies, reading from config)\n- Swap implementations without changing calling code\n\n**Variants**:\n- **Simple Factory** — a function or static method that returns the right object\n- **Factory Method** — a base class defines the creation interface; subclasses override to return a specific type\n- **Abstract Factory** — creates families of related objects\n\n**Real-world example**: a payment processor factory that returns a Stripe, PayPal, or mock payment client based on configuration.",
+      "The **Factory pattern** provides an interface for creating objects without specifying the exact class to instantiate. The decision of which class to create is delegated to the factory.\n\n**Why use it**:\n- Decouple creation logic from business logic — callers don't need to know which concrete class to use\n- Centralize complex creation (e.g., configuring dependencies, reading from config)\n- Swap implementations without changing calling code\n\n**Variants**:\n- **Simple Factory** — a function or static method that returns the right object\n- **Factory Method** — a base class defines the creation interface; subclasses override to return a specific type\n- **Abstract Factory** — creates families of related objects\n\n**Real-world example**: a payment processor factory that returns a Stripe, PayPal, or mock payment client based on configuration.",
     code: {
       language: 'typescript',
       snippet: `// Simple factory function
@@ -568,7 +568,7 @@ console.log(dog.speak()); // Rex makes a sound — Woof!`,
     type: 'basics',
     question: 'What is the difference between composition and inheritance? When should you prefer composition?',
     answer:
-      "**Inheritance** ('is-a'): a class *extends* another, gaining all its behaviour. Tight coupling — changes to the parent ripple to all children.\n\n**Composition** ('has-a'): a class *holds a reference* to another object and delegates behaviour to it. Loose coupling — you can swap out the composed object without changing the container.\n\n**Favour composition when**:\n- The relationship is 'has-a' or 'can-do' (`UserService` *has* a `Logger`, not *is* a `Logger`)\n- You need to vary behaviour at runtime (Strategy pattern)\n- Multiple inheritance would be needed (TypeScript only allows single class inheritance)\n- The hierarchy would be deeper than 2 levels\n\n**Rule of thumb**: 'Prefer composition over inheritance' (GoF). Use inheritance only for genuine 'is-a' hierarchies.",
+      "**Inheritance** ('is-a'): a class *extends* another, gaining all its behavior. Tight coupling — changes to the parent ripple to all children.\n\n**Composition** ('has-a'): a class *holds a reference* to another object and delegates behavior to it. Loose coupling — you can swap out the composed object without changing the container.\n\n**Favor composition when**:\n- The relationship is 'has-a' or 'can-do' (`UserService` *has* a `Logger`, not *is* a `Logger`)\n- You need to vary behavior at runtime (Strategy pattern)\n- Multiple inheritance would be needed (TypeScript only allows single class inheritance)\n- The hierarchy would be deeper than 2 levels\n\n**Rule of thumb**: 'Prefer composition over inheritance' (GoF). Use inheritance only for genuine 'is-a' hierarchies.",
     code: {
       language: 'typescript',
       snippet: `// ✗ Inheritance — Logger is not a UserService
@@ -602,7 +602,7 @@ new UserService(db, new NoOpLogger());`,
     type: 'basics',
     question: 'What is the difference between "inherits" and `extends` in OOP?',
     answer:
-      '**`inherit`** is the OOP concept — when a child class automatically gets the properties and methods of a parent class.\n\n**`extends`** is the keyword in TypeScript/Java/JavaScript that implements that concept.\n\nThey are not alternatives: `extends` is how you *declare* inheritance in those languages.\n\n**`extends` vs `implements`** — the more important distinction to know:\n- `extends` → inherit actual code (properties + method implementations) from a parent class\n- `implements` → fulfil a contract (interface shape only); no code is inherited\n\n**Interface extending interface** — interfaces also use `extends` to inherit shape from another interface.\n\n**Same concept, different syntax across languages:**\n\n| Language | Syntax |\n|---|---|\n| TypeScript / Java | `class Dog extends Animal` |\n| Python | `class Dog(Animal):` |\n| C# | `class Dog : Animal` |\n| Ruby | `class Dog < Animal` |',
+      '**`inherit`** is the OOP concept — when a child class automatically gets the properties and methods of a parent class.\n\n**`extends`** is the keyword in TypeScript/Java/JavaScript that implements that concept.\n\nThey are not alternatives: `extends` is how you *declare* inheritance in those languages.\n\n**`extends` vs `implements`** — the more important distinction to know:\n- `extends` → inherit actual code (properties + method implementations) from a parent class\n- `implements` → fulfill a contract (interface shape only); no code is inherited\n\n**Interface extending interface** — interfaces also use `extends` to inherit shape from another interface.\n\n**Same concept, different syntax across languages:**\n\n| Language | Syntax |\n|---|---|\n| TypeScript / Java | `class Dog extends Animal` |\n| Python | `class Dog(Animal):` |\n| C# | `class Dog : Animal` |\n| Ruby | `class Dog < Animal` |',
     code: {
       language: 'typescript',
       snippet: `// extends — inherit code from a parent class
@@ -619,7 +619,7 @@ const d = new Dog('Rex');
 d.speak(); // "Rex barks"  — own method
 d.name;    // "Rex"        — inherited property
 
-// implements — fulfil a contract, no code inherited
+// implements — fulfill a contract, no code inherited
 interface Runnable { run(): void; }
 
 class Cat extends Animal implements Runnable {
@@ -627,9 +627,9 @@ class Cat extends Animal implements Runnable {
 }
 
 // Interface extends interface — inherits shape
-interface Animal   { name: string; }
-interface Dog extends Animal { breed: string; }
-// Dog now requires: { name: string; breed: string }`,
+interface Named { name: string; }
+interface Pet extends Named { breed: string; }
+// Pet now requires: { name: string; breed: string }`,
     },
   },
 ];

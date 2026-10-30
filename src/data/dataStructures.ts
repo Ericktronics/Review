@@ -11,14 +11,50 @@ export const dataStructuresCards: Flashcard[] = [
     type: 'experience',
     question: 'Kth Largest Element in an Array — LeetCode #215\n\nGiven an integer array nums and an integer k, return the kth largest element in the array. Note that it is the kth largest in sorted order, not the kth distinct element.\n\nExample 1:\nInput:  nums = [3,2,1,5,6,4], k = 2\nOutput: 5\n\nExample 2:\nInput:  nums = [3,2,3,1,2,4,5,5,6], k = 4\nOutput: 4\n\nConstraints: Must solve in better than O(n log n) — aim for O(n log k) or O(n) average.',
     answer:
-      '**Intuition**: the kth largest is the minimum of the k largest elements. A min-heap of size k always holds the k largest values seen so far — its root is the answer.\n\n**Approach — Min-Heap O(n log k)**:\n1. Iterate through every number\n2. Push it onto a min-heap\n3. If heap size exceeds k, pop the minimum (discard values smaller than the k-th largest)\n4. After the loop, the heap root is the kth largest\n\n**Approach — Quickselect O(n) average**:\nPartition around a pivot (like quicksort). Only recurse into the partition that contains index n-k. Average O(n), worst O(n²).\n\n**Complexity**:\n- Min-heap: Time O(n log k) | Space O(k)\n- Quickselect: Time O(n) avg | Space O(1)\n\n**When to use each**: if k is small relative to n, the heap is simple and fast. Quickselect is optimal but trickier to implement correctly under pressure.',
+      '**Intuition**: the kth largest is the minimum of the k largest elements. A min-heap of size k always holds the k largest values seen so far — its root is the answer.\n\n**Approach — Min-Heap O(n log k)**:\n1. Iterate through every number\n2. Push it onto a min-heap\n3. If heap size exceeds k, pop the minimum (discard values smaller than the k-th largest)\n4. After the loop, the heap root is the kth largest\n\n**Approach — Quickselect O(n) average**:\nPartition around a pivot (like quicksort). Only recurse into the partition that contains index n-k. Average O(n), worst O(n²).\n\n**Complexity**:\n- Min-heap: Time O(n log k) | Space O(k)\n- Quickselect: Time O(n) avg | Space O(1) iterative, O(log n) avg stack if recursive\n\n**When to use each**: if k is small relative to n, the heap is simple and fast. Quickselect is optimal but trickier to implement correctly under pressure.',
     code: {
       language: 'javascript',
       snippet: `// Min-heap approach — O(n log k)
-// JavaScript has no built-in heap; use a sorted approach for interviews
+// JavaScript has no built-in heap, so write a small one
+class MinHeap {
+  constructor() { this.h = []; }
+  get size() { return this.h.length; }
+  peek() { return this.h[0]; }
+  push(v) {
+    const h = this.h;
+    let i = h.push(v) - 1;
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (h[parent] <= h[i]) break;
+      [h[parent], h[i]] = [h[i], h[parent]];
+      i = parent;
+    }
+  }
+  pop() {
+    const h = this.h;
+    const last = h.pop();
+    if (h.length === 0) return;
+    h[0] = last;
+    let i = 0;
+    while (true) {
+      const l = 2 * i + 1, r = l + 1;
+      let min = i;
+      if (l < h.length && h[l] < h[min]) min = l;
+      if (r < h.length && h[r] < h[min]) min = r;
+      if (min === i) break;
+      [h[min], h[i]] = [h[i], h[min]];
+      i = min;
+    }
+  }
+}
+
 function findKthLargest(nums, k) {
-  // Simple O(n log n) using sort — acceptable in many interviews
-  return nums.sort((a, b) => b - a)[k - 1];
+  const heap = new MinHeap();
+  for (const n of nums) {
+    heap.push(n);
+    if (heap.size > k) heap.pop(); // drop the smallest, keep the k largest
+  }
+  return heap.peek();
 }
 
 // Quickselect — O(n) average
@@ -275,9 +311,9 @@ function maxDepthBFS(root) {
 
 // Tree: [3, 9, 20, null, null, 15, 7]
 //       3
-//      / \
+//      / \\
 //     9   20
-//        /  \
+//        /  \\
 //       15   7
 // maxDepth → 3`,
     },
@@ -408,7 +444,7 @@ function isPalindrome1(s) {
 
 // Approach 2: two pointers — O(1) space (optimal)
 function isPalindrome(s) {
-  const isAlNum = (c) => /[a-z0-9]/.test(c);
+  const isAlNum = (c) => /[a-z0-9]/i.test(c);
   let left = 0, right = s.length - 1;
 
   while (left < right) {
@@ -467,9 +503,9 @@ console.log(countVowelsConsonants('12345'));
     category: 'Data Structures & Algorithms',
     difficulty: 'easy',
     type: 'basics',
-    question: 'Find Minimum in Array — Classic Problem\n\nGiven an unsorted array of integers nums, return both the maximum and minimum values in a single pass (do not sort the array).\n\nExample 1:\nInput:  [3, 7, 1, 9, 2, 5]\nOutput: { max: 9, min: 1 }\n\nExample 2:\nInput:  [42]\nOutput: { max: 42, min: 42 }\n\nExample 3:\nInput:  [-3, -1, -7, -5]\nOutput: { max: -1, min: -7 }\n\nConstraints: 1 ≤ nums.length ≤ 10⁵ | Do not use Math.max(...arr) — explain why.',
+    question: 'Find Maximum and Minimum in Array — Classic Problem\n\nGiven an unsorted array of integers nums, return both the maximum and minimum values in a single pass (do not sort the array).\n\nExample 1:\nInput:  [3, 7, 1, 9, 2, 5]\nOutput: { max: 9, min: 1 }\n\nExample 2:\nInput:  [42]\nOutput: { max: 42, min: 42 }\n\nExample 3:\nInput:  [-3, -1, -7, -5]\nOutput: { max: -1, min: -7 }\n\nConstraints: 1 ≤ nums.length ≤ 10⁵ | Do not use Math.max(...arr) — explain why.',
     answer:
-      '**Intuition**: initialise both `max` and `min` to the first element, then scan from index 1. Update each when a larger or smaller value is found.\n\n**Approach**:\n1. Guard empty array\n2. Set `max = min = nums[0]`\n3. For i from 1 to n-1: update `max` if `nums[i] > max`, update `min` if `nums[i] < min`\n4. Return both\n\n**Why not `Math.max(...arr)`**: the spread operator converts the array into function arguments. JavaScript\'s call stack has a limited argument count (~125k). For arrays larger than ~100k elements this throws: `RangeError: Maximum call stack size exceeded`. The loop is always safe.\n\n**Complexity**: Time O(n) | Space O(1)',
+      '**Intuition**: initialize both `max` and `min` to the first element, then scan from index 1. Update each when a larger or smaller value is found.\n\n**Approach**:\n1. Guard empty array\n2. Set `max = min = nums[0]`\n3. For i from 1 to n-1: update `max` if `nums[i] > max`, update `min` if `nums[i] < min`\n4. Return both\n\n**Why not `Math.max(...arr)`**: the spread operator converts the array into function arguments. JavaScript engines limit how many arguments a call can take, and the limit varies. For very large arrays (often past roughly 100k elements) this throws: `RangeError: Maximum call stack size exceeded`. The loop is always safe.\n\n**Complexity**: Time O(n) | Space O(1)',
     code: {
       language: 'javascript',
       snippet: `function findMaxMin(nums) {
@@ -538,7 +574,7 @@ console.log(reverseWords('the sky is blue')); // 'blue is sky the'`,
     type: 'basics',
     question: 'Contains Duplicate — LeetCode #217\n\nGiven an integer array nums, return true if any value appears at least twice in the array, and return false if every element is distinct.\n\nExample 1: Input: [1,2,3,1]     → Output: true\nExample 2: Input: [1,2,3,4]     → Output: false\nExample 3: Input: [1,1,1,3,3,4,3,2,4,2] → Output: true\n\nConstraints: 1 ≤ nums.length ≤ 10⁵ | -10⁹ ≤ nums[i] ≤ 10⁹\nFollow-up: can you solve it in O(n) time and O(1) space? (Hint: you cannot with a general input — explain why.)',
     answer:
-      '**Intuition**: use a Set to remember every number seen so far. Before inserting, check if it is already there.\n\n**Approach — Hash Set O(n)**:\n1. Create an empty Set\n2. For each number: if it is in the Set → return true; else add it\n3. Return false if the loop finishes\n\n**Approach — Sort O(n log n)**:\nSort the array, then check adjacent elements. Uses O(1) extra space (if sorting in-place) but is slower.\n\n**Complexity**:\n- Hash Set: Time O(n) | Space O(n) ← preferred\n- Sort: Time O(n log n) | Space O(1)\n\n**Follow-up answer**: for arbitrary integer ranges, you cannot achieve O(n) time AND O(1) space simultaneously — any sublinear-space solution requires at least O(n log n) comparisons by information theory. The O(n) / O(1) trade-off is a classic interview discussion point.\n\n**One-liner**: `nums.length !== new Set(nums).size`',
+      '**Intuition**: use a Set to remember every number seen so far. Before inserting, check if it is already there.\n\n**Approach — Hash Set O(n)**:\n1. Create an empty Set\n2. For each number: if it is in the Set → return true; else add it\n3. Return false if the loop finishes\n\n**Approach — Sort O(n log n)**:\nSort the array, then check adjacent elements. Uses O(1) extra space with an in-place sort like heapsort (JavaScript\'s built-in sort may use O(n)), but is slower.\n\n**Complexity**:\n- Hash Set: Time O(n) | Space O(n) ← preferred\n- Sort: Time O(n log n) | Space O(1)\n\n**Follow-up answer**: for arbitrary integer ranges there is no known way to get O(n) time AND O(1) space. Comparison-based solutions need Ω(n log n) comparisons, and the O(n) hash approach needs O(n) extra space. That time/space trade-off is a classic interview discussion point.\n\n**One-liner**: `nums.length !== new Set(nums).size`',
     code: {
       language: 'javascript',
       snippet: `// Hash Set — O(n) time, O(n) space
@@ -694,7 +730,7 @@ console.log(numIslands(grid)); // 3`,
     type: 'basics',
     question: 'Valid Anagram — LeetCode #242\n\nGiven two strings s and t, return true if t is an anagram of s, and false otherwise. An anagram uses the same characters with the same frequencies in a different order.\n\nExample 1: Input: s = "anagram", t = "nagaram" → Output: true\nExample 2: Input: s = "rat",     t = "car"     → Output: false\nExample 3: Input: s = "listen",  t = "silent"  → Output: true\n\nConstraints: 1 ≤ s.length, t.length ≤ 5 × 10⁴ | s and t consist of lowercase English letters\nFollow-up: what if the inputs contain Unicode characters?',
     answer:
-      '**Intuition**: two strings are anagrams if and only if they have the exact same character frequencies. A frequency map captures this.\n\n**Approach 1 — Sort and compare**: O(n log n) — sort both strings alphabetically and compare. Simple but slower.\n\n**Approach 2 — Frequency map (optimal)**: O(n)\n1. Early return if lengths differ\n2. Count frequency of each character in s\n3. Decrement for each character in t\n4. If any count goes negative → not an anagram\n\n**Complexity**:\n- Sort: Time O(n log n) | Space O(1)\n- Freq map: Time O(n) | Space O(1) — at most 26 keys\n\n**Follow-up (Unicode)**: use a `Map` instead of an object — `Map` handles any character as a key, not just letters.',
+      '**Intuition**: two strings are anagrams if and only if they have the exact same character frequencies. A frequency map captures this.\n\n**Approach 1 — Sort and compare**: O(n log n) — sort both strings alphabetically and compare. Simple but slower.\n\n**Approach 2 — Frequency map (optimal)**: O(n)\n1. Early return if lengths differ\n2. Count frequency of each character in s\n3. Decrement for each character in t\n4. If any count goes negative → not an anagram\n\n**Complexity**:\n- Sort: Time O(n log n) | Space O(n) for the sorted copies\n- Freq map: Time O(n) | Space O(1) — at most 26 keys\n\n**Follow-up (Unicode)**: use a `Map` instead of an object — `Map` handles any character as a key, not just letters.',
     code: {
       language: 'javascript',
       snippet: `// Approach 1: sort and compare — O(n log n)
@@ -795,7 +831,7 @@ console.log(missingNumber([9,6,4,2,3,5,7,0,1]));    // 8`,
     type: 'basics',
     question: 'Second Largest Element — Classic Problem\n\nGiven an unsorted array of integers, find the second largest distinct value in a single pass (do not sort the array).\n\nExample 1: Input: [3, 7, 1, 9, 2, 5] → Output: 7\nExample 2: Input: [5, 5, 5]           → Output: -1  (no distinct second largest)\nExample 3: Input: [1, 2]              → Output: 1\nExample 4: Input: [9, 1]              → Output: 1\n\nConstraints: 1 ≤ nums.length ≤ 10⁵ | Solve in O(n) time, O(1) space',
     answer:
-      '**Intuition**: track two variables — `first` (the largest seen) and `second` (the second largest distinct value). Update them as you scan.\n\n**Approach**:\n1. Initialise `first = second = -Infinity`\n2. For each number:\n   - If `num > first`: shift — `second = first`, then `first = num`\n   - Else if `num > second && num !== first`: update `second = num`\n3. Return `second`, or -1 if it is still `-Infinity`\n\n**Why not just sort**: sorting is O(n log n). One-pass tracking is O(n) — the interviewer specifically asks for "single pass" to test this.\n\n**Key detail**: the `num !== first` guard handles duplicates — `[5, 5, 5]` should return -1, not 5.\n\n**Complexity**: Time O(n) | Space O(1)',
+      '**Intuition**: track two variables — `first` (the largest seen) and `second` (the second largest distinct value). Update them as you scan.\n\n**Approach**:\n1. Initialize `first = second = -Infinity`\n2. For each number:\n   - If `num > first`: shift — `second = first`, then `first = num`\n   - Else if `num > second && num !== first`: update `second = num`\n3. Return `second`, or -1 if it is still `-Infinity`\n\n**Why not just sort**: sorting is O(n log n). One-pass tracking is O(n) — the interviewer specifically asks for "single pass" to test this.\n\n**Key detail**: the `num !== first` guard handles duplicates — `[5, 5, 5]` should return -1, not 5.\n\n**Complexity**: Time O(n) | Space O(1)',
     code: {
       language: 'javascript',
       snippet: `function secondLargest(nums) {

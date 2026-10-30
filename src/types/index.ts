@@ -36,3 +36,16 @@ export interface Flashcard {
   difficulty: 'easy' | 'medium' | 'hard';
   type: 'basics' | 'experience';
 }
+
+export type ViewMode = 'today' | 'quiz' | 'study' | 'browse';
+export type Theme = 'light' | 'dark';
+
+/** A card with no entry in Progress has not been graded yet. */
+export type CardStatus = 'known' | 'again';
+export type Progress = Record<string, CardStatus>;
+
+export interface Filters {
+  level: 'all' | Flashcard['type'];
+  difficulty: 'all' | Flashcard['difficulty'];
+  status: 'all' | 'new' | CardStatus;
+}

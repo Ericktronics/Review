@@ -22,9 +22,11 @@ export const nextjsCards: Flashcard[] = [
 //   api/users/route.ts → GET/POST /api/users
 
 // app/users/[id]/page.tsx
-export default async function UserPage({ params }: { params: { id: string } }) {
+// In Next.js 15+, params is a Promise
+export default async function UserPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   // This runs on the server — no loading state needed
-  const user = await fetch(\`https://api.example.com/users/\${params.id}\`).then(r => r.json());
+  const user = await fetch(\`https://api.example.com/users/\${id}\`).then(r => r.json());
 
   return <h1>Hello, {user.name}</h1>;
 }`,
@@ -38,19 +40,19 @@ export default async function UserPage({ params }: { params: { id: string } }) {
     type: 'basics',
     question: 'Compare the four rendering strategies in Next.js: SSR, SSG, ISR, and CSR.',
     answer:
-      "**CSR (Client-Side Rendering)** — the server sends a blank HTML shell; the browser downloads JS and renders. Standard React behavior. Use for: dashboards behind auth, highly interactive UIs where SEO doesn't matter.\n\n**SSG (Static Site Generation)** — HTML generated at **build time**. Blazing fast (CDN-served). Use for: marketing pages, blog posts, docs — content that rarely changes.\n\n**SSR (Server-Side Rendering)** — HTML generated on the **server per request**. Always fresh. Use for: pages with user-specific or frequently-changing data (e-commerce product pages, personalized feeds).\n\n**ISR (Incremental Static Regeneration)** — SSG but with a **revalidation interval**. The page is served statically and regenerated in the background after N seconds. Use for: content that changes occasionally (news articles, product catalogs). Best of SSG performance + SSR freshness.\n\n**In App Router (Next.js 13+)**: these map to `fetch` cache options — `force-cache` (SSG), `no-store` (SSR), `next: { revalidate: 60 }` (ISR).",
+      "**CSR (Client-Side Rendering)** — the server sends a blank HTML shell; the browser downloads JS and renders. Standard React behavior. Use for: dashboards behind auth, highly interactive UIs where SEO doesn't matter.\n\n**SSG (Static Site Generation)** — HTML generated at **build time**. Blazing fast (CDN-served). Use for: marketing pages, blog posts, docs — content that rarely changes.\n\n**SSR (Server-Side Rendering)** — HTML generated on the **server per request**. Always fresh. Use for: pages with user-specific or frequently-changing data (e-commerce product pages, personalized feeds).\n\n**ISR (Incremental Static Regeneration)** — SSG but with a **revalidation interval**. The page is served statically and regenerated in the background after N seconds. Use for: content that changes occasionally (news articles, product catalogs). Best of SSG performance + SSR freshness.\n\n**In App Router (Next.js 13+)**: these map to `fetch` cache options — `force-cache` (SSG), `no-store` (SSR), `next: { revalidate: 60 }` (ISR). Since Next.js 15, `fetch` is not cached unless you opt in.",
     code: {
       language: 'typescript',
       snippet: `// App Router — rendering strategy is set per fetch call
 
 // SSG — cached forever (build-time only)
-const data = await fetch('/api/data', { cache: 'force-cache' });
+const data = await fetch('https://api.example.com/data', { cache: 'force-cache' });
 
 // SSR — never cache, always fresh per request
-const data = await fetch('/api/data', { cache: 'no-store' });
+const data = await fetch('https://api.example.com/data', { cache: 'no-store' });
 
 // ISR — revalidate every 60 seconds
-const data = await fetch('/api/data', { next: { revalidate: 60 } });
+const data = await fetch('https://api.example.com/data', { next: { revalidate: 60 } });
 
 // Pages Router equivalents:
 // SSG
@@ -119,7 +121,7 @@ export function UserSearch() {
     type: 'basics',
     question: 'What are React Server Components (RSC)? How are they different from Client Components?',
     answer:
-      "**React Server Components** run exclusively on the server and never ship JavaScript to the browser. They can directly access databases, file systems, and secrets — without exposing them to the client.\n\n**Server Component (default in App Router)**:\n- Renders on server → sends HTML to browser\n- Can use `async/await` directly — no `useEffect` for data fetching\n- Zero client-side JavaScript for the component itself\n- Cannot use browser APIs, React hooks, or event handlers\n\n**Client Component** (`'use client'` directive):\n- Hydrates and runs in the browser\n- Can use `useState`, `useEffect`, `useRef`, event handlers\n- Can access `window`, `localStorage`, etc.\n\n**The key mental model**: push interactivity as far down the tree as possible. Keep data-heavy, static parent components as Server Components, and mark only the interactive leaves as Client Components.\n\n**Common pattern**: fetch data in a Server Component, pass it as props to a Client Component that handles interaction.",
+      "**React Server Components** run exclusively on the server and never ship JavaScript to the browser. They can directly access databases, file systems, and secrets — without exposing them to the client.\n\n**Server Component (default in App Router)**:\n- Renders on server → sends HTML to browser\n- Can use `async/await` directly — no `useEffect` for data fetching\n- Zero client-side JavaScript for the component itself\n- Cannot use browser APIs, state or effect hooks, or event handlers\n\n**Client Component** (`'use client'` directive):\n- Hydrates and runs in the browser\n- Can use `useState`, `useEffect`, `useRef`, event handlers\n- Can access `window`, `localStorage`, etc.\n\n**The key mental model**: push interactivity as far down the tree as possible. Keep data-heavy, static parent components as Server Components, and mark only the interactive leaves as Client Components.\n\n**Common pattern**: fetch data in a Server Component, pass it as props to a Client Component that handles interaction.",
     code: {
       language: 'typescript',
       snippet: `// ── Server Component — fetches data, no JS sent to browser ──
@@ -189,20 +191,22 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(user, { status: 201 });
 }
 
-// Dynamic route: app/api/users/[id]/route.ts
+// Dynamic route: app/api/users/[id]/route.ts (params is a Promise in Next.js 15+)
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await db.user.findUniqueOrThrow({ where: { id: params.id } });
+  const { id } = await params;
+  const user = await db.user.findUniqueOrThrow({ where: { id } });
   return NextResponse.json(user);
 }
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  await db.user.delete({ where: { id: params.id } });
+  const { id } = await params;
+  await db.user.delete({ where: { id } });
   return new NextResponse(null, { status: 204 });
 }`,
     },
@@ -215,7 +219,7 @@ export async function DELETE(
     type: 'basics',
     question: 'What is Next.js Middleware? What can you use it for?',
     answer:
-      "**Next.js Middleware** runs before a request is completed — before the page or API route handles it. It runs on the Edge Runtime (V8 isolates at the CDN level), making it extremely fast.\n\n**What you can do in Middleware**:\n- **Auth checks** — verify a JWT and redirect to `/login` if invalid before the page loads\n- **A/B testing** — rewrite requests to different page variants based on a cookie\n- **Geolocation routing** — redirect to country-specific pages\n- **Rate limiting** — check a counter in KV store and return 429\n- **Request header injection** — add correlation IDs, user context for downstream\n\n**Limitations**: runs on the Edge Runtime — no Node.js APIs (`fs`, `crypto`), no native modules. Keep it fast and lightweight. Complex business logic belongs in API routes.\n\nMiddleware is defined in `middleware.ts` at the project root and controlled by the `matcher` config.",
+      "**Next.js Middleware** runs before a request is completed — before the page or API route handles it. It has traditionally run on the Edge Runtime (V8 isolates), which keeps it lightweight.\n\n**What you can do in Middleware**:\n- **Auth checks** — verify a JWT and redirect to `/login` if invalid before the page loads\n- **A/B testing** — rewrite requests to different page variants based on a cookie\n- **Geolocation routing** — redirect to country-specific pages\n- **Rate limiting** — check a counter in KV store and return 429\n- **Request header injection** — add correlation IDs, user context for downstream\n\n**Limitations**: on the Edge Runtime there are no Node.js APIs like `fs` and no native modules. Keep it fast and lightweight. Complex business logic belongs in API routes.\n\nMiddleware is defined in `middleware.ts` at the project root and controlled by the `matcher` config. Next.js 16 renames this file convention to `proxy.ts`, which runs on the Node.js runtime.",
     code: {
       language: 'typescript',
       snippet: `// middleware.ts (at project root)
@@ -243,10 +247,10 @@ export async function middleware(req: NextRequest) {
       token,
       new TextEncoder().encode(process.env.JWT_SECRET!)
     );
-    // Inject user id into header for downstream API routes
-    const res = NextResponse.next();
-    res.headers.set('x-user-id', payload.sub as string);
-    return res;
+    // Pass the user id to downstream routes via a request header
+    const headers = new Headers(req.headers);
+    headers.set('x-user-id', payload.sub as string);
+    return NextResponse.next({ request: { headers } });
   } catch {
     return NextResponse.redirect(new URL('/login', req.url));
   }
@@ -268,7 +272,7 @@ export const config = {
     type: 'experience',
     question: 'How do you deploy a Next.js app to AWS ECS? Walk through the CI/CD pipeline.',
     answer:
-      "**Architecture** for deploying a Dockerized Next.js app to AWS ECS via GitHub Actions:\n- **Next.js app** containerized with a multi-stage Docker build (builder stage + slim production stage)\n- **AWS ECR** — private Docker registry; GitHub Actions pushes the image here\n- **AWS ECS Fargate** — serverless container orchestration; no EC2 instances to manage\n- **ALB (Application Load Balancer)** — routes traffic to ECS tasks, handles TLS termination\n- **GitHub Actions** — triggered on push to `main`, builds the image, pushes to ECR, updates the ECS service\n\n**Key steps in the pipeline**:\n1. Checkout + setup Node → `npm ci` → `npm run build`\n2. Configure AWS credentials (OIDC role, not long-lived access keys)\n3. Build Docker image → tag with Git SHA\n4. `docker push` to ECR\n5. `aws ecs update-service --force-new-deployment` — ECS rolls out the new task definition\n6. Health check on ALB — old tasks are drained only when new tasks pass health checks\n\n**Zero-downtime**: ECS rolling update replaces tasks one at a time, ALB health checks ensure traffic only routes to healthy tasks.",
+      "**Architecture** for deploying a Dockerized Next.js app to AWS ECS via GitHub Actions:\n- **Next.js app** containerized with a multi-stage Docker build (builder stage + slim production stage)\n- **AWS ECR** — private Docker registry; GitHub Actions pushes the image here\n- **AWS ECS Fargate** — serverless container orchestration; no EC2 instances to manage\n- **ALB (Application Load Balancer)** — routes traffic to ECS tasks, handles TLS termination\n- **GitHub Actions** — triggered on push to `main`, builds the image, pushes to ECR, updates the ECS service\n\n**Key steps in the pipeline**:\n1. Checkout + setup Node → `npm ci` → `npm run build`\n2. Configure AWS credentials (OIDC role, not long-lived access keys)\n3. Build Docker image → tag with Git SHA\n4. `docker push` to ECR\n5. Register a new task definition revision that points at the new image, then update the ECS service to use it\n6. Health check on ALB — old tasks are drained only when new tasks pass health checks\n\n**Zero-downtime**: ECS rolling update replaces tasks one at a time, ALB health checks ensure traffic only routes to healthy tasks.",
     code: {
       language: 'yaml',
       snippet: `# .github/workflows/deploy.yml
@@ -303,12 +307,22 @@ jobs:
           docker push $IMAGE
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
+      # The image tag changes every build, so ECS needs a new task definition revision
+      - name: Render task definition with the new image
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: web
+          image: \${{ env.IMAGE }}
+
       - name: Deploy to ECS
-        run: |
-          aws ecs update-service \\
-            --cluster production \\
-            --service my-nextjs-service \\
-            --force-new-deployment`,
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: \${{ steps.render.outputs.task-definition }}
+          cluster: production
+          service: my-nextjs-service
+          wait-for-service-stability: true`,
     },
   },
 
@@ -319,7 +333,7 @@ jobs:
     type: 'experience',
     question: 'How do you handle authentication in a Next.js App Router app? Compare cookie-based sessions vs JWT.',
     answer:
-      "**Two main approaches in Next.js:**\n\n**1. Cookie-based sessions (recommended for most apps)**\n- User logs in → server creates a session record in DB/Redis → sets an `HttpOnly` secure cookie with the session ID\n- Middleware reads the cookie and validates the session on every request\n- **Pros**: instant revocation (delete the session record), simpler security model, no token storage on client\n- **Cons**: requires a session store (DB or Redis); sessions don't scale as cleanly across multiple services\n- **`next-auth` / Auth.js** implements this out of the box with many providers\n\n**2. JWT in HttpOnly cookies**\n- User logs in → server signs a JWT → stores it in an `HttpOnly` cookie (NOT localStorage — XSS risk)\n- Middleware verifies the JWT signature on every request — no DB lookup needed\n- **Pros**: stateless, scales across services easily (ideal for multi-portal or cross-domain auth)\n- **Cons**: can't revoke tokens before expiry without a denylist; rotate secrets carefully\n\n**Never store tokens in localStorage** — vulnerable to XSS. Always use `HttpOnly; Secure; SameSite=Strict` cookies.\n\n**Session vs JWT rule of thumb**: session for user-facing apps, JWT for service-to-service or when you need cross-domain auth.",
+      "**Two main approaches in Next.js:**\n\n**1. Cookie-based sessions (recommended for most apps)**\n- User logs in → server creates a session record in DB/Redis → sets an `HttpOnly` secure cookie with the session ID\n- Middleware reads the cookie and validates the session on every request\n- **Pros**: instant revocation (delete the session record), simpler security model, no token storage on client\n- **Cons**: requires a session store (DB or Redis); sessions don't scale as cleanly across multiple services\n- **`next-auth` / Auth.js** supports both database sessions and JWTs, with many providers\n\n**2. JWT in HttpOnly cookies**\n- User logs in → server signs a JWT → stores it in an `HttpOnly` cookie (NOT localStorage — XSS risk)\n- Middleware verifies the JWT signature on every request — no DB lookup needed\n- **Pros**: stateless, scales across services easily (ideal for multi-portal or cross-domain auth)\n- **Cons**: can't revoke tokens before expiry without a denylist; rotate secrets carefully\n\n**Never store tokens in localStorage** — vulnerable to XSS. Always use `HttpOnly; Secure; SameSite=Strict` cookies.\n\n**Session vs JWT rule of thumb**: session for user-facing apps, JWT for service-to-service or when you need cross-domain auth.",
     code: {
       language: 'typescript',
       snippet: `// app/api/auth/login/route.ts — JWT in HttpOnly cookie
@@ -338,7 +352,7 @@ export async function POST(req: Request) {
 
   const res = NextResponse.json({ ok: true });
   res.cookies.set('session', token, {
-    httpOnly: true,   // not accessible by JS — prevents XSS
+    httpOnly: true,   // not accessible by JS — limits token theft via XSS
     secure: true,     // HTTPS only
     sameSite: 'strict', // CSRF protection
     maxAge: 60 * 60,  // 1 hour
@@ -365,10 +379,10 @@ export async function POST() {
     id: 'next-h3',
     category: 'Next.js',
     difficulty: 'hard',
-    type: 'basics',
+    type: 'experience',
     question: 'What are Server Actions in Next.js 14+? How do they replace API routes for mutations?',
     answer:
-      '**Server Actions** are async functions marked with `"use server"` that run exclusively on the server. They can be called directly from Client Components as if they were regular async functions — Next.js handles the HTTP request/response under the hood.\n\n**How they work:**\n- You define an async function with `"use server"` directive\n- Next.js serializes the arguments, sends them to the server via POST, executes the function, and returns the result\n- No manual `fetch` or API route needed for mutations\n\n**When to use Server Actions vs Route Handlers:**\n- **Server Actions** — form submissions, mutations triggered from components, revalidation after mutation\n- **Route Handlers** — public APIs consumed by third parties, webhooks, GET endpoints for data fetching from external clients\n\n**Key integrations:**\n- Use `revalidatePath()` or `revalidateTag()` inside an action to invalidate cached data\n- Works with `useFormState` / `useFormStatus` for progressive enhancement (works without JS)\n- Can be defined inline in a Server Component or in a separate `actions.ts` file',
+      '**Server Actions** are async functions marked with `"use server"` that run exclusively on the server. They can be called directly from Client Components as if they were regular async functions — Next.js handles the HTTP request/response under the hood.\n\n**How they work:**\n- You define an async function with `"use server"` directive\n- Next.js serializes the arguments, sends them to the server via POST, executes the function, and returns the result\n- No manual `fetch` or API route needed for mutations\n\n**When to use Server Actions vs Route Handlers:**\n- **Server Actions** — form submissions, mutations triggered from components, revalidation after mutation\n- **Route Handlers** — public APIs consumed by third parties, webhooks, GET endpoints for data fetching from external clients\n\n**Key integrations:**\n- Use `revalidatePath()` or `revalidateTag()` inside an action to invalidate cached data\n- Works with `useActionState` (called `useFormState` before React 19) and `useFormStatus` for progressive enhancement (works without JS)\n- Can be defined inline in a Server Component or in a separate `actions.ts` file',
     code: {
       language: 'typescript',
       snippet: `// app/actions/post.ts
@@ -379,7 +393,8 @@ import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { auth } from '@/lib/auth';
 
-export async function createPost(formData: FormData) {
+// useActionState passes the previous state as the first argument
+export async function createPost(_prev: { error: string } | null, formData: FormData) {
   const session = await auth();
   if (!session) throw new Error('Unauthorized');
 
@@ -400,11 +415,11 @@ export async function createPost(formData: FormData) {
 
 // app/posts/new/page.tsx — Client Component using the action
 'use client';
-import { createPost } from '@/actions/post';
-import { useFormState } from 'react-dom';
+import { createPost } from '@/app/actions/post';
+import { useActionState } from 'react';
 
 export default function NewPostForm() {
-  const [state, action] = useFormState(createPost, null);
+  const [state, action] = useActionState(createPost, null);
 
   return (
     <form action={action}>
@@ -422,10 +437,10 @@ export default function NewPostForm() {
     id: 'next-h4',
     category: 'Next.js',
     difficulty: 'hard',
-    type: 'basics',
+    type: 'experience',
     question: 'What is Partial Prerendering (PPR) in Next.js 15? How does it combine static and dynamic rendering?',
     answer:
-      '**Partial Prerendering (PPR)** is a Next.js 15 rendering model that splits a single route into a **static shell** (prerendered at build time) and **dynamic holes** (streamed at request time) — all within a single HTTP response.\n\n**Before PPR:** a route was either fully static OR fully dynamic. Any dynamic data forced the entire page to be server-rendered on every request.\n\n**With PPR:**\n1. Next.js prebuilds the static shell (layout, nav, static content) at build time\n2. At request time, it serves the static shell immediately (fast TTFB)\n3. Dynamic parts wrapped in `<Suspense>` are streamed in as they resolve\n\n**How to opt in:**\n- Enable `ppr: true` in `next.config.js`\n- Wrap dynamic components in `<Suspense fallback={<Skeleton />}>`\n- Components that use `cookies()`, `headers()`, or `searchParams` are automatically dynamic\n\n**Performance impact:** users see the page layout instantly (from CDN cache), dynamic data streams in milliseconds later — the best of SSG and SSR in one response.',
+      '**Partial Prerendering (PPR)** is a rendering model (experimental in Next.js 15) that splits a single route into a **static shell** (prerendered at build time) and **dynamic holes** (streamed at request time) — all within a single HTTP response.\n\n**Before PPR:** a route was either fully static OR fully dynamic. Any dynamic data forced the entire page to be server-rendered on every request.\n\n**With PPR:**\n1. Next.js prebuilds the static shell (layout, nav, static content) at build time\n2. At request time, it serves the static shell immediately (fast TTFB)\n3. Dynamic parts wrapped in `<Suspense>` are streamed in as they resolve\n\n**How to opt in:**\n- Enable `experimental: { ppr: true }` in `next.config.js` (Next.js 16 moves this to `cacheComponents`)\n- Wrap dynamic components in `<Suspense fallback={<Skeleton />}>`\n- Components that use `cookies()`, `headers()`, `connection()`, or `searchParams` are dynamic. A direct database call is not detected on its own: call `await connection()` first\n\n**Performance impact:** users see the page layout instantly (from CDN cache), dynamic data streams in milliseconds later — the best of SSG and SSR in one response.',
     code: {
       language: 'typescript',
       snippet: `// next.config.js — enable PPR
@@ -450,7 +465,7 @@ export default function DashboardPage() {
 
       {/* Dynamic holes — streamed in after static shell */}
       <Suspense fallback={<OrdersSkeleton />}>
-        <RecentOrders />   {/* uses db query, auto-detected as dynamic */}
+        <RecentOrders />   {/* calls connection(), so it is dynamic */}
       </Suspense>
 
       <Suspense fallback={<StatsSkeleton />}>
@@ -461,8 +476,9 @@ export default function DashboardPage() {
 }
 
 // RecentOrders.tsx — this component is dynamic
-// Next.js detects the DB call and excludes it from the static shell
+// connection() (from 'next/server') excludes it from the static shell
 async function RecentOrders() {
+  await connection();
   const orders = await db.order.findMany({ take: 5, orderBy: { createdAt: 'desc' } });
   return <OrderList orders={orders} />;
 }`,

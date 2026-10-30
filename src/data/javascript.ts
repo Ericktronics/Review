@@ -335,7 +335,7 @@ console.log(obj.greet()); // 'Hello, Carol'
 
 // Lost binding — common bug
 const fn = obj.greet;
-console.log(fn()); // 'Hello, undefined' (default binding — this = global/undefined)
+console.log(fn()); // sloppy mode: 'Hello, undefined'; strict mode: TypeError (this is undefined)
 
 // Fix: bind or arrow function
 const fixed = obj.greet.bind(obj);
@@ -350,7 +350,7 @@ class Timer {
     setInterval(() => { this.seconds++; }, 1000); // ✅
 
     // Regular function would lose 'this':
-    // setInterval(function() { this.seconds++; }, 1000); // ❌ this = global
+    // setInterval(function() { this.seconds++; }, 1000); // ❌ this is not the Timer
   }
 }`,
     },
@@ -453,7 +453,7 @@ window.addEventListener('scroll', handleScroll);`,
     type: 'basics',
     question: 'What are common `async`/`await` pitfalls? How do you run Promises in parallel vs in sequence?',
     answer:
-      '`async`/`await` is syntactic sugar over Promises — an `async` function always returns a Promise; `await` pauses the async function\'s execution until the Promise settles, without blocking the event loop.\n\n**Pitfall 1 — `await` inside `forEach`**:\n`Array.forEach` does not await the callback. The loop fires all callbacks and moves on immediately. Use `for...of` instead.\n\n**Pitfall 2 — Sequential when you mean parallel**:\nAwaiting Promises one by one means each waits for the previous to finish. If the operations are independent, use `Promise.all()` to run them concurrently.\n\n**Pitfall 3 — Missing error handling**:\nAn `async` function that throws produces an unhandled rejection if the caller doesn\'t `await` it or `.catch()` it. Always handle errors.\n\n**Pitfall 4 — Ignoring that `await` only awaits the immediate Promise**:\n`await Promise.all([...])` vs `await fetch()` followed by `await res.json()` — two separate awaits, two separate microtask ticks.',
+      '`async`/`await` is syntactic sugar over Promises — an `async` function always returns a Promise; `await` pauses the async function\'s execution until the Promise settles, without blocking the event loop.\n\n**Pitfall 1 — `await` inside `forEach`**:\n`Array.forEach` does not await the callback. The loop fires all callbacks and moves on immediately. Use `for...of` instead.\n\n**Pitfall 2 — Sequential when you mean parallel**:\nAwaiting Promises one by one means each waits for the previous to finish. If the operations are independent, use `Promise.all()` to run them concurrently.\n\n**Pitfall 3 — Missing error handling**:\nAn `async` function that throws produces an unhandled rejection if the caller doesn\'t `await` it or `.catch()` it. Always handle errors.\n\n**Pitfall 4 — Forgetting a later step is also async**:\n`await fetch()` resolves once headers arrive. `res.json()` returns another Promise, so it needs its own `await`.',
     code: {
       language: 'javascript',
       snippet: `// ✗ WRONG: await inside forEach — doesn't wait
@@ -560,7 +560,7 @@ console.log(curriedAdd(1)(2, 3));   // 6`,
     type: 'experience',
     question: 'What causes memory leaks in JavaScript? How do you detect and fix them?',
     answer:
-      'A memory leak occurs when memory that is no longer needed is not released, causing the app to consume more and more RAM over time until it crashes or degrades.\n\n**Common causes**:\n\n**1. Forgotten event listeners** — adding listeners to DOM elements or `window` without removing them. When the element is removed from the DOM but the listener isn\'t removed, the element\'s entire subtree and the callback\'s closure stay in memory.\n\n**2. Timers never cleared** — `setInterval` that runs forever keeps its callback and everything in its closure alive. Always store the ID and call `clearInterval`.\n\n**3. Closures holding large data** — a closure keeps the entire outer scope alive, even if you only need one small variable. Avoid capturing large objects unnecessarily.\n\n**4. Global variables** — accidentally assigning to `window.foo = ...` or using `var` at the top level keeps data alive for the page lifetime.\n\n**5. Detached DOM nodes** — storing a JS reference to a DOM node after it\'s been removed from the document. The node\'s subtree stays in memory even though it\'s not visible.\n\n**Detection**: Chrome DevTools → Memory tab → take a heap snapshot, record an allocation timeline, or use the Allocation Profiler. Look for objects that grow over time without being GC\'d.\n\n**Fix strategy**: use `AbortController` for fetch, `removeEventListener` for DOM events, `clearInterval`/`clearTimeout` in cleanup, and WeakRef/WeakMap for optional references.',
+      'A memory leak occurs when memory that is no longer needed is not released, causing the app to consume more and more RAM over time until it crashes or degrades.\n\n**Common causes**:\n\n**1. Forgotten event listeners** — adding listeners to DOM elements or `window` without removing them. When the element is removed from the DOM but the listener isn\'t removed, the element\'s entire subtree and the callback\'s closure stay in memory.\n\n**2. Timers never cleared** — `setInterval` that runs forever keeps its callback and everything in its closure alive. Always store the ID and call `clearInterval`.\n\n**3. Closures holding large data** — a closure keeps the outer variables it uses alive, and closures created in the same scope share those captured variables. Avoid capturing large objects unnecessarily.\n\n**4. Global variables** — accidentally assigning to `window.foo = ...` or using `var` at the top level keeps data alive for the page lifetime.\n\n**5. Detached DOM nodes** — storing a JS reference to a DOM node after it\'s been removed from the document. The node\'s subtree stays in memory even though it\'s not visible.\n\n**Detection**: Chrome DevTools → Memory tab → take a heap snapshot, record an allocation timeline, or use the Allocation Profiler. Look for objects that grow over time without being GC\'d.\n\n**Fix strategy**: use `AbortController` for fetch, `removeEventListener` for DOM events, `clearInterval`/`clearTimeout` in cleanup, and WeakRef/WeakMap for optional references.',
     code: {
       language: 'javascript',
       snippet: `// ✗ LEAK 1: event listener never removed
@@ -736,13 +736,13 @@ list.addEventListener('click', (event) => {
     type: 'basics',
     question: 'How do arrow functions differ from regular functions regarding `new`, `arguments`, and `prototype`?',
     answer:
-      '**`new`**: Regular functions CAN be called with `new` — they have a `prototype` property and act as constructors. Arrow functions CANNOT — they have no `prototype` and throw a `TypeError` if you try `new ArrowFn()`.\n\n**`arguments` object**: Regular functions have their own `arguments` array-like object containing all passed args. Arrow functions have NO own `arguments` — they inherit it from the nearest enclosing regular function (or get a `ReferenceError` in strict mode with no enclosing function). Use rest params `...args` in arrows instead.\n\n**`this` binding**: Regular function `this` is dynamic — determined at call time by 4 rules (default, implicit, explicit, `new`). Arrow function `this` is **lexical** — captured from the enclosing scope at definition time. `.call()`, `.apply()`, and `.bind()` cannot change it.\n\n| Feature | Regular Function | Arrow Function |\n|---|---|---|\n| `new` | ✅ works | ❌ TypeError |\n| `prototype` | ✅ exists | ❌ `undefined` |\n| `arguments` | ✅ own object | ❌ none (use `...args`) |\n| `this` | Dynamic (call site) | Lexical (definition) |',
+      '**`new`**: Regular functions CAN be called with `new` — they have a `prototype` property and act as constructors. Arrow functions CANNOT — they have no `prototype` and throw a `TypeError` if you try `new ArrowFn()`.\n\n**`arguments` object**: Regular functions have their own `arguments` array-like object containing all passed args. Arrow functions have NO own `arguments` — they inherit it from the nearest enclosing regular function (at the top level of a script or ES module, reading it throws a `ReferenceError`). Use rest params `...args` in arrows instead.\n\n**`this` binding**: Regular function `this` is dynamic — determined at call time by 4 rules (default, implicit, explicit, `new`). Arrow function `this` is **lexical** — captured from the enclosing scope at definition time. `.call()`, `.apply()`, and `.bind()` cannot change it.\n\n| Feature | Regular Function | Arrow Function |\n|---|---|---|\n| `new` | ✅ works | ❌ TypeError |\n| `prototype` | ✅ exists | ❌ `undefined` |\n| `arguments` | ✅ own object | ❌ none (use `...args`) |\n| `this` | Dynamic (call site) | Lexical (definition) |',
     code: {
       language: 'javascript',
       snippet: `// ── new / prototype ────────────────────────────────────
 function Person(name) { this.name = name; }
 const alice = new Person('Alice');      // ✅ works
-console.log(Person.prototype);         // { constructor: [Function: Person] }
+console.log(Person.prototype.constructor === Person); // true
 
 const ArrowPerson = (name) => { this.name = name; };
 // new ArrowPerson('Bob');             // ❌ TypeError: ArrowPerson is not a constructor
@@ -755,7 +755,7 @@ function regular() {
 regular('hello');
 
 const arrow = () => {
-  // console.log(arguments);           // ❌ ReferenceError in strict mode
+  // console.log(arguments);           // ❌ no own arguments; ReferenceError at top level
 };
 const withRest = (...args) => console.log(args[0]); // ✅ use rest params
 withRest('hello');
@@ -764,7 +764,7 @@ withRest('hello');
 function Timer() {
   this.seconds = 0;
   setInterval(function() {
-    // this.seconds++;                 // ❌ 'this' is undefined (strict) or global
+    // this.seconds++;                 // ❌ 'this' is not the Timer instance
   }, 1000);
   setInterval(() => {
     this.seconds++;                    // ✅ 'this' is the Timer instance (lexical)

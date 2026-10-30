@@ -28,7 +28,7 @@ export const mongodbCards: Flashcard[] = [
   createdAt: ISODate("2024-01-15T08:00:00Z")
 }
 
-// SQL equivalent would need: users, addresses, preferences tables + 3 JOINs`,
+// SQL equivalent would need: users, addresses, preferences tables + 2 JOINs`,
     },
   },
 
@@ -39,7 +39,7 @@ export const mongodbCards: Flashcard[] = [
     type: 'basics',
     question: 'What is Mongoose? How do you define a schema and model?',
     answer:
-      '**Mongoose** is an ODM (Object Document Mapper) for MongoDB and Node.js. It adds:\n- **Schema definition** — enforce structure and types on documents\n- **Validation** — built-in and custom validators\n- **Middleware (hooks)** — pre/post hooks on operations (`save`, `find`, `delete`)\n- **Virtuals** — computed properties not stored in DB\n- **Population** — reference-based joins (like SQL JOINs but manual)\n\n**Schema types:** `String`, `Number`, `Boolean`, `Date`, `Buffer`, `ObjectId`, `Array`, `Map`, `Mixed`\n\n**Best practices:**\n- Set `timestamps: true` to auto-add `createdAt`/`updatedAt`\n- Always add indexes in the schema with `index: true` or `unique: true`\n- Use `lean()` for read-only queries — returns plain JS objects, skipping Mongoose overhead (up to 5× faster)',
+      '**Mongoose** is an ODM (Object Document Mapper) for MongoDB and Node.js. It adds:\n- **Schema definition** — enforce structure and types on documents\n- **Validation** — built-in and custom validators\n- **Middleware (hooks)** — pre/post hooks on operations (`save`, `find`, `delete`)\n- **Virtuals** — computed properties not stored in DB\n- **Population** — reference-based joins (like SQL JOINs but manual)\n\n**Schema types:** `String`, `Number`, `Boolean`, `Date`, `Buffer`, `ObjectId`, `Array`, `Map`, `Mixed`\n\n**Best practices:**\n- Set `timestamps: true` to auto-add `createdAt`/`updatedAt`\n- Always add indexes in the schema with `index: true` or `unique: true`\n- Use `lean()` for read-only queries — returns plain JS objects, skipping Mongoose document overhead',
     code: {
       language: 'typescript',
       snippet: `import mongoose, { Schema, Document, Model } from 'mongoose';
@@ -47,6 +47,7 @@ export const mongodbCards: Flashcard[] = [
 interface IUser extends Document {
   name: string;
   email: string;
+  password: string;
   role: 'admin' | 'user';
   createdAt: Date;
 }
@@ -55,13 +56,14 @@ const userSchema = new Schema<IUser>(
   {
     name:  { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true },
+    password: { type: String, required: true },
     role:  { type: String, enum: ['admin', 'user'], default: 'user' },
   },
   { timestamps: true }   // auto adds createdAt, updatedAt
 );
 
-// Index for faster lookups
-userSchema.index({ email: 1 });
+// Compound index for faster lookups (unique: true above already indexes email)
+userSchema.index({ role: 1, createdAt: -1 });
 
 // Virtual — not stored in DB
 userSchema.virtual('greeting').get(function () {
@@ -69,11 +71,10 @@ userSchema.virtual('greeting').get(function () {
 });
 
 // Pre-save hook
-userSchema.pre('save', async function (next) {
+userSchema.pre('save', async function () {
   if (this.isModified('password')) {
     this.password = await bcrypt.hash(this.password, 12);
   }
-  next();
 });
 
 const User: Model<IUser> = mongoose.model('User', userSchema);
@@ -108,8 +109,8 @@ db.orders.aggregate([
     $group: {
       _id: '$items.category',
       totalRevenue: { $sum: { $multiply: ['$items.price', '$items.qty'] } },
-      orderCount:   { $sum: 1 },
-      avgOrderValue: { $avg: '$items.price' },
+      lineItems:    { $sum: 1 },   // counts items, not orders, after $unwind
+      avgItemPrice: { $avg: '$items.price' },
     }
   },
 
@@ -125,7 +126,7 @@ db.orders.aggregate([
       _id: 0,
       category: '$_id',
       totalRevenue: { $round: ['$totalRevenue', 2] },
-      orderCount: 1,
+      lineItems: 1,
     }
   },
 ]);
@@ -189,7 +190,7 @@ db.places.find({
 
 // explain — check if index is used
 db.users.find({ email: 'test@example.com' }).explain('executionStats');
-// Look for: winningPlan.stage === 'IXSCAN' (good) vs 'COLLSCAN' (bad)`,
+// Look in winningPlan for an IXSCAN stage (good) vs COLLSCAN (bad)`,
     },
   },
 
@@ -245,10 +246,10 @@ db.orders.aggregate([
     id: 'mongo-h1',
     category: 'MongoDB',
     difficulty: 'hard',
-    type: 'basics',
+    type: 'experience',
     question: 'How do MongoDB transactions work? What are replica sets and why are they required?',
     answer:
-      '**MongoDB multi-document transactions** (4.0+) provide ACID guarantees across multiple documents and collections — similar to SQL transactions. They require a **replica set** or sharded cluster.\n\n**Replica set** — a group of MongoDB nodes (typically 3) that maintain the same data:\n- **Primary** — handles all writes\n- **Secondaries** — replicate from primary asynchronously, can serve reads\n- **Automatic failover** — if primary goes down, secondaries elect a new primary within ~10 seconds\n\n**Why transactions need a replica set:** MongoDB uses the oplog (operation log) on replica sets to enable the rollback mechanism that multi-document transactions depend on.\n\n**Transaction caveats:**\n- **Performance cost** — transactions hold locks, increase latency\n- **16MB limit** applies to the whole transaction\n- **Max runtime** — 60 seconds by default\n- **Prefer embedding** for atomic updates on a single document — no transaction needed (MongoDB guarantees atomicity on a single document natively)\n\n**Rule:** design your schema to avoid needing transactions. When you do need them, they work — but reach for them sparingly.',
+      '**MongoDB multi-document transactions** (4.0+ on replica sets, 4.2+ on sharded clusters) provide ACID guarantees across multiple documents and collections — similar to SQL transactions. They require a **replica set** or sharded cluster.\n\n**Replica set** — a group of MongoDB nodes (typically 3) that maintain the same data:\n- **Primary** — handles all writes\n- **Secondaries** — replicate from primary asynchronously, can serve reads\n- **Automatic failover** — if primary goes down, secondaries elect a new primary within ~10 seconds\n\n**Why transactions need a replica set:** MongoDB uses the oplog (operation log) on replica sets to enable the rollback mechanism that multi-document transactions depend on.\n\n**Transaction caveats:**\n- **Performance cost** — transactions hold locks, increase latency\n- **Size** — each document is still limited to 16MB. Since 4.2 a transaction can span multiple oplog entries, but keep transactions small\n- **Max runtime** — 60 seconds by default\n- **Prefer embedding** for atomic updates on a single document — no transaction needed (MongoDB guarantees atomicity on a single document natively)\n\n**Rule:** design your schema to avoid needing transactions. When you do need them, they work — but reach for them sparingly.',
     code: {
       language: 'typescript',
       snippet: `import mongoose from 'mongoose';

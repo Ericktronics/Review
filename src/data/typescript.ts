@@ -47,7 +47,9 @@ type NonNullableFields<T> = { [K in keyof T]: NonNullable<T[K]> };`,
     code: {
       language: 'typescript',
       snippet: `// Recursive readonly
-type DeepReadonly<T> = T extends (infer R)[]
+type DeepReadonly<T> = T extends (...args: any[]) => any
+  ? T // keep functions callable
+  : T extends (infer R)[]
   ? ReadonlyArray<DeepReadonly<R>>
   : T extends object
   ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
@@ -215,14 +217,15 @@ greet(undefined);  // ✗ Caught at compile time, not at runtime`,
     type: 'basics',
     question: 'What is type inference in TypeScript?',
     answer:
-      "**Type inference** is TypeScript's ability to automatically determine the type of a variable, parameter, or return value without an explicit annotation.\n\nTypeScript infers types from:\n- **Variable initialisation** — `const x = 42` → TypeScript knows `x: number`\n- **Return statements** — the return type of a function is inferred from what it returns\n- **Contextual typing** — callback parameters are inferred from the expected function signature\n\n**Why it matters**: you get full type safety without writing type annotations everywhere. Inference keeps code concise while the compiler still catches mistakes.\n\n**When to annotate explicitly**:\n- Function parameters (TypeScript cannot infer these)\n- Public API surfaces (makes intent clear)\n- When inference produces an overly broad type (e.g. `any` or a union you want to restrict)",
+      "**Type inference** is TypeScript's ability to automatically determine the type of a variable, parameter, or return value without an explicit annotation.\n\nTypeScript infers types from:\n- **Variable initialization** — `let x = 42` → TypeScript knows `x: number` (`const x = 42` keeps the literal type `42`)\n- **Return statements** — the return type of a function is inferred from what it returns\n- **Contextual typing** — callback parameters are inferred from the expected function signature\n\n**Why it matters**: you get full type safety without writing type annotations everywhere. Inference keeps code concise while the compiler still catches mistakes.\n\n**When to annotate explicitly**:\n- Function parameters (TypeScript cannot infer these)\n- Public API surfaces (makes intent clear)\n- When inference produces an overly broad type (e.g. `any` or a union you want to restrict)",
     code: {
       language: 'typescript',
       snippet: `// TypeScript infers all of these without explicit annotations
-const name = 'Alice';           // string
-const count = 42;               // number
-const active = true;            // boolean
+let name = 'Alice';             // string
+let count = 42;                 // number
+let active = true;              // boolean
 const items = [1, 2, 3];        // number[]
+const id = 7;                   // 7 (const keeps the literal type)
 const user = { id: 1, name: 'Alice' }; // { id: number; name: string }
 
 // Return type inferred as number
@@ -326,10 +329,11 @@ function describe(c: Color): string {
     type: 'basics',
     question: 'What are TypeScript decorators?',
     answer:
-      "**Decorators** are special declarations that can be attached to classes, methods, properties, or parameters to add metadata or modify behaviour at runtime. They use the `@expression` syntax.\n\n**How they work**: a decorator is a function that receives the decorated target as an argument and can modify or replace it.\n\n**Types**:\n- **Class decorator** — receives the constructor; can modify or replace the class\n- **Method decorator** — receives the prototype, method name, and property descriptor\n- **Property decorator** — receives the prototype and property name\n- **Parameter decorator** — receives the prototype, method name, and parameter index\n\n**Common use cases**: NestJS uses decorators for `@Injectable()`, `@Controller()`, `@Get()`. TypeORM uses `@Entity()`, `@Column()`. They are the foundation of dependency injection in these frameworks.\n\n**Status**: TypeScript 5.0 introduced standard decorators (Stage 3 proposal). Legacy `experimentalDecorators` mode is different — check which version your framework uses.",
+      "**Decorators** are special declarations that can be attached to classes, methods, properties, or parameters to add metadata or modify behavior at runtime. They use the `@expression` syntax.\n\n**How they work**: a decorator is a function that receives the decorated target as an argument and can modify or replace it.\n\n**Types**:\n- **Class decorator** — receives the constructor; can modify or replace the class\n- **Method decorator** — receives the prototype, method name, and property descriptor\n- **Property decorator** — receives the prototype and property name\n- **Parameter decorator** — receives the prototype, method name, and parameter index\n\n**Common use cases**: NestJS uses decorators for `@Injectable()`, `@Controller()`, `@Get()`. TypeORM uses `@Entity()`, `@Column()`. They are the foundation of dependency injection in these frameworks.\n\n**Status**: TypeScript 5.0 introduced standard decorators (Stage 3 proposal). Legacy `experimentalDecorators` mode is different — check which version your framework uses.",
     code: {
       language: 'typescript',
       snippet: `// Method decorator: measure execution time
+// (legacy experimentalDecorators signature, the one NestJS uses)
 function Measure(target: any, key: string, descriptor: PropertyDescriptor) {
   const original = descriptor.value;
   descriptor.value = async function (...args: any[]) {
@@ -441,7 +445,7 @@ function merge<T extends { id: string }>(a: T, b: Partial<T>): T {
     type: 'basics',
     question: "What does TypeScript's `strict` mode enable and why should you always turn it on?",
     answer:
-      "**`strict: true` is a single setting in `tsconfig.json` that enables a bundle of safety checks.** Each check catches a specific category of bug before your code ships.\n\n**Most important flag — `strictNullChecks`**: without it, `null` and `undefined` can be assigned to *any* type, silently. This is the #1 cause of `TypeError: Cannot read properties of undefined` in JavaScript. With it, TypeScript forces you to handle the null case explicitly.\n\n| Flag | What it catches |\n|---|---|\n| `strictNullChecks` | `null`/`undefined` assigned to non-nullable types |\n| `noImplicitAny` | Variables/parameters typed as `any` without being explicit about it |\n| `strictFunctionTypes` | Unsafe function parameter assignments |\n| `strictPropertyInitialization` | Class properties not initialised in the constructor |\n| `useUnknownInCatchVariables` | `catch (e)` gives `e: unknown` instead of `any` — forces you to narrow before using |\n\n**Why always on**: starting a project with `strict: true` costs nothing extra. Turning it on in an existing codebase is painful (you must fix all errors), but it prevents entire categories of runtime crashes.\n\n**Most common gotcha**: if you inherit a project without strict mode, enable `strictNullChecks` first — that alone catches the most bugs.",
+      "**`strict: true` is a single setting in `tsconfig.json` that enables a bundle of safety checks.** Each check catches a specific category of bug before your code ships.\n\n**Most important flag — `strictNullChecks`**: without it, `null` and `undefined` can be assigned to *any* type, silently. This is the #1 cause of `TypeError: Cannot read properties of undefined` in JavaScript. With it, TypeScript forces you to handle the null case explicitly.\n\n| Flag | What it catches |\n|---|---|\n| `strictNullChecks` | `null`/`undefined` assigned to non-nullable types |\n| `noImplicitAny` | Variables/parameters typed as `any` without being explicit about it |\n| `strictFunctionTypes` | Unsafe function parameter assignments |\n| `strictPropertyInitialization` | Class properties not initialized in the constructor |\n| `useUnknownInCatchVariables` | `catch (e)` gives `e: unknown` instead of `any` — forces you to narrow before using |\n\n**Why always on**: starting a project with `strict: true` costs nothing extra. Turning it on in an existing codebase is painful (you must fix all errors), but it prevents entire categories of runtime crashes.\n\n**Most common gotcha**: if you inherit a project without strict mode, enable `strictNullChecks` first — that alone catches the most bugs.",
     code: {
       language: 'typescript',
       snippet: `// Without strictNullChecks — compiles fine, crashes at runtime
@@ -471,7 +475,7 @@ try {
     type: 'basics',
     question: '`type` vs `interface` in TypeScript — what is the difference and when do you use each?',
     answer:
-      '**They are mostly interchangeable for objects, but have key differences:**\n\n| | `interface` | `type` |\n|---|---|---|\n| Declaration merging | ✅ Yes — you can reopen and extend | ❌ No — duplicate name = error |\n| Extends | `extends` keyword | `&` intersection |\n| Can describe primitives / unions / tuples | ❌ No | ✅ Yes |\n| Computed / mapped types | ❌ Limited | ✅ Full support |\n| Error messages | Usually cleaner | Can be verbose |\n\n**Use `interface` when:**\n- Defining the shape of an object or class contract\n- Building a public API / library (consumers can extend via declaration merging)\n- You want `implements` support with classes\n\n**Use `type` when:**\n- You need a union: `type Status = "active" | "inactive"`\n- You need a tuple: `type Point = [number, number]`\n- You need mapped/conditional types\n- Aliasing a primitive or utility type: `type ID = string`\n\n**Rule of thumb:** default to `interface` for objects and class shapes; reach for `type` when you need unions, tuples, or complex type expressions.',
+      '**They are mostly interchangeable for objects, but have key differences:**\n\n| | `interface` | `type` |\n|---|---|---|\n| Declaration merging | ✅ Yes — you can reopen and extend | ❌ No — duplicate name = error |\n| Extends | `extends` keyword | `&` intersection |\n| Can describe primitives / unions / tuples | ❌ No | ✅ Yes |\n| Computed / mapped types | ❌ Limited | ✅ Full support |\n| Error messages | Usually cleaner | Can be verbose |\n\n**Use `interface` when:**\n- Defining the shape of an object or class contract\n- Building a public API / library (consumers can extend via declaration merging)\n- Writing class contracts (`implements` accepts object types too, but interfaces are the convention)\n\n**Use `type` when:**\n- You need a union: `type Status = "active" | "inactive"`\n- You need a tuple: `type Point = [number, number]`\n- You need mapped/conditional types\n- Aliasing a primitive or utility type: `type ID = string`\n\n**Rule of thumb:** default to `interface` for objects and class shapes; reach for `type` when you need unions, tuples, or complex type expressions.',
     code: {
       language: 'typescript',
       snippet: `// ── interface ───────────────────────────────────
@@ -560,7 +564,7 @@ function area(shape: Shape): number {
     type: 'basics',
     question: 'What is the `satisfies` operator in TypeScript (4.9+)? What problem does it solve?',
     answer:
-      "**Problem it solves**: before `satisfies`, validating a value against a type required a type annotation, which *widened* the inferred type and lost specific information.\n\nExample: if you annotate `const palette: Record<string, string>`, TypeScript treats `palette.red` as `string | undefined` — it lost the knowledge that `red` is a specific key.\n\n**`satisfies`** — checks that a value is compatible with a type *without changing its inferred type*. You get type validation AND the precise narrowed type.\n\n**When to use it:**\n- Object literals where you want to validate shape but keep specific key types\n- Config objects where each value has a different specific type\n- Any case where you want to `as const` behaviour but with type checking\n\n**Rule**: use `satisfies` when you want TypeScript to *validate* but not *widen*. Use a type annotation when you want to *constrain* the type the caller sees.",
+      "**Problem it solves**: before `satisfies`, validating a value against a type required a type annotation, which *widened* the inferred type and lost specific information.\n\nExample: if you annotate `const palette: Record<string, string>`, TypeScript forgets which keys exist, so a typo like `palette.rde` still compiles.\n\n**`satisfies`** — checks that a value is compatible with a type *without changing its inferred type*. You get type validation AND the precise narrowed type.\n\n**When to use it:**\n- Object literals where you want to validate shape but keep specific key types\n- Config objects where each value has a different specific type\n- Any case where you want to `as const` behavior but with type checking\n\n**Rule**: use `satisfies` when you want TypeScript to *validate* but not *widen*. Use a type annotation when you want to *constrain* the type the caller sees.",
     code: {
       language: 'typescript',
       snippet: `type Color = string | [number, number, number];

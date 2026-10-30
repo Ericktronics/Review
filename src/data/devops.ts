@@ -11,7 +11,7 @@ export const devopsCards: Flashcard[] = [
     type: 'experience',
     question: 'What is the difference between a Kubernetes liveness probe and a readiness probe? What happens when each fails?',
     answer:
-      '**Liveness probe**: answers "Is this container alive, or is it in an unrecoverable broken state?" If it fails, kubelet **kills and restarts** the container.\n\n**Readiness probe**: answers "Is this container ready to serve traffic?" If it fails, the pod is **removed from the Service\'s endpoint list** — no new requests are routed to it. The container is NOT restarted.\n\n**Startup probe** (Node.js 14+): used for slow-starting containers. While it is running, liveness and readiness probes are disabled. Once it succeeds, normal probes take over.\n\n**Common mistake**: using the same DB-checking endpoint for both. The DB going down should make the pod unready (stop taking traffic) but NOT restart it (the pod is fine; only the DB is down). Liveness should only fail for unrecoverable states (deadlock, OOM, infinite loop).',
+      '**Liveness probe**: answers "Is this container alive, or is it in an unrecoverable broken state?" If it fails, kubelet **kills and restarts** the container.\n\n**Readiness probe**: answers "Is this container ready to serve traffic?" If it fails, the pod is **removed from the Service\'s endpoint list** — no new requests are routed to it. The container is NOT restarted.\n\n**Startup probe** (stable since Kubernetes 1.20): used for slow-starting containers. While it is running, liveness and readiness probes are disabled. Once it succeeds, normal probes take over.\n\n**Common mistake**: using the same DB-checking endpoint for both. The DB going down should make the pod unready (stop taking traffic) but NOT restart it (the pod is fine; only the DB is down). Liveness should only fail for unrecoverable states (deadlock, OOM, infinite loop).',
     code: {
       language: 'yaml',
       snippet: `# k8s deployment spec
@@ -81,7 +81,8 @@ RUN npm ci --omit=dev           # production deps only
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
-USER node                       # never run as root
+# Never run as root
+USER node
 CMD ["node", "dist/main.js"]
 
 # Result: ~120 MB instead of ~800 MB with a full dev image`,
@@ -97,9 +98,9 @@ CMD ["node", "dist/main.js"]
     type: 'basics',
     question: 'What is Docker and what problem does it solve?',
     answer:
-      "**Docker is a containerisation platform** that packages an application together with all its dependencies (Node.js version, npm packages, config) into a portable, isolated **container**.\n\n**Problem it solves**: *'it works on my machine'* — the situation where code works in development but fails in staging or production because the environments are slightly different (different Node.js version, missing system library, different OS). A Docker container carries everything it needs, so the exact same image runs identically on every machine.\n\n**Key concepts**:\n- **Image** — a read-only, immutable snapshot of your app and its dependencies. Built from a `Dockerfile`. Like a class/blueprint.\n- **Container** — a running instance of an image. Isolated process with its own filesystem. Like an object created from a class.\n- **Dockerfile** — instructions for building the image: `FROM` (base image), `COPY` (copy files), `RUN` (run commands), `CMD` (start command)\n- **Registry** — a repository that stores and distributes images (Docker Hub, AWS ECR, GitHub Container Registry)\n\n**Container vs VM**:\n- Container: shares the host OS kernel — starts in seconds, uses ~50 MB overhead\n- VM: emulates a full operating system — starts in minutes, uses ~500 MB+ overhead\n\n**Why it matters for backend developers**: every environment from your laptop to CI to Kubernetes runs the same Docker image — no more deployment surprises.",
+      "**Docker is a containerization platform** that packages an application together with all its dependencies (Node.js version, npm packages, config) into a portable, isolated **container**.\n\n**Problem it solves**: *'it works on my machine'* — the situation where code works in development but fails in staging or production because the environments are slightly different (different Node.js version, missing system library, different OS). A Docker container carries everything it needs, so the exact same image runs identically on every machine.\n\n**Key concepts**:\n- **Image** — a read-only, immutable snapshot of your app and its dependencies. Built from a `Dockerfile`. Like a class/blueprint.\n- **Container** — a running instance of an image. Isolated process with its own filesystem. Like an object created from a class.\n- **Dockerfile** — instructions for building the image: `FROM` (base image), `COPY` (copy files), `RUN` (run commands), `CMD` (start command)\n- **Registry** — a repository that stores and distributes images (Docker Hub, AWS ECR, GitHub Container Registry)\n\n**Container vs VM**:\n- Container: shares the host OS kernel — starts in seconds, uses ~50 MB overhead\n- VM: emulates a full operating system — starts in minutes, uses ~500 MB+ overhead\n\n**Why it matters for backend developers**: every environment from your laptop to CI to Kubernetes runs the same Docker image — no more deployment surprises.",
     code: {
-      language: 'yaml',
+      language: 'dockerfile',
       snippet: `# Dockerfile for a Node.js API
 FROM node:20-alpine
 
@@ -109,7 +110,8 @@ RUN npm ci --omit=dev
 
 COPY dist/ ./dist/
 
-USER node                    # run as non-root for security
+# Run as non-root for security
+USER node
 EXPOSE 3000
 CMD ["node", "dist/index.js"]`,
     },
@@ -243,7 +245,7 @@ volumes:
     type: 'basics',
     question: 'What is Helm in Kubernetes?',
     answer:
-      "**Helm** is the **package manager for Kubernetes** — it lets you define, install, and upgrade complex Kubernetes applications as a single unit called a **chart**.\n\n**Problems Helm solves**:\n- Kubernetes manifests (Deployment, Service, Ingress, ConfigMap) for a single app can be 5–10 YAML files with many repeated values\n- Deploying to multiple environments (dev, staging, prod) requires different values (image tag, replica count, resource limits) — without Helm you maintain separate copies\n\n**Key concepts**:\n- **Chart** — a package of Kubernetes YAML templates\n- **Values** — configurable parameters (`values.yaml`); override per environment\n- **Release** — a deployed instance of a chart in a cluster\n- **Template** — Kubernetes manifest with `{{ .Values.xxx }}` placeholders\n\n**Workflow**:\n```bash\nhelm install my-api ./charts/api --values=values.prod.yaml\nhelm upgrade my-api ./charts/api --set image.tag=v1.2.3\nhelm rollback my-api 1    # roll back to previous release\n```\n\n**Artifact Hub**: public repository of community charts for common software (PostgreSQL, Redis, Nginx, cert-manager).",
+      "**Helm** is the **package manager for Kubernetes** — it lets you define, install, and upgrade complex Kubernetes applications as a single unit called a **chart**.\n\n**Problems Helm solves**:\n- Kubernetes manifests (Deployment, Service, Ingress, ConfigMap) for a single app can be 5–10 YAML files with many repeated values\n- Deploying to multiple environments (dev, staging, prod) requires different values (image tag, replica count, resource limits) — without Helm you maintain separate copies\n\n**Key concepts**:\n- **Chart** — a package of Kubernetes YAML templates\n- **Values** — configurable parameters (`values.yaml`); override per environment\n- **Release** — a deployed instance of a chart in a cluster\n- **Template** — Kubernetes manifest with `{{ .Values.xxx }}` placeholders\n\n**Workflow**:\n```bash\nhelm install my-api ./charts/api --values=values.prod.yaml\nhelm upgrade my-api ./charts/api --set image.tag=v1.2.3\nhelm rollback my-api 1    # roll back to revision 1\n```\n\n**Artifact Hub**: public repository of community charts for common software (PostgreSQL, Redis, Nginx, cert-manager).",
     code: {
       language: 'yaml',
       snippet: `# values.yaml — default values for the chart
@@ -269,8 +271,8 @@ spec:
           resources: {{- toYaml .Values.resources | nindent 12 }}
 
 # Deploy with environment-specific overrides
-# helm upgrade --install my-api ./chart \
-#   --set image.tag=v1.5.0 \
+# helm upgrade --install my-api ./chart \\
+#   --set image.tag=v1.5.0 \\
 #   --set replicaCount=5`,
     },
   },
@@ -401,7 +403,7 @@ export const handler = async (event: SQSEvent) => {
     type: 'basics',
     question: 'When do you use Lambda vs ECS vs EC2? What are the trade-offs?',
     answer:
-      '**Choosing the right compute service** comes down to workload characteristics: duration, concurrency needs, control requirements, and cost profile.\n\n| | Lambda | ECS (Fargate) | EC2 |\n|---|---|---|---|\n| **Model** | Serverless function | Serverless containers | Virtual machine |\n| **Max duration** | 15 minutes | Unlimited | Unlimited |\n| **Cold start** | 100ms–1s+ | ~10–30s | Minutes |\n| **Scale to zero** | Yes | Yes (Fargate) | No |\n| **State** | Stateless | Stateless | Can be stateful |\n| **Cost model** | Per invocation | Per vCPU/memory-second | Per hour (even idle) |\n| **Best for** | Event-driven, sporadic, <15min | APIs, microservices, containers | Long-running, GPU, custom OS |\n\n**Lambda use cases:**\n- Webhooks, S3 triggers, SQS consumers\n- Lightweight scheduled jobs (CloudWatch Events)\n- API endpoints with spiky, unpredictable traffic\n\n**ECS / Fargate use cases:**\n- Long-running APIs and services (NestJS, Next.js)\n- Consistent traffic — no cold start tax\n- When you need Docker but not the overhead of managing EC2 instances\n\n**EC2 use cases:**\n- ML inference (needs GPU)\n- Databases, Redis (need persistent local disk)\n- Legacy apps needing specific OS config\n- Spot instances for cost-sensitive batch jobs',
+      '**Choosing the right compute service** comes down to workload characteristics: duration, concurrency needs, control requirements, and cost profile.\n\n| | Lambda | ECS (Fargate) | EC2 |\n|---|---|---|---|\n| **Model** | Serverless function | Serverless containers | Virtual machine |\n| **Max duration** | 15 minutes | Unlimited | Unlimited |\n| **Cold start** | 100ms–1s+ | ~10–30s | Minutes |\n| **Scale to zero** | Yes | Manual (desired count 0) | No |\n| **State** | Stateless | Stateless | Can be stateful |\n| **Cost model** | Per invocation and duration | Per vCPU/memory-second | Per second while running (even idle) |\n| **Best for** | Event-driven, sporadic, <15min | APIs, microservices, containers | Long-running, GPU, custom OS |\n\n**Lambda use cases:**\n- Webhooks, S3 triggers, SQS consumers\n- Lightweight scheduled jobs (EventBridge Scheduler)\n- API endpoints with spiky, unpredictable traffic\n\n**ECS / Fargate use cases:**\n- Long-running APIs and services (NestJS, Next.js)\n- Consistent traffic — no cold start tax\n- When you need Docker but not the overhead of managing EC2 instances\n\n**EC2 use cases:**\n- ML inference (needs GPU)\n- Databases, Redis (need persistent local disk)\n- Legacy apps needing specific OS config\n- Spot instances for cost-sensitive batch jobs',
     code: {
       language: 'yaml',
       snippet: `# ECS Task Definition (Fargate) — NestJS API
@@ -452,17 +454,17 @@ functions:
     id: 'devops-aws3',
     category: 'DevOps',
     difficulty: 'hard',
-    type: 'basics',
+    type: 'experience',
     question:
       'Walk through a production AWS serverless architecture end-to-end: API Gateway, Lambda, DynamoDB, EventBridge, and Step Functions. How do you deal with cold starts?',
     answer:
-      "**Request path:**\n- **API Gateway** — the front door. Terminates HTTPS, runs a Cognito/JWT authorizer, validates the request against a schema, applies throttling/usage plans, and proxies to Lambda. It never runs business logic itself.\n- **Lambda** — stateless business logic behind the API, or an async consumer triggered by S3 events, SQS messages, DynamoDB Streams, or EventBridge rules. Scales per-request automatically; billed per millisecond; hard 15-minute execution ceiling.\n- **DynamoDB** — the data store. Single-digit millisecond latency at any scale, on-demand or provisioned capacity. The partition key design is the whole game — a poorly chosen key creates a hot partition that throttles regardless of overall table capacity. **DynamoDB Streams** emits a change log you can feed into Lambda or EventBridge.\n\n**Decoupling and orchestration:**\n- **EventBridge** — a serverless event bus. Producers publish events without knowing who consumes them; **rules** match event patterns and fan out to multiple targets (Lambda, Step Functions, SQS). Prefer it over SNS when you need pattern-based routing, a schema registry, or third-party SaaS event sources.\n- **Step Functions** — orchestrates multi-step Lambda workflows as an explicit state machine: sequential steps, parallel branches, `Map` over a list, built-in retry/catch per state. Use it whenever a workflow needs more than one Lambda invocation chained together, or exceeds the 15-minute single-function limit (e.g. a Saga across several services).\n\n**Cold starts** — the latency spike (100ms–1s+) when Lambda provisions a new execution environment:\n- **Provisioned concurrency** — keep N environments warm at all times; use for latency-sensitive, low-traffic-variance endpoints (adds cost — you're paying for idle capacity)\n- **Smaller deployment package** — tree-shake with esbuild, avoid bundling the whole AWS SDK, lazy-load rarely used dependencies inside the handler\n- **Avoid attaching Lambda to a VPC unless required** — VPC-attached Lambdas pay an extra ENI provisioning penalty on cold start (largely mitigated since Hyperplane ENIs, but still a factor on burst scale)\n- **Language choice matters** — Node.js/Python cold start in tens of ms; JVM-based runtimes are the slowest\n\n**Deploy as code**: AWS SAM or CDK define the entire stack — API Gateway routes, Lambda functions, DynamoDB tables, EventBridge rules, Step Functions definitions — as one reproducible unit (`sam deploy` / `cdk deploy`), instead of clicking through the console.",
+      "**Request path:**\n- **API Gateway** — the front door. Terminates HTTPS, runs a Cognito/JWT authorizer, validates the request against a schema, applies throttling/usage plans, and proxies to Lambda. It never runs business logic itself.\n- **Lambda** — stateless business logic behind the API, or an async consumer triggered by S3 events, SQS messages, DynamoDB Streams, or EventBridge rules. Scales per-request automatically; billed per millisecond; hard 15-minute execution ceiling.\n- **DynamoDB** — the data store. Single-digit millisecond latency at any scale, on-demand or provisioned capacity. The partition key design is the whole game — a poorly chosen key creates a hot partition that throttles regardless of overall table capacity. **DynamoDB Streams** emits a change log you can feed into Lambda or EventBridge.\n\n**Decoupling and orchestration:**\n- **EventBridge** — a serverless event bus. Producers publish events without knowing who consumes them; **rules** match event patterns and fan out to multiple targets (Lambda, Step Functions, SQS). Prefer it over SNS when you need pattern-based routing, a schema registry, or third-party SaaS event sources.\n- **Step Functions** — orchestrates multi-step Lambda workflows as an explicit state machine: sequential steps, parallel branches, `Map` over a list, built-in retry/catch per state. Use it whenever a workflow needs more than one Lambda invocation chained together, or exceeds the 15-minute single-function limit (e.g. a Saga across several services).\n\n**Cold starts** — the latency spike (100ms–1s+) when Lambda provisions a new execution environment:\n- **Provisioned concurrency** — keep N environments warm at all times; use for latency-sensitive, low-traffic-variance endpoints (adds cost — you're paying for idle capacity)\n- **Smaller deployment package** — tree-shake with esbuild, avoid bundling the whole AWS SDK, lazy-load rarely used dependencies inside the handler\n- **Avoid attaching Lambda to a VPC unless required** — VPC-attached Lambdas pay an extra ENI provisioning penalty on cold start (largely mitigated since Hyperplane ENIs, but still a factor on burst scale)\n- **Language choice matters** — Node.js and Python usually start much faster than JVM-based runtimes\n\n**Deploy as code**: AWS SAM or CDK define the entire stack — API Gateway routes, Lambda functions, DynamoDB tables, EventBridge rules, Step Functions definitions — as one reproducible unit (`sam deploy` / `cdk deploy`), instead of clicking through the console.",
     code: {
       language: 'typescript',
       snippet: `// AWS CDK — API Gateway → Lambda → DynamoDB, plus an EventBridge rule
 import { RestApi, LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
 import { Function, Runtime, Code } from 'aws-cdk-lib/aws-lambda';
-import { Table, AttributeType, StreamViewType } from 'aws-cdk-lib/aws-dynamodb';
+import { Table, AttributeType, BillingMode, StreamViewType } from 'aws-cdk-lib/aws-dynamodb';
 import { Rule } from 'aws-cdk-lib/aws-events';
 import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
 import { StateMachine, DefinitionBody } from 'aws-cdk-lib/aws-stepfunctions';
@@ -470,7 +472,7 @@ import { StateMachine, DefinitionBody } from 'aws-cdk-lib/aws-stepfunctions';
 const ordersTable = new Table(this, 'Orders', {
   partitionKey: { name: 'orderId', type: AttributeType.STRING },
   billingMode: BillingMode.PAY_PER_REQUEST,      // on-demand — no capacity planning
-  stream: StreamViewType.NEW_AND_OLD_IMAGES,     // feeds EventBridge below
+  stream: StreamViewType.NEW_AND_OLD_IMAGES,     // consumable by Lambda or EventBridge Pipes
 });
 
 const createOrderFn = new Function(this, 'CreateOrder', {
@@ -541,11 +543,11 @@ Team needed             None          Small                Dedicated DevOps
   {
     id: 'devops-gcp1',
     category: 'DevOps',
-    difficulty: 'medium',
+    difficulty: 'hard',
     type: 'experience',
     question:
       'What are the core GCP services a full-stack/data engineer must know, and how do they map to their AWS equivalents?',
     answer:
-      "If your hands-on experience is AWS-heavy, the fastest way to get GCP-fluent for an interview is to map each service to what you already know.\n\n| Purpose | AWS | GCP |\n|---|---|---|\n| Serverless compute | Lambda | Cloud Functions / **Cloud Run** (container-based, no cold-start-prone VPC ENI issue) |\n| Managed Kubernetes | EKS | **GKE** — generally considered the most mature managed k8s offering; GCP invented Kubernetes internally (Borg) |\n| Object storage | S3 | Cloud Storage |\n| Relational DB | RDS | Cloud SQL |\n| Data warehouse / analytics | Redshift / Athena | **BigQuery** — serverless, pay-per-query-scanned, extremely fast on huge datasets; this is GCP's signature strength and the one most likely to come up for a data-platform role |\n| Pub/sub messaging | SNS + SQS combined | **Pub/Sub** — one service that does both fan-out and queuing |\n| IAM | IAM | IAM (broadly similar concepts: roles, service accounts, least privilege) |\n| Infra as code | CloudFormation/CDK | Deployment Manager / **Terraform** (Terraform is the de facto standard on GCP more so than AWS-native tooling) |\n\n**Where GCP's story differs from AWS, not just renamed:**\n- **Cloud Run** — the more idiomatic 'serverless' default on GCP: you ship a container, it scales to zero, no VPC cold-start penalty the way Lambda-in-a-VPC has. Often the answer to 'how would you deploy this API serverlessly on GCP.'\n- **BigQuery** — for a data-ingestion-heavy platform (ETL, analytics), this is the single GCP service most worth knowing cold: it separates storage and compute, queries petabyte-scale data in seconds, and is priced by bytes scanned — so partitioning/clustering tables to avoid full scans is the main cost-control lever, directly analogous to indexing in a relational DB.\n- **Pub/Sub** — one mental model instead of AWS's SNS (fan-out) + SQS (queue) split; at-least-once delivery, ordering keys available per-region.\n\n**GKE vs EKS in an interview**: both are managed control planes; the practical difference is GKE's Autopilot mode (fully managed nodes, pay per pod resource request, no node management at all) has no direct AWS equivalent — Fargate for EKS is the closest analog but is less mature.",
+      "If your hands-on experience is AWS-heavy, the fastest way to get GCP-fluent for an interview is to map each service to what you already know.\n\n| Purpose | AWS | GCP |\n|---|---|---|\n| Serverless compute | Lambda | Cloud Functions / **Cloud Run** (container-based serverless) |\n| Managed Kubernetes | EKS | **GKE** — generally considered a very mature managed k8s offering; Google created Kubernetes, drawing on its internal Borg system |\n| Object storage | S3 | Cloud Storage |\n| Relational DB | RDS | Cloud SQL |\n| Data warehouse / analytics | Redshift / Athena | **BigQuery** — serverless, pay-per-query-scanned, extremely fast on huge datasets; this is GCP's signature strength and the one most likely to come up for a data-platform role |\n| Pub/sub messaging | SNS + SQS combined | **Pub/Sub** — one service that does both fan-out and queuing |\n| IAM | IAM | IAM (broadly similar concepts: roles, service accounts, least privilege) |\n| Infra as code | CloudFormation/CDK | Deployment Manager / **Terraform** (Terraform is the de facto standard on GCP more so than AWS-native tooling) |\n\n**Where GCP's story differs from AWS, not just renamed:**\n- **Cloud Run** — the more idiomatic 'serverless' default on GCP: you ship a container and it scales to zero. It still has cold starts when scaling up from zero, which a minimum instance count avoids. Often the answer to 'how would you deploy this API serverlessly on GCP.'\n- **BigQuery** — for a data-ingestion-heavy platform (ETL, analytics), this is the single GCP service most worth knowing cold: it separates storage and compute, queries petabyte-scale data in seconds, and is priced by bytes scanned — so partitioning/clustering tables to avoid full scans is the main cost-control lever, directly analogous to indexing in a relational DB.\n- **Pub/Sub** — one mental model instead of AWS's SNS (fan-out) + SQS (queue) split; at-least-once delivery, ordering keys available per-region.\n\n**GKE vs EKS in an interview**: both are managed control planes; a commonly cited difference is GKE's Autopilot mode (fully managed nodes, pay per pod resource request). On AWS, EKS Auto Mode and Fargate for EKS are the closest analogs.",
   },
 ];

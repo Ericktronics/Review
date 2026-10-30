@@ -41,7 +41,7 @@ export class UsersController {
     type: 'basics',
     question: 'What are decorators in NestJS? What are the most commonly used ones?',
     answer:
-      '**Decorators** are TypeScript\'s `@SomeName()` syntax — they are functions that attach metadata to a class, method, property, or parameter. NestJS uses this metadata at runtime to wire up routing, dependency injection, validation, and more.\n\n**Core decorators by category**:\n\n**Class-level** (define what a class is):\n- `@Module()` — declares a NestJS module\n- `@Controller(\'path\')` — declares a route controller\n- `@Injectable()` — marks a class as a provider that can be injected\n\n**Method-level** (HTTP handlers):\n- `@Get()`, `@Post()`, `@Put()`, `@Patch()`, `@Delete()` — HTTP method + path\n- `@UseGuards()`, `@UseInterceptors()`, `@UsePipes()` — apply behaviour to a route\n\n**Parameter-level** (extract values from the request):\n- `@Param(\'id\')` — URL parameter\n- `@Body()` — request body\n- `@Query(\'page\')` — query string\n- `@Headers(\'authorization\')` — specific header\n- `@Req()` / `@Res()` — raw Express req/res (avoid if possible)',
+      '**Decorators** are TypeScript\'s `@SomeName()` syntax — they are functions that attach metadata to a class, method, property, or parameter. NestJS uses this metadata at runtime to wire up routing, dependency injection, validation, and more.\n\n**Core decorators by category**:\n\n**Class-level** (define what a class is):\n- `@Module()` — declares a NestJS module\n- `@Controller(\'path\')` — declares a route controller\n- `@Injectable()` — marks a class as a provider that can be injected\n\n**Method-level** (HTTP handlers):\n- `@Get()`, `@Post()`, `@Put()`, `@Patch()`, `@Delete()` — HTTP method + path\n- `@UseGuards()`, `@UseInterceptors()`, `@UsePipes()` — apply behavior to a route\n\n**Parameter-level** (extract values from the request):\n- `@Param(\'id\')` — URL parameter\n- `@Body()` — request body\n- `@Query(\'page\')` — query string\n- `@Headers(\'authorization\')` — specific header\n- `@Req()` / `@Res()` — raw Express req/res (avoid if possible)',
     code: {
       language: 'typescript',
       snippet: `@Controller('products')          // base path: /products
@@ -118,7 +118,7 @@ export class AppModule {}`,
     type: 'basics',
     question: 'What is Dependency Injection in NestJS? How does it work?',
     answer:
-      '**Dependency Injection (DI)** is a pattern where a class declares what it needs (its dependencies) and a container creates and provides those dependencies automatically — the class never instantiates them itself.\n\n**How NestJS DI works**:\n1. A class marked with `@Injectable()` is registered as a **provider** in a module\n2. NestJS reads the TypeScript constructor types (via emitted metadata — requires `emitDecoratorMetadata: true` in tsconfig)\n3. When something requests that provider, NestJS resolves the full dependency tree and injects everything\n\n**Scope**: by default, providers are **singletons** — one shared instance per module. You can also use `REQUEST` scope (one instance per HTTP request) or `TRANSIENT` scope (new instance every injection).\n\n**Why it matters**: DI makes code modular and testable. In tests, you swap a real `UsersRepository` for a mock without touching `UsersService` at all.',
+      '**Dependency Injection (DI)** is a pattern where a class declares what it needs (its dependencies) and a container creates and provides those dependencies automatically — the class never instantiates them itself.\n\n**How NestJS DI works**:\n1. A class marked with `@Injectable()` is registered as a **provider** in a module\n2. NestJS reads the TypeScript constructor types (via emitted metadata — requires `emitDecoratorMetadata: true` in tsconfig)\n3. When something requests that provider, NestJS resolves the full dependency tree and injects everything\n\n**Scope**: by default, providers are **singletons** — one instance shared across the whole application. You can also use `REQUEST` scope (one instance per HTTP request) or `TRANSIENT` scope (new instance every injection).\n\n**Why it matters**: DI makes code modular and testable. In tests, you swap a real `UsersRepository` for a mock without touching `UsersService` at all.',
     code: {
       language: 'typescript',
       snippet: `// Mark as injectable — NestJS will manage this class
@@ -245,7 +245,10 @@ export class JwtAuthGuard implements CanActivate {
   constructor(private reflector: Reflector, private jwtService: JwtService) {}
 
   canActivate(context: ExecutionContext) {
-    const isPublic = this.reflector.get('isPublic', context.getHandler());
+    const isPublic = this.reflector.getAllAndOverride('isPublic', [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     if (isPublic) return true;
     // ... rest of JWT verification
   }
@@ -268,7 +271,7 @@ getProfile(@Req() req) { return req.user; }`,
     type: 'basics',
     question: 'What are Interceptors in NestJS? What are they used for?',
     answer:
-      '**Interceptors** wrap a route handler\'s execution — they can run code before AND after the handler, transform the response, handle errors, or add extra logic like caching and logging. They implement the `NestInterceptor` interface and use RxJS `Observable`.\n\n**The request/response cycle with an interceptor**:\n`request → interceptor (before) → handler → interceptor (after) → response`\n\n**Common use cases**:\n- **Response transformation** — wrap all responses in a standard `{ data, statusCode }` envelope\n- **Logging** — measure and log request duration\n- **Caching** — return a cached response instead of calling the handler\n- **Error mapping** — convert thrown errors to a standard format\n- **Timeout** — cancel a handler if it takes too long\n\n**Interceptor vs Middleware vs Guard**:\n- Middleware: runs before the route is matched (no access to handler result)\n- Guard: decides yes/no before the handler runs\n- Interceptor: wraps the handler — can see both request and response',
+      '**Interceptors** wrap a route handler\'s execution — they can run code before AND after the handler, transform the response, handle errors, or add extra logic like caching and logging. They implement the `NestInterceptor` interface and use RxJS `Observable`.\n\n**The request/response cycle with an interceptor**:\n`request → interceptor (before) → handler → interceptor (after) → response`\n\n**Common use cases**:\n- **Response transformation** — wrap all responses in a standard `{ data, statusCode }` envelope\n- **Logging** — measure and log request duration\n- **Caching** — return a cached response instead of calling the handler\n- **Error mapping** — convert thrown errors to a standard format\n- **Timeout** — cancel a handler if it takes too long\n\n**Interceptor vs Middleware vs Guard**:\n- Middleware: runs first, before guards (no access to the handler or its result)\n- Guard: decides yes/no before the handler runs\n- Interceptor: wraps the handler — can see both request and response',
     code: {
       language: 'typescript',
       snippet: `import { Observable } from 'rxjs';
@@ -363,7 +366,7 @@ app.useGlobalFilters(new GlobalExceptionFilter());`,
     type: 'experience',
     question: 'How do you structure a large, scalable NestJS application? What module patterns do you use?',
     answer:
-      '**The core principle**: organise by domain (users, orders, payments), not by layer (controllers, services, repositories). Each domain owns its full vertical slice.\n\n**Recommended structure**:\n```\nsrc/\n  common/           # shared guards, pipes, decorators, interceptors\n  config/           # ConfigModule setup, env validation\n  database/         # TypeORM/Prisma setup module\n  modules/\n    users/\n      dto/          # CreateUserDto, UpdateUserDto\n      entities/     # User entity\n      users.controller.ts\n      users.service.ts\n      users.repository.ts\n      users.module.ts\n    auth/\n    products/\n  app.module.ts\n  main.ts\n```\n\n**Key patterns**:\n\n**Global modules** (`@Global()`) — `ConfigModule`, `DatabaseModule`. Register once in `AppModule`, available everywhere without importing in each module. Use sparingly.\n\n**Barrel exports** — each module exports a clean public API. Internal implementation details stay private (not listed in `exports`).\n\n**Repository pattern** — keep all database queries in a repository class. Services contain business logic, repositories contain SQL/ORM queries. Swap Prisma for TypeORM without touching services.\n\n**DTO validation at every boundary** — always use DTOs with `ValidationPipe`. Never trust raw `req.body` in services.',
+      '**The core principle**: organize by domain (users, orders, payments), not by layer (controllers, services, repositories). Each domain owns its full vertical slice.\n\n**Recommended structure**:\n```\nsrc/\n  common/           # shared guards, pipes, decorators, interceptors\n  config/           # ConfigModule setup, env validation\n  database/         # TypeORM/Prisma setup module\n  modules/\n    users/\n      dto/          # CreateUserDto, UpdateUserDto\n      entities/     # User entity\n      users.controller.ts\n      users.service.ts\n      users.repository.ts\n      users.module.ts\n    auth/\n    products/\n  app.module.ts\n  main.ts\n```\n\n**Key patterns**:\n\n**Global modules** (`@Global()`) — `ConfigModule`, `DatabaseModule`. Register once in `AppModule`, available everywhere without importing in each module. Use sparingly.\n\n**Barrel exports** — each module exports a clean public API. Internal implementation details stay private (not listed in `exports`).\n\n**Repository pattern** — keep all database queries in a repository class. Services contain business logic, repositories contain SQL/ORM queries. Swap Prisma for TypeORM without touching services.\n\n**DTO validation at every boundary** — always use DTOs with `ValidationPipe`. Never trust raw `req.body` in services.',
     code: {
       language: 'typescript',
       snippet: `// Domain-based module — users owns everything users-related
@@ -450,7 +453,7 @@ export class OrdersClientService {
   constructor(@Inject('ORDERS_SERVICE') private client: ClientProxy) {}
 
   getOrder(id: string) {
-    return this.client.send({ cmd: 'get_order' }, { id }).toPromise();
+    return firstValueFrom(this.client.send({ cmd: 'get_order' }, { id })); // from 'rxjs'
   }
 
   notifyShipped(orderId: string) {
@@ -576,7 +579,7 @@ export class TimeoutInterceptor implements NestInterceptor {
   {
     id: 'nest-m6',
     category: 'NestJS',
-    difficulty: 'medium',
+    difficulty: 'hard',
     type: 'experience',
     question: 'How do you unit-test a NestJS service and controller using `Test.createTestingModule`?',
     answer:

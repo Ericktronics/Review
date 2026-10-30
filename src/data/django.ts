@@ -107,6 +107,8 @@ class Article(models.Model):
     title    = models.CharField(max_length=200)
     content  = models.TextField()
     slug     = models.SlugField(unique=True, default='')  # new field
+    # With existing rows, this default breaks the unique constraint. Safer path:
+    # add it as null=True, backfill unique values, then make it unique and non-null.
 
 # 2. Generate the migration
 # $ python manage.py makemigrations
@@ -231,7 +233,7 @@ class ArticleTests(TestCase):
         Article.objects.bulk_create([
             Article(title=f"Post {i}", author=self.user) for i in range(10)
         ])
-        with self.assertNumQueries(2):   # 1 for articles, 1 for authors
+        with self.assertNumQueries(1):   # one JOIN fetches articles and authors
             articles = Article.objects.select_related('author').all()
             list(articles)  # evaluate queryset
 
@@ -298,7 +300,7 @@ if request.user.groups.filter(name='editors').exists():
     type: 'basics',
     question: 'What is Django\'s caching framework? What are the available backends and strategies?',
     answer:
-      '**Caching** in Django is configured via `CACHES` in `settings.py`. The framework provides a unified API regardless of backend.\n\n**Built-in backends:**\n- `LocMemCache` — in-process memory (default, per-process, not shared)\n- `FileBasedCache` — stores in filesystem\n- `MemcachedCache` / `PyMemcacheCache` — Memcached\n- `RedisCache` — Redis (via `django-redis`)\n- `DatabaseCache` — stores in a DB table\n\n**Caching strategies:**\n1. **Per-site cache** — caches every page (middleware)\n2. **Per-view cache** — `@cache_page(timeout)` decorator\n3. **Template fragment cache** — `{% cache timeout key %}` tag\n4. **Low-level cache API** — `cache.get()`, `cache.set()`, `cache.delete()` for fine-grained control\n\n**Cache invalidation** is the hard part — use meaningful keys and versioning (`cache.set(key, value, version=2)`).',
+      '**Caching** in Django is configured via `CACHES` in `settings.py`. The framework provides a unified API regardless of backend.\n\n**Built-in backends:**\n- `LocMemCache` — in-process memory (default, per-process, not shared)\n- `FileBasedCache` — stores in filesystem\n- `PyMemcacheCache` / `PyLibMCCache` — Memcached\n- `RedisCache` — Redis (built in since Django 4.0; `django-redis` is a popular third-party option)\n- `DatabaseCache` — stores in a DB table\n\n**Caching strategies:**\n1. **Per-site cache** — caches every page (middleware)\n2. **Per-view cache** — `@cache_page(timeout)` decorator\n3. **Template fragment cache** — `{% cache timeout key %}` tag\n4. **Low-level cache API** — `cache.get()`, `cache.set()`, `cache.delete()` for fine-grained control\n\n**Cache invalidation** is the hard part — use meaningful keys and versioning (`cache.set(key, value, version=2)`).',
     code: {
       language: 'python',
       snippet: `# settings.py
@@ -349,10 +351,10 @@ def invalidate_article_cache(sender, instance, **kwargs):
     id: 'dj-h1',
     category: 'Django',
     difficulty: 'hard',
-    type: 'basics',
+    type: 'experience',
     question: 'How do you handle database transactions in Django? What is `select_for_update`?',
     answer:
-      '**Transactions** ensure a group of database operations either all succeed or all fail (atomicity). Django wraps each HTTP request in a transaction by default when `ATOMIC_REQUESTS = True`, but typically you manage them manually.\n\n**`@transaction.atomic`** / `with transaction.atomic()` — marks a block as a single transaction. Any exception rolls back all changes within the block.\n\n**`select_for_update()`** — issues a `SELECT ... FOR UPDATE` SQL statement, locking the selected rows until the transaction commits. Prevents race conditions when multiple processes read and then write the same row.\n\n**Savepoints** — `atomic()` blocks can be nested. Each nested block creates a savepoint; an inner exception rolls back to the savepoint without rolling back the outer transaction.\n\n**`on_commit()` hooks** — run callbacks after the transaction successfully commits (e.g., send email, trigger async task). Don\'t fire if the transaction rolls back.',
+      '**Transactions** ensure a group of database operations either all succeed or all fail (atomicity). Django runs in autocommit mode by default. Setting `ATOMIC_REQUESTS = True` wraps each HTTP request in a transaction, but typically you manage them explicitly.\n\n**`@transaction.atomic`** / `with transaction.atomic()` — marks a block as a single transaction. Any exception rolls back all changes within the block.\n\n**`select_for_update()`** — issues a `SELECT ... FOR UPDATE` SQL statement, locking the selected rows until the transaction commits. Prevents race conditions when multiple processes read and then write the same row.\n\n**Savepoints** — `atomic()` blocks can be nested. Each nested block creates a savepoint; an inner exception rolls back to the savepoint without rolling back the outer transaction.\n\n**`on_commit()` hooks** — run callbacks after the transaction successfully commits (e.g., send email, trigger async task). Don\'t fire if the transaction rolls back.',
     code: {
       language: 'python',
       snippet: `from django.db import transaction
@@ -401,10 +403,10 @@ def complex_operation():
     id: 'dj-h2',
     category: 'Django',
     difficulty: 'hard',
-    type: 'basics',
+    type: 'experience',
     question: 'How do you scale a Django application? What are common performance patterns?',
     answer:
-      '**Database optimizations:**\n- Add indexes on frequently filtered/ordered columns (`db_index=True`)\n- Use `select_related` / `prefetch_related` to eliminate N+1 queries\n- Use `only()` / `defer()` to limit fetched columns\n- Read replicas — route read queries to replicas using database routers\n- Connection pooling (PgBouncer for PostgreSQL)\n\n**Async task queues:**\n- Celery + Redis/RabbitMQ for background tasks (email, reports, slow APIs)\n- Never do slow work in the request/response cycle\n\n**Caching:**\n- Cache expensive querysets with Redis\n- Cache rendered template fragments\n- Use CDN for static/media files\n\n**Horizontal scaling:**\n- Stateless Django processes behind a load balancer\n- Shared session backend (Redis)\n- Shared media storage (S3)\n\n**Async Django (3.1+):**\n- `async def` views, async ORM (`await Article.objects.afilter()`)\n- Use with ASGI server (Uvicorn/Daphne) for high-concurrency I/O',
+      '**Database optimizations:**\n- Add indexes on frequently filtered/ordered columns (`db_index=True`)\n- Use `select_related` / `prefetch_related` to eliminate N+1 queries\n- Use `only()` / `defer()` to limit fetched columns\n- Read replicas — route read queries to replicas using database routers\n- Connection pooling (PgBouncer for PostgreSQL)\n\n**Async task queues:**\n- Celery + Redis/RabbitMQ for background tasks (email, reports, slow APIs)\n- Never do slow work in the request/response cycle\n\n**Caching:**\n- Cache expensive querysets with Redis\n- Cache rendered template fragments\n- Use CDN for static/media files\n\n**Horizontal scaling:**\n- Stateless Django processes behind a load balancer\n- Shared session backend (Redis)\n- Shared media storage (S3)\n\n**Async Django:**\n- `async def` views (3.1+) and async ORM methods (4.1+), such as `await Article.objects.aget(pk=1)` and `async for`\n- Use with ASGI server (Uvicorn/Daphne) for high-concurrency I/O',
     code: {
       language: 'python',
       snippet: `# Database router — send reads to replica
@@ -444,7 +446,7 @@ def request_report(request):
     generate_report.delay(report.pk)   # async, non-blocking
     return JsonResponse({'report_id': report.pk, 'status': 'processing'})
 
-# Async view (Django 4+ with ASGI)
+# Async view with async ORM iteration (Django 4.1+ with ASGI)
 async def async_article_list(request):
     articles = [a async for a in Article.objects.order_by('-created')[:20]]
     return JsonResponse({'articles': [a.title for a in articles]})`,
@@ -455,7 +457,7 @@ async def async_article_list(request):
     id: 'dj-h3',
     category: 'Django',
     difficulty: 'hard',
-    type: 'basics',
+    type: 'experience',
     question: 'What are Django signals? When should you use them and when should you avoid them?',
     answer:
       '**Signals** allow decoupled components to be notified when certain actions occur. The sender broadcasts a signal; any number of receivers (functions) can listen and react.\n\n**Built-in signals:**\n- `pre_save` / `post_save` — before/after a model\'s `.save()`\n- `pre_delete` / `post_delete` — before/after `.delete()`\n- `m2m_changed` — when a M2M relation changes\n- `request_started` / `request_finished` — at request boundaries\n- `post_migrate` — after migrations run\n\n**When to use signals:**\n- Decoupling reusable apps (e.g., `django-allauth` hooks)\n- Cross-cutting concerns (audit logs, cache invalidation)\n- When you can\'t modify the sender\'s code\n\n**When NOT to use signals:**\n- When the sender and receiver are in the same app — just call the function directly\n- For complex business logic — signals are hard to trace, test, and debug\n- When you need the return value — signals don\'t naturally return data to the sender\n\n**Always** specify `sender=` to avoid receiving signals from all models.',
@@ -491,7 +493,7 @@ class MyAppConfig(AppConfig):
 # Custom signal
 from django.dispatch import Signal
 
-order_completed = Signal()   # can pass providing_args=['order'] (Django 4+: just docs)
+order_completed = Signal()   # providing_args was removed in Django 4.0
 
 # Send it
 def complete_order(order):
@@ -510,11 +512,11 @@ def notify_warehouse(sender, order, **kwargs):
     id: 'dj-h4',
     category: 'Django',
     difficulty: 'hard',
-    type: 'basics',
+    type: 'experience',
     question:
       'How does Celery work under the hood? Explain the broker, workers, result backend, retries, and Celery Beat.',
     answer:
-      "**Celery is a distributed task queue** — it moves slow or scheduled work out of the Django request/response cycle and onto separate worker processes.\n\n**The pieces:**\n- **Broker** — a message queue (Redis or RabbitMQ) that holds pending tasks. When your Django view calls `task.delay(...)`, Celery serializes the function name + arguments and pushes that onto the broker. Redis is simpler to run; RabbitMQ (AMQP) offers richer routing (exchanges, priority queues) for larger systems.\n- **Workers** — separate long-running processes (`celery -A myapp worker`) that pull tasks off the broker and execute them. Workers scale horizontally (run more of them) and use a concurrency model — `prefork` (separate processes, default, good for CPU-bound work), `eventlet`/`gevent` (greenlets, good for I/O-bound work like many concurrent API calls).\n- **Result backend** — optional separate store (Redis, the DB, or a dedicated result store) that holds a task's return value and status (`PENDING`, `SUCCESS`, `FAILURE`) if the caller needs to check on it later. Skip it entirely for fire-and-forget tasks (e.g. sending an email) — it's pure overhead you don't need.\n- **Celery Beat** — a separate scheduler process that fires periodic tasks (cron-like: \"run this every 10 minutes\" or \"daily at midnight\") by pushing them onto the broker at the scheduled time. Beat itself doesn't execute tasks — it just enqueues them for workers to pick up.\n\n**Retries:**\n- Decorate a task with `bind=True` to get `self`, then call `self.retry(exc=e, countdown=5)` on failure, or declare `autoretry_for=(RequestException,)` with `retry_backoff=True` for automatic exponential backoff\n- Set `max_retries` to avoid infinite retry loops on a permanently broken dependency\n\n**Gotchas that come up in interviews:**\n- **At-least-once delivery** — a task can be delivered and executed more than once (worker crash after execution but before ack). Tasks must be **idempotent**.\n- **Never pass Django model instances as task arguments** — pass primary key IDs and re-fetch inside the task. The object could be stale, unpicklable, or the DB row could have changed by the time the task runs.\n- **Monitor with Flower** — a web UI for inspecting queue depth, worker health, and task history in production.",
+      "**Celery is a distributed task queue** — it moves slow or scheduled work out of the Django request/response cycle and onto separate worker processes.\n\n**The pieces:**\n- **Broker** — a message queue (Redis or RabbitMQ) that holds pending tasks. When your Django view calls `task.delay(...)`, Celery serializes the function name + arguments and pushes that onto the broker. Redis is simpler to run; RabbitMQ (AMQP) offers richer routing (exchanges, priority queues) for larger systems.\n- **Workers** — separate long-running processes (`celery -A myapp worker`) that pull tasks off the broker and execute them. Workers scale horizontally (run more of them) and use a concurrency model — `prefork` (separate processes, default, good for CPU-bound work), `eventlet`/`gevent` (greenlets, good for I/O-bound work like many concurrent API calls).\n- **Result backend** — optional separate store (Redis, the DB, or a dedicated result store) that holds a task's return value and status (`PENDING`, `SUCCESS`, `FAILURE`) if the caller needs to check on it later. Skip it entirely for fire-and-forget tasks (e.g. sending an email) — it's pure overhead you don't need.\n- **Celery Beat** — a separate scheduler process that fires periodic tasks (cron-like: \"run this every 10 minutes\" or \"daily at midnight\") by pushing them onto the broker at the scheduled time. Beat itself doesn't execute tasks — it just enqueues them for workers to pick up.\n\n**Retries:**\n- Decorate a task with `bind=True` to get `self`, then call `self.retry(exc=e, countdown=5)` on failure, or declare `autoretry_for=(RequestException,)` with `retry_backoff=True` for automatic exponential backoff\n- Set `max_retries` to avoid infinite retry loops on a permanently broken dependency\n\n**Gotchas that come up in interviews:**\n- **Delivery semantics** — by default Celery acks a task just before running it, so a worker crash can lose it. With `acks_late=True` it acks afterward, so a task can run more than once. Redelivery can also happen with the Redis broker\'s visibility timeout. Make tasks **idempotent**.\n- **Never pass Django model instances as task arguments** — pass primary key IDs and re-fetch inside the task. The object could be stale, unpicklable, or the DB row could have changed by the time the task runs.\n- **Monitor with Flower** — a web UI for inspecting queue depth, worker health, and task history in production.",
     code: {
       language: 'python',
       snippet: `# tasks.py

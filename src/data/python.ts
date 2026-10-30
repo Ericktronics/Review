@@ -11,7 +11,7 @@ export const pythonCards: Flashcard[] = [
     type: 'basics',
     question: 'What is the difference between a list and a tuple in Python?',
     answer:
-      '**List** — mutable, ordered sequence. You can add, remove, or change elements after creation.\n\n**Tuple** — immutable, ordered sequence. Once created, it cannot be changed.\n\n**Key differences:**\n- Lists use `[]`, tuples use `()`\n- Lists are slower (dynamic resizing), tuples are faster and use less memory\n- Tuples can be used as dictionary keys (they are hashable); lists cannot\n- Tuples signal "this data should not change" — use them for fixed collections like coordinates, RGB values, or DB rows\n\n**When to use which:**\n- Use a **list** when the collection needs to grow/shrink or be sorted\n- Use a **tuple** for fixed data, function return values with multiple items, or dict keys',
+      '**List** — mutable, ordered sequence. You can add, remove, or change elements after creation.\n\n**Tuple** — immutable, ordered sequence. Once created, it cannot be changed.\n\n**Key differences:**\n- Lists use `[]`, tuples use `()`\n- Lists are slower (dynamic resizing), tuples are faster and use less memory\n- Tuples can be used as dictionary keys if all their items are hashable; lists cannot\n- Tuples signal "this data should not change" — use them for fixed collections like coordinates, RGB values, or DB rows\n\n**When to use which:**\n- Use a **list** when the collection needs to grow/shrink or be sorted\n- Use a **tuple** for fixed data, function return values with multiple items, or dict keys',
     code: {
       language: 'python',
       snippet: `# List — mutable
@@ -110,7 +110,7 @@ print(x is y)   # True  (interned small int)
 
 x = 257
 y = 257
-print(x is y)   # False (not interned — different objects)`,
+print(x is y)   # False in the REPL; can be True in a script (constants get reused)`,
     },
   },
 
@@ -156,7 +156,7 @@ unique_lengths = {len(word) for word in ['hi', 'hey', 'hello', 'ok']}
     type: 'basics',
     question: 'Explain Python\'s GIL (Global Interpreter Lock). How does it affect threading?',
     answer:
-      '**GIL (Global Interpreter Lock)** is a mutex in CPython that allows only one thread to execute Python bytecode at a time, even on multi-core machines.\n\n**Why it exists:** CPython\'s memory management (reference counting) is not thread-safe. The GIL prevents race conditions on reference counts without requiring per-object locks.\n\n**Impact on threading:**\n- **CPU-bound tasks** (computation, data processing) — threads do NOT run in parallel. Only one thread runs at a time. Use `multiprocessing` instead.\n- **I/O-bound tasks** (network requests, file I/O, DB queries) — threads ARE effective because the GIL is released while waiting for I/O. `threading` or `asyncio` work well here.\n\n**Solutions for CPU-bound parallelism:**\n- `multiprocessing` — separate processes, each with its own GIL\n- `concurrent.futures.ProcessPoolExecutor`\n- C extensions (NumPy, Pandas release the GIL for their operations)\n- Alternative runtimes: PyPy, Jython, GraalPy (no GIL)',
+      '**GIL (Global Interpreter Lock)** is a mutex in CPython that allows only one thread to execute Python bytecode at a time, even on multi-core machines.\n\n**Why it exists:** CPython\'s memory management (reference counting) is not thread-safe. The GIL prevents race conditions on reference counts without requiring per-object locks.\n\n**Impact on threading:**\n- **CPU-bound tasks** (computation, data processing) — threads do NOT run in parallel. Only one thread runs at a time. Use `multiprocessing` instead.\n- **I/O-bound tasks** (network requests, file I/O, DB queries) — threads ARE effective because the GIL is released while waiting for I/O. `threading` or `asyncio` work well here.\n\n**Solutions for CPU-bound parallelism:**\n- `multiprocessing` — separate processes, each with its own GIL\n- `concurrent.futures.ProcessPoolExecutor`\n- C extensions (NumPy and similar libraries release the GIL for many operations)\n- Free-threaded CPython (optional build since 3.13, PEP 703)\n- Runtimes without a GIL, such as Jython. PyPy also has a GIL',
     code: {
       language: 'python',
       snippet: `import threading
@@ -181,7 +181,7 @@ with multiprocessing.Pool(processes=4) as pool:
 # asyncio — great for I/O-bound, single-threaded concurrency
 import asyncio
 async def fetch(url):
-    # GIL released while awaiting network I/O
+    # One thread: await hands control back to the event loop
     await asyncio.sleep(1)  # simulates network call
     return url`,
     },
@@ -267,9 +267,12 @@ print(bl[0])        # 10
 print(bl)           # BoundedList(max=3, data=[10, 20])
 
 # Context manager via __enter__ / __exit__
+import time
+
 class Timer:
     def __enter__(self):
-        import time; self.start = time.time(); return self
+        self.start = time.time()
+        return self
     def __exit__(self, *args):
         print(f"Elapsed: {time.time() - self.start:.3f}s")
 
@@ -285,7 +288,7 @@ with Timer():
     type: 'basics',
     question: 'What is the difference between shallow copy and deep copy in Python?',
     answer:
-      '**Shallow copy** — creates a new container object, but the elements inside still reference the same objects as the original. Changes to nested mutable objects affect both copies.\n\n**Deep copy** — recursively creates new copies of all nested objects. The copy is completely independent.\n\n**Ways to shallow copy:**\n- `list.copy()`, `dict.copy()`\n- `list[:]`, `dict.copy()`\n- `copy.copy(obj)`\n\n**Ways to deep copy:**\n- `copy.deepcopy(obj)` — handles arbitrary nesting, circular references\n\n**Rule of thumb:** if your data has only one level (flat list of integers/strings), shallow copy is fine. Use deep copy for nested structures.',
+      '**Shallow copy** — creates a new container object, but the elements inside still reference the same objects as the original. Changes to nested mutable objects affect both copies.\n\n**Deep copy** — recursively creates new copies of all nested objects. The copy is completely independent.\n\n**Ways to shallow copy:**\n- `list.copy()`, `dict.copy()`\n- `list[:]`, `dict(d)`\n- `copy.copy(obj)`\n\n**Ways to deep copy:**\n- `copy.deepcopy(obj)` — handles arbitrary nesting, circular references\n\n**Rule of thumb:** if your data has only one level (flat list of integers/strings), shallow copy is fine. Use deep copy for nested structures.',
     code: {
       language: 'python',
       snippet: `import copy
@@ -357,7 +360,7 @@ print(next(squared))   # 4`,
     id: 'py-h1',
     category: 'Python',
     difficulty: 'hard',
-    type: 'basics',
+    type: 'experience',
     question: 'What is Python\'s MRO (Method Resolution Order)? How does `super()` work with multiple inheritance?',
     answer:
       '**MRO** defines the order in which Python looks up methods and attributes in a class hierarchy. It uses the **C3 linearization algorithm**, which guarantees:\n1. A class always comes before its parents\n2. The order in the class definition is preserved\n3. No class appears more than once\n\nYou can inspect it with `ClassName.__mro__` or `ClassName.mro()`.\n\n**`super()`** — returns a proxy that delegates method calls to the next class in the MRO, not necessarily the direct parent. This is critical for cooperative multiple inheritance — every class in the chain calls `super()` so all classes in the MRO get a chance to run.\n\n**Diamond problem** — Python solves it via MRO: each class appears exactly once in the lookup order.',
@@ -365,8 +368,7 @@ print(next(squared))   # 4`,
       language: 'python',
       snippet: `class A:
     def greet(self):
-        print("A.greet")
-        super().greet()   # cooperative — calls next in MRO
+        print("A.greet")   # end of the chain: object has no greet()
 
 class B(A):
     def greet(self):
@@ -400,7 +402,7 @@ D().greet()
     id: 'py-h2',
     category: 'Python',
     difficulty: 'hard',
-    type: 'basics',
+    type: 'experience',
     question: 'What are Python descriptors? How do `@property`, `@staticmethod`, and `@classmethod` use them?',
     answer:
       '**Descriptors** are objects that define `__get__`, `__set__`, and/or `__delete__` methods. When a class attribute is a descriptor, Python calls these methods instead of doing a normal attribute lookup.\n\n**Two types:**\n- **Data descriptor** — defines `__set__` (or `__delete__`). Overrides instance `__dict__`. (`property` is a data descriptor)\n- **Non-data descriptor** — only defines `__get__`. Instance `__dict__` takes priority.\n\n**How built-ins use descriptors:**\n- `@property` → data descriptor (`__get__` returns computed value, `__set__` raises AttributeError unless a setter is defined)\n- `@staticmethod` → non-data descriptor (returns raw function, ignores class/instance)\n- `@classmethod` → non-data descriptor (returns bound method with class as first arg)\n\nDescriptors power the entire Python attribute access protocol.',
@@ -454,10 +456,10 @@ class Circle:
     id: 'py-h3',
     category: 'Python',
     difficulty: 'hard',
-    type: 'basics',
+    type: 'experience',
     question: 'How does `asyncio` work in Python? Explain the event loop, coroutines, tasks, and `async`/`await`.',
     answer:
-      '**asyncio** provides single-threaded concurrency for I/O-bound work using an **event loop** — a loop that runs coroutines, handles I/O events, and schedules callbacks.\n\n**Key concepts:**\n- **Coroutine** — an `async def` function. Calling it returns a coroutine object (doesn\'t execute yet). Must be `await`ed or wrapped in a Task.\n- **`await`** — suspends the current coroutine, yielding control back to the event loop until the awaited thing is done.\n- **Task** — wraps a coroutine and schedules it to run concurrently. Created with `asyncio.create_task()`.\n- **Event loop** — runs tasks, selects which one to resume based on I/O readiness.\n\n**asyncio vs threads:**\n- asyncio: cooperative multitasking, single thread, low overhead, best for high-concurrency I/O\n- threads: preemptive, more overhead, can share memory but need synchronization\n\n**Don\'t block the event loop** with CPU-heavy or synchronous I/O code — use `loop.run_in_executor()` to offload to a thread pool.',
+      '**asyncio** provides single-threaded concurrency for I/O-bound work using an **event loop** — a loop that runs coroutines, handles I/O events, and schedules callbacks.\n\n**Key concepts:**\n- **Coroutine** — an `async def` function. Calling it returns a coroutine object (doesn\'t execute yet). Must be `await`ed or wrapped in a Task.\n- **`await`** — suspends the current coroutine, yielding control back to the event loop until the awaited thing is done.\n- **Task** — wraps a coroutine and schedules it to run concurrently. Created with `asyncio.create_task()`.\n- **Event loop** — runs tasks, selects which one to resume based on I/O readiness.\n\n**asyncio vs threads:**\n- asyncio: cooperative multitasking, single thread, low overhead, best for high-concurrency I/O\n- threads: preemptive, more overhead, can share memory but need synchronization\n\n**Don\'t block the event loop** with CPU-heavy or synchronous I/O code — use `loop.run_in_executor()` to offload it: a thread pool for blocking I/O, a `ProcessPoolExecutor` for CPU-heavy work.',
     code: {
       language: 'python',
       snippet: `import asyncio
@@ -480,9 +482,10 @@ urls = ["https://example.com", "https://httpbin.org/get"]
 # results = asyncio.run(fetch_all(urls))
 
 # Running blocking code without blocking the event loop
-async def cpu_work():
-    loop = asyncio.get_event_loop()
-    # offload to thread pool so event loop stays responsive
+async def blocking_work():
+    loop = asyncio.get_running_loop()
+    # offload to the default thread pool so the event loop stays responsive
+    # (use a ProcessPoolExecutor for heavy CPU work, because of the GIL)
     result = await loop.run_in_executor(None, sum, range(10_000_000))
     return result
 
@@ -504,7 +507,7 @@ async def consumer(queue):
     id: 'py-h4',
     category: 'Python',
     difficulty: 'hard',
-    type: 'basics',
+    type: 'experience',
     question: 'What are metaclasses in Python? When would you use one?',
     answer:
       '**Metaclass** — the class of a class. Just as an object is an instance of a class, a class is an instance of a metaclass. The default metaclass is `type`.\n\n**How class creation works:**\n1. Python reads the `class` body and collects the namespace dict\n2. Calls `metaclass(name, bases, namespace)` to build the class object\n3. The resulting class object is assigned to the name\n\n**What you can do with metaclasses:**\n- Automatically register subclasses\n- Enforce coding conventions (e.g., all methods must have docstrings)\n- Add methods/attributes to all classes in a hierarchy\n- Implement Singleton, ORM models (Django\'s `Model` uses a metaclass)\n- Validate class definitions at definition time\n\n**In modern Python:** many metaclass use cases can be replaced with `__init_subclass__` (simpler) or class decorators. Use metaclasses only when you need to intercept the class creation itself.',

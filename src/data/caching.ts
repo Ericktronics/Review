@@ -14,7 +14,7 @@ export const cachingCards: Flashcard[] = [
       'A cache stampede occurs when a popular key expires and hundreds of concurrent requests simultaneously find a cache miss, all race to recompute the value, all hit the database at once, overloading it.\n\n**Prevention strategies**:\n- **Mutex / lock**: only one request computes; others wait. Introduces latency for waiting requests\n- **Probabilistic early expiration** (XFetch): stochastically refresh the cache before it expires based on how expensive the recomputation is and time remaining\n- **Background refresh**: always serve the cached (possibly stale) value and trigger an async refresh when the TTL falls below a threshold\n- **Jittered TTL**: add random noise to TTL so many keys don\'t expire simultaneously\n- **Stampede-safe wrapper**: check for a "computing" flag in the cache; if set, return stale value or short-poll',
     code: {
       language: 'typescript',
-      snippet: `// Mutex-based stampede prevention with stale fallback
+      snippet: `// Mutex-based stampede prevention (per process; use a Redis lock across instances)
 const computingKeys = new Set<string>();
 
 async function getWithStampedePrevention<T>(
@@ -34,7 +34,7 @@ async function getWithStampedePrevention<T>(
   computingKeys.add(key);
   try {
     const value = await compute();
-    const jitter = Math.floor(Math.random() * 0.1 * ttl); // ±10% jitter
+    const jitter = Math.floor(Math.random() * 0.1 * ttl); // up to +10% jitter
     await redis.setex(key, ttl + jitter, JSON.stringify(value));
     return value;
   } finally {
@@ -51,12 +51,12 @@ async function getWithStampedePrevention<T>(
     type: 'experience',
     question: 'What are the right Redis data structures for common backend use cases?',
     answer:
-      '- **String + TTL** — session tokens, feature flags, simple key-value cache\n- **Hash** — store an object\'s fields individually (avoids serialise/deserialise the whole object to update one field)\n- **Sorted Set (ZSet)** — leaderboards (`ZRANGEBYSCORE`), sliding-window rate limiting (timestamps as scores), delayed job queues (future timestamp as score)\n- **List** — task queues (`LPUSH` / `BRPOP`), activity feeds (capped with `LTRIM`)\n- **Set** — unique visitors, tagging, union/intersection operations\n- **Pub/Sub** — lightweight real-time fan-out (not durable; use Streams for durability)\n- **Stream** — durable event log with consumer groups; replacement for Kafka for moderate throughput\n- **Bitmap / HyperLogLog** — daily active users (bitmap per day), unique count approximation (HyperLogLog, ~0.81% error, 12 KB regardless of cardinality)',
+      '- **String + TTL** — session tokens, feature flags, simple key-value cache\n- **Hash** — store an object\'s fields individually (avoids serialize/deserialize the whole object to update one field)\n- **Sorted Set (ZSet)** — leaderboards (`ZRANGEBYSCORE`), sliding-window rate limiting (timestamps as scores), delayed job queues (future timestamp as score)\n- **List** — task queues (`LPUSH` / `BRPOP`), activity feeds (capped with `LTRIM`)\n- **Set** — unique visitors, tagging, union/intersection operations\n- **Pub/Sub** — lightweight real-time fan-out (not durable; use Streams for durability)\n- **Stream** — durable event log with consumer groups; replacement for Kafka for moderate throughput\n- **Bitmap / HyperLogLog** — daily active users (bitmap per day), unique count approximation (HyperLogLog, ~0.81% error, 12 KB regardless of cardinality)',
     code: {
       language: 'typescript',
       snippet: `// Hash: update one user field without round-tripping the whole object
 await redis.hset(\`user:\${id}\`, 'lastSeen', Date.now());
-await redis.hset(\`user:\${id}\`, 'loginCount', await redis.hincrby(\`user:\${id}\`, 'loginCount', 1));
+await redis.hincrby(\`user:\${id}\`, 'loginCount', 1); // atomic counter on one field
 
 // Sorted Set: leaderboard
 await redis.zadd('leaderboard', { score: points, member: userId });
@@ -76,7 +76,7 @@ const due = await redis.zrangebyscore('jobs:scheduled', '-inf', Date.now(), 'LIM
     type: 'experience',
     question: 'What are the trade-offs between CDN caching, in-process (L1) caching, and Redis (L2) caching? When do you use each layer?',
     answer:
-      '**CDN (edge cache)**: latency ~1–10 ms globally; no server hit; best for public, static, or slowly-changing content. Invalidation is slow and may require purge APIs.\n\n**In-process / L1 cache** (e.g. `lru-cache`): sub-millisecond, no network hop; lost on restart; inconsistent across multiple instances — usable only for truly immutable or per-process data (e.g. compiled templates, feature flag snapshots).\n\n**Redis / L2 cache**: shared across all instances, sub-millisecond over LAN; network hop; operational complexity; data survives restarts (with persistence).\n\n**Typical layered strategy**:\n1. CDN → cache public API responses for 60 s\n2. In-process LRU → hold 500 most-recently-used records for 30 s (reduces Redis calls by ~80% under hot traffic)\n3. Redis → authoritative shared cache with 5-min TTL\n4. Database → always the source of truth',
+      '**CDN (edge cache)**: latency ~1–10 ms globally; no server hit; best for public, static, or slowly-changing content. Invalidation is slow and may require purge APIs.\n\n**In-process / L1 cache** (e.g. `lru-cache`): sub-millisecond, no network hop; lost on restart; inconsistent across multiple instances — usable only for truly immutable or per-process data (e.g. compiled templates, feature flag snapshots).\n\n**Redis / L2 cache**: shared across all instances, sub-millisecond over LAN; network hop; operational complexity; data survives restarts (with persistence).\n\n**Typical layered strategy**:\n1. CDN → cache public API responses for 60 s\n2. In-process LRU → hold 500 most-recently-used records for 30 s (cuts Redis calls under hot traffic)\n3. Redis → authoritative shared cache with 5-min TTL\n4. Database → always the source of truth',
   },
 
   // ─── Caching (Easy) ──────────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ const due = await redis.zrangebyscore('jobs:scheduled', '-inf', Date.now(), 'LIM
     type: 'basics',
     question: 'What is caching and why is it used?',
     answer:
-      "**Caching stores the result of an expensive operation so future requests can be served from fast storage instead of repeating the work.**\n\n**Analogy**: a caching is like keeping a sticky note on your desk with your most-used phone numbers. Instead of looking them up in a contact book every time (slow), you read the sticky note (instant).\n\n**Why use it**:\n- **Reduce latency** — an in-memory/Redis response takes microseconds; a database query takes 1–50 ms. For high-traffic endpoints, this difference is significant.\n- **Reduce database load** — a well-tuned cache can serve 80–95% of read requests without touching the DB, protecting it during traffic spikes.\n- **Reduce cost** — fewer DB queries = lower infrastructure cost.\n\n**What to cache**: data that is **read frequently** and **changes infrequently** — user profiles, product catalogue, configuration values, computed aggregates, API responses.\n\n**What NOT to cache**:\n- Highly personalised data (no reuse between users)\n- Financial balances or inventory counts that must always be accurate\n- Data that changes on every request\n\n**Cache hierarchy** (fastest to slowest): CPU L1/L2/L3 → in-process memory (JavaScript `Map`) → distributed cache (Redis) → database.",
+      "**Caching stores the result of an expensive operation so future requests can be served from fast storage instead of repeating the work.**\n\n**Analogy**: caching is like keeping a sticky note on your desk with your most-used phone numbers. Instead of looking them up in a contact book every time (slow), you read the sticky note (instant).\n\n**Why use it**:\n- **Reduce latency** — an in-memory/Redis response takes microseconds; a database query takes 1–50 ms. For high-traffic endpoints, this difference is significant.\n- **Reduce database load** — a well-tuned cache can serve 80–95% of read requests without touching the DB, protecting it during traffic spikes.\n- **Reduce cost** — fewer DB queries = lower infrastructure cost.\n\n**What to cache**: data that is **read frequently** and **changes infrequently** — user profiles, product catalog, configuration values, computed aggregates, API responses.\n\n**What NOT to cache**:\n- Highly personalized data (no reuse between users)\n- Financial balances or inventory counts that must always be accurate\n- Data that changes on every request\n\n**Cache hierarchy** (fastest to slowest): CPU L1/L2/L3 → in-process memory (JavaScript `Map`) → distributed cache (Redis) → database.",
   },
 
   {
@@ -151,12 +151,12 @@ if (count > 100) return res.status(429).send('Too many requests');`,
 await redis.setEx('user:42', 300, JSON.stringify(user)); // expires in 300 seconds (5 min)
 
 // Check remaining TTL
-const ttl = await redis.ttl('user:42'); // returns seconds remaining, -1 if no TTL, -2 if expired
+const ttl = await redis.ttl('user:42'); // returns seconds remaining, -1 if no TTL, -2 if the key doesn't exist
 
 // Update a value and reset the TTL
 await redis.setEx('user:42', 300, JSON.stringify(updatedUser));
 
-// TTL jitter: randomise ±10% to avoid stampede
+// TTL jitter: randomize ±10% to avoid stampede
 function ttlWithJitter(baseTtl: number): number {
   const jitter = Math.floor(baseTtl * 0.1 * (Math.random() * 2 - 1));
   return baseTtl + jitter;
@@ -260,7 +260,7 @@ const fib = memoize((n: number): number => {
     type: 'basics',
     question: 'What are the most common cache eviction policies? When should you choose LRU over LFU?',
     answer:
-      '**LRU (Least Recently Used)**: evict the item not accessed for the longest time. Favours recency.\n- Good for temporal locality (recently accessed data will likely be accessed again)\n- Bad for large sequential scans — scans pollute the cache with one-time items\n\n**LFU (Least Frequently Used)**: evict the item with the fewest accesses. Favours popularity.\n- Good for stable hot keys (top articles, product catalogue)\n- Bad for new items — they start with low frequency and get evicted before getting a chance\n\n**TTL (Time-To-Live)**: evict after a fixed time regardless of access pattern.\n- Good for data that becomes stale over time (exchange rates, sessions)\n\n**FIFO**: evict in insertion order. Simple, ignores access patterns.\n\n**Redis default**: `allkeys-lru`. Redis 4+ supports `allkeys-lfu`.\n**In practice**: LRU covers most use cases. Use LFU when you have a well-defined, stable hot set.',
+      '**LRU (Least Recently Used)**: evict the item not accessed for the longest time. Favors recency.\n- Good for temporal locality (recently accessed data will likely be accessed again)\n- Bad for large sequential scans — scans pollute the cache with one-time items\n\n**LFU (Least Frequently Used)**: evict the item with the fewest accesses. Favors popularity.\n- Good for stable hot keys (top articles, product catalog)\n- Bad for new items — they start with low frequency and get evicted before getting a chance\n\n**TTL (Time-To-Live)**: evict after a fixed time regardless of access pattern.\n- Good for data that becomes stale over time (exchange rates, sessions)\n\n**FIFO**: evict in insertion order. Simple, ignores access patterns.\n\n**Redis**: the default `maxmemory-policy` is `noeviction` (writes fail when memory is full), so set `allkeys-lru` or `allkeys-lfu` (Redis 4+) for a cache.\n**In practice**: LRU covers most use cases. Use LFU when you have a well-defined, stable hot set.',
   },
 
   {
@@ -298,7 +298,7 @@ async function updateUser(id: string, data: Partial<User>) {
     type: 'basics',
     question: 'What is cache warming? When do you need it and how do you implement it?',
     answer:
-      '**Cache warming** (pre-warming) is the process of proactively loading data into the cache before it is requested — so the first users after a cold start or deploy don\'t hit the database.\n\n**When you need it:**\n- After a deploy that flushes the cache\n- After a Redis restart or failover\n- For data that is expensive to compute and heavily accessed at startup (e.g. product catalogue, feature flags, config)\n- To avoid the **thundering herd** — hundreds of simultaneous cache misses all hitting the DB at once\n\n**Approaches:**\n1. **Startup script** — warm before the app starts accepting traffic (good for fixed data sets)\n2. **Background job on deploy** — CI/CD triggers a warming worker after deploy\n3. **Single-flight / mutex lock** — first miss triggers the fetch, a distributed lock prevents other instances from also fetching simultaneously\n4. **Stale-while-revalidate** — serve stale data while refreshing in the background; never fully cold\n\n**Trade-off:** warming adds deploy complexity and DB load at startup. Only do it for truly hot, expensive-to-compute data.',
+      '**Cache warming** (pre-warming) is the process of proactively loading data into the cache before it is requested — so the first users after a cold start or deploy don\'t hit the database.\n\n**When you need it:**\n- After a deploy that flushes the cache\n- After a Redis restart or failover\n- For data that is expensive to compute and heavily accessed at startup (e.g. product catalog, feature flags, config)\n- To avoid the **thundering herd** — hundreds of simultaneous cache misses all hitting the DB at once\n\n**Approaches:**\n1. **Startup script** — warm before the app starts accepting traffic (good for fixed data sets)\n2. **Background job on deploy** — CI/CD triggers a warming worker after deploy\n3. **Single-flight / mutex lock** — first miss triggers the fetch, a distributed lock prevents other instances from also fetching simultaneously\n4. **Stale-while-revalidate** — serve stale data while refreshing in the background; never fully cold\n\n**Trade-off:** warming adds deploy complexity and DB load at startup. Only do it for truly hot, expensive-to-compute data.',
     code: {
       language: 'typescript',
       snippet: `// Approach 1: warm cache before accepting traffic
@@ -339,7 +339,7 @@ async function getWithLock(key: string, fetcher: () => Promise<any>) {
     type: 'basics',
     question: 'What is the NX + Lua pattern in Redis caching? How does it prevent cache stampedes?',
     answer:
-      '**NX** ("Not eXists") is a Redis `SET` flag that only sets a key if it does not already exist. Returns `OK` on success (lock acquired), `null` if the key was already there (someone else has it).\n\n**Lua scripts** (`EVAL`) execute multiple Redis commands as one atomic operation. Because Redis is single-threaded, a Lua script cannot be interrupted — no other commands run between its steps.\n\n**The problem they solve — cache stampede**: when a hot cache key expires, hundreds of simultaneous requests get a cache miss and all rush to recompute the same expensive value, hammering the DB at once.\n\n**The fix — single-flight lock**:\n1. First request: `SET lock:key "1" NX EX 10` → gets `OK` → computes value → caches it → releases lock\n2. All other requests: same command returns `null` → they wait and retry, or serve stale data\n3. `EX 10` auto-expires the lock in 10 s — prevents deadlock if the computing process crashes\n\n**Why not just `GET` then `SET` separately?** Two requests can race between your `GET` check and `SET` write — both think they won. Lua makes the whole check-and-set indivisible.\n\n**NX is also used for**: distributed rate limiting counters, idempotency key storage, and any "do this exactly once" pattern.',
+      '**NX** ("Not eXists") is a Redis `SET` flag that only sets a key if it does not already exist. Returns `OK` on success (lock acquired), `null` if the key was already there (someone else has it).\n\n**Lua scripts** (`EVAL`) execute multiple Redis commands as one atomic operation. Because Redis is single-threaded, a Lua script cannot be interrupted — no other commands run between its steps.\n\n**The problem they solve — cache stampede**: when a hot cache key expires, hundreds of simultaneous requests get a cache miss and all rush to recompute the same expensive value, hammering the DB at once.\n\n**The fix — single-flight lock**:\n1. First request: `SET lock:key "1" NX EX 10` → gets `OK` → computes value → caches it → releases lock\n2. All other requests: same command returns `null` → they wait and retry, or serve stale data\n3. `EX 10` auto-expires the lock in 10 s — prevents deadlock if the computing process crashes\n\n**Why not just `GET` then `SET` separately?** Two requests can race between your `GET` check and `SET` write — both think they won. `SET ... NX` is already atomic for the lock itself. Use Lua when several steps must be one unit, such as reading the value and taking the lock together.\n\n**Safe release**: `DEL` can remove a lock another process took after yours expired. Store a unique token as the lock value, and release with a Lua script that deletes only if the token still matches.\n\n**NX is also used for**: idempotency key storage and other "do this once" patterns.',
     code: {
       language: 'typescript',
       snippet: `import Redis from 'ioredis';
@@ -380,7 +380,7 @@ async function getWithSingleFlight<T>(
       await redis.setex(key, ttlSec, JSON.stringify(value));
       return value;
     } finally {
-      await redis.del(lockKey);            // always release lock
+      await redis.del(lockKey);            // simplified; production code checks a lock token
     }
   }
 

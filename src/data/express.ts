@@ -11,15 +11,16 @@ export const expressCards: Flashcard[] = [
     type: 'experience',
     question: 'How does the Express middleware chain work internally? Explain the "onion model" and how `next(err)` bypasses normal middleware.',
     answer:
-      'Express middleware is a **linked list of functions**. When a request arrives, Express calls `layer.handle(req, res, next)` for each layer in registration order. Each middleware must call `next()` to pass control to the next layer, or end the cycle by sending a response.\n\n**The onion model**: code before `next()` runs on the way "in"; code after `next()` runs on the way "out" (after the route handler has finished). This is how response-timing and logging middleware works.\n\n**Error flow**: calling `next(err)` skips all normal middleware and jumps directly to the nearest **error handler** — a middleware with exactly 4 parameters `(err, req, res, next)`. Express detects error handlers by checking `fn.length === 4`.\n\n**Critical gotchas**:\n- Order of `app.use()` calls is execution order — put error handlers last\n- Forgetting to call `next()` hangs the request forever\n- Calling `next()` after `res.send()` causes "headers already sent" errors',
+      'Express keeps middleware in an **ordered stack of layers**. When a request arrives, it runs each matching layer in registration order. Each middleware must call `next()` to pass control to the next layer, or end the cycle by sending a response.\n\n**The onion model (and its limit)**: code before `next()` runs on the way "in"; code after `next()` runs once `next()` returns. Express does not await downstream handlers, so with an async handler that code runs before the response is sent. For reliable response timing and logging, use `res.on(\'finish\', ...)`. Koa, whose `await next()` is designed for this, is the true onion.\n\n**Error flow**: calling `next(err)` skips all normal middleware and jumps directly to the nearest **error handler** — a middleware with exactly 4 parameters `(err, req, res, next)`. Express detects error handlers by checking `fn.length === 4`.\n\n**Critical gotchas**:\n- Order of `app.use()` calls is execution order — put error handlers last\n- Forgetting to call `next()` hangs the request forever\n- Calling `next()` after `res.send()` can cause "headers already sent" errors if a later handler also responds',
     code: {
       language: 'typescript',
-      snippet: `// Onion model — code after next() runs on the way out
+      snippet: `// Timing middleware — 'finish' fires after the response is sent
 app.use((req, res, next) => {
   const start = Date.now();
   console.log('→ in');
+  res.on('finish', () => console.log('← out', Date.now() - start, 'ms'));
   next();                          // passes to the next layer
-  console.log('← out', Date.now() - start, 'ms'); // runs after handler returns
+  // Code here would run before an async handler has finished
 });
 
 // Route handler
@@ -51,7 +52,7 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
     type: 'experience',
     question: 'How do you build a production-ready Express.js API? What security, validation, and error handling patterns should be in place?',
     answer:
-      'A production Express API needs layers of protection and structure beyond basic routing.\n\n**Security** (apply globally):\n- `helmet()` — sets secure HTTP headers (CSP, HSTS, X-Frame-Options)\n- `express-rate-limit` — throttle endpoints, especially auth routes\n- `cors` — whitelist allowed origins explicitly, never use `*` with credentials\n\n**Validation**: validate all incoming data at the boundary using `zod` or `joi`. Never trust `req.body` without parsing.\n\n**Async error handling**: Express 4 does not catch async errors — wrap every async handler or use a `catchAsync` HOF. Express 5 handles async natively.\n\n**Error handler**: one centralised error handler at the end of the middleware stack — maps error types to HTTP status codes.\n\n**Observability**: structured logging with `pino`, request IDs via `crypto.randomUUID()`, and `/healthz` endpoints for liveness and readiness probes.',
+      'A production Express API needs layers of protection and structure beyond basic routing.\n\n**Security** (apply globally):\n- `helmet()` — sets secure HTTP headers (CSP, HSTS, X-Frame-Options)\n- `express-rate-limit` — throttle endpoints, especially auth routes\n- `cors` — whitelist allowed origins explicitly, never use `*` with credentials\n\n**Validation**: validate all incoming data at the boundary using `zod` or `joi`. Never trust `req.body` without parsing.\n\n**Async error handling**: Express 4 does not catch async errors — wrap every async handler or use a `catchAsync` HOF. Express 5 handles async natively.\n\n**Error handler**: one centralized error handler at the end of the middleware stack — maps error types to HTTP status codes.\n\n**Observability**: structured logging with `pino`, request IDs via `crypto.randomUUID()`, and `/healthz` endpoints for liveness and readiness probes.',
     code: {
       language: 'typescript',
       snippet: `import express from 'express';
@@ -81,10 +82,10 @@ app.post('/users', catchAsync(async (req, res) => {
   res.status(201).json(user);
 }));
 
-// Centralised error handler — always last
+// Centralized error handler — always last
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof z.ZodError)
-    return res.status(422).json({ errors: err.errors });
+    return res.status(422).json({ errors: err.issues });
   res.status(500).json({ error: 'Internal server error' });
 });`,
     },
@@ -198,7 +199,7 @@ app.get('/profile', requireAuth, (req, res) => {
     type: 'basics',
     question: 'What is routing in Express.js? What is the difference between app.use() and app.get()?',
     answer:
-      '**Routing** is mapping an incoming HTTP request (method + URL) to a specific handler function.\n\n**`app.get(path, handler)`** — matches only GET requests at exactly that path.\n\n**`app.use(path, handler)`** — matches ALL HTTP methods and any URL that starts with the given path (prefix match). Used for mounting middleware and routers.\n\n| | `app.get()` | `app.use()` |\n|---|---|---|\n| Methods | GET only | All methods |\n| Path matching | Exact | Prefix |\n| Typical use | Route handler | Middleware, sub-router |\n\n**`express.Router()`**: groups related routes into a mini-app that can be mounted at a prefix. Keeps large apps organised.',
+      '**Routing** is mapping an incoming HTTP request (method + URL) to a specific handler function.\n\n**`app.get(path, handler)`** — matches only GET requests at exactly that path.\n\n**`app.use(path, handler)`** — matches ALL HTTP methods and any URL that starts with the given path (prefix match). Used for mounting middleware and routers.\n\n| | `app.get()` | `app.use()` |\n|---|---|---|\n| Methods | GET only | All methods |\n| Path matching | Exact | Prefix |\n| Typical use | Route handler | Middleware, sub-router |\n\n**`express.Router()`**: groups related routes into a mini-app that can be mounted at a prefix. Keeps large apps organized.',
     code: {
       language: 'javascript',
       snippet: `const express = require('express');
@@ -233,7 +234,7 @@ app.use('/api', (req, res, next) => {
     type: 'basics',
     question: 'How does error handling work in Express.js? How do you handle async errors?',
     answer:
-      'Express has a special **error-handling middleware** with exactly 4 parameters: `(err, req, res, next)`. It must be registered last — after all routes.\n\nWhen you call `next(err)` from any middleware or route, Express skips all normal middleware and jumps to this error handler.\n\n**The async problem**: Express 4 does not automatically catch errors thrown inside `async` route handlers. If an async function throws and you don\'t catch it, the request hangs.\n\n**Solutions**:\n1. `try/catch` + `next(err)` in every handler\n2. A `catchAsync` wrapper HOF that catches the rejection and calls `next(err)` automatically\n3. **Express 5** — handles async errors natively (no wrapper needed)\n\n**Best practice**: one centralised error handler that maps error types to HTTP status codes — keeps error logic out of individual routes.',
+      'Express has a special **error-handling middleware** with exactly 4 parameters: `(err, req, res, next)`. It must be registered last — after all routes.\n\nWhen you call `next(err)` from any middleware or route, Express skips all normal middleware and jumps to this error handler.\n\n**The async problem**: Express 4 does not automatically catch errors thrown inside `async` route handlers. If an async function throws and you don\'t catch it, the request hangs.\n\n**Solutions**:\n1. `try/catch` + `next(err)` in every handler\n2. A `catchAsync` wrapper HOF that catches the rejection and calls `next(err)` automatically\n3. **Express 5** — handles async errors natively (no wrapper needed)\n\n**Best practice**: one centralized error handler that maps error types to HTTP status codes — keeps error logic out of individual routes.',
     code: {
       language: 'typescript',
       snippet: `// catchAsync wrapper — eliminates try/catch boilerplate in Express 4
@@ -248,7 +249,7 @@ app.get('/users/:id', catchAsync(async (req, res) => {
   res.json(user);
 }));
 
-// Centralised error handler — register LAST
+// Centralized error handler — register LAST
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   console.error(err);
 
@@ -302,7 +303,7 @@ export async function findByEmail(email: string) {
     type: 'basics',
     question: 'What are the four types of middleware in Express and what is each used for?',
     answer:
-      '**1. Application-level** — bound to `app` with `app.use()` or `app.METHOD()`. Runs for all or specific routes.\n\n**2. Router-level** — bound to an `express.Router()` instance. Same behaviour but scoped to a sub-router, keeps code modular.\n\n**3. Error-handling** — has a *four-parameter* signature `(err, req, res, next)`. Express identifies it by the 4th param and only calls it when `next(err)` is invoked.\n\n**4. Built-in / Third-party** — `express.json()`, `express.urlencoded()`, `express.static()` are built-in. `cors`, `helmet`, `morgan`, `multer` are popular third-party middleware.\n\n**Key rule:** middleware runs in the order it is registered. Always put error-handling middleware *last*.',
+      '**1. Application-level** — bound to `app` with `app.use()` or `app.METHOD()`. Runs for all or specific routes.\n\n**2. Router-level** — bound to an `express.Router()` instance. Same behavior but scoped to a sub-router, keeps code modular.\n\n**3. Error-handling** — has a *four-parameter* signature `(err, req, res, next)`. Express identifies it by the 4th param and only calls it when `next(err)` is invoked.\n\n**4. Built-in / Third-party** — `express.json()`, `express.urlencoded()`, `express.static()` are built-in. `cors`, `helmet`, `morgan`, `multer` are popular third-party middleware.\n\n**Key rule:** middleware runs in the order it is registered. Always put error-handling middleware *last*.',
     code: {
       language: 'javascript',
       snippet: `const express = require('express');
@@ -318,15 +319,15 @@ router.use((req, res, next) => { console.log('users router'); next(); });
 router.get('/', (req, res) => res.json([]));
 app.use('/users', router);
 
-// 3. Error-handling — MUST have 4 params
+// 4. Third-party (register before your routes in a real app)
+const helmet = require('helmet');
+app.use(helmet()); // sets security headers
+
+// 3. Error-handling — MUST have 4 params and come last
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: err.message });
-});
-
-// 4. Third-party
-const helmet = require('helmet');
-app.use(helmet()); // sets security headers`,
+});`,
     },
   },
 
@@ -341,7 +342,7 @@ app.use(helmet()); // sets security headers`,
     code: {
       language: 'javascript',
       snippet: `const rateLimit = require('express-rate-limit');
-const RedisStore  = require('rate-limit-redis');
+const { RedisStore } = require('rate-limit-redis');
 const redis       = require('./redis'); // your ioredis client
 
 // Global limiter — 100 req / 15 min per IP
@@ -350,7 +351,8 @@ const globalLimiter = rateLimit({
   max: 100,
   standardHeaders: true,  // Return RateLimit-* headers
   legacyHeaders: false,
-  store: new RedisStore({ sendCommand: (...args) => redis.call(...args) }),
+  // A unique prefix per limiter keeps their counters separate
+  store: new RedisStore({ prefix: 'rl:global:', sendCommand: (...args) => redis.call(...args) }),
 });
 
 // Strict limiter for auth routes — 10 req / 15 min
@@ -358,7 +360,7 @@ const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   message: { error: 'Too many attempts, try again later.' },
-  store: new RedisStore({ sendCommand: (...args) => redis.call(...args) }),
+  store: new RedisStore({ prefix: 'rl:auth:', sendCommand: (...args) => redis.call(...args) }),
 });
 
 app.use(globalLimiter);
@@ -373,7 +375,7 @@ app.use('/auth', authLimiter);`,
     type: 'basics',
     question: 'How do you validate incoming request data in Express? Why is validation at the route level important?',
     answer:
-      '**Never trust user input.** Validation at the route/controller level ensures invalid data is rejected before it reaches your business logic or database.\n\n**Two popular libraries:**\n- **Zod** — schema-first, TypeScript-native, throws typed errors\n- **Joi** — mature, expressive, framework-agnostic\n\n**Pattern:** define a schema, parse `req.body` / `req.params` / `req.query` inside the handler or a reusable validation middleware. On failure, return `400` with a clear error message.\n\n**Why it matters:**\n- Prevents malformed data from corrupting your DB\n- Prevents injection attacks (combined with parameterised queries)\n- Gives clients clear error messages\n- Acts as living documentation of your API contract',
+      '**Never trust user input.** Validation at the route/controller level ensures invalid data is rejected before it reaches your business logic or database.\n\n**Two popular libraries:**\n- **Zod** — schema-first, TypeScript-native, throws typed errors\n- **Joi** — mature, expressive, framework-agnostic\n\n**Pattern:** define a schema, parse `req.body` / `req.params` / `req.query` inside the handler or a reusable validation middleware. On failure, return `400` with a clear error message.\n\n**Why it matters:**\n- Prevents malformed data from corrupting your DB\n- Prevents injection attacks (combined with parameterized queries)\n- Gives clients clear error messages\n- Acts as living documentation of your API contract',
     code: {
       language: 'typescript',
       snippet: `import { z } from 'zod';
@@ -401,7 +403,7 @@ function validate(schema: z.ZodSchema) {
 
 // Route
 router.post('/users', validate(CreateUserSchema), async (req, res) => {
-  const user = await createUser(req.body); // body is now fully typed & safe
+  const user = await createUser(req.body); // body is now validated (req.body itself stays untyped)
   res.status(201).json(user);
 });`,
     },
@@ -414,7 +416,7 @@ router.post('/users', validate(CreateUserSchema), async (req, res) => {
     type: 'basics',
     question: 'How do you handle file uploads in Express using Multer? What are the key security concerns?',
     answer:
-      '**Multer** is the standard Express middleware for handling `multipart/form-data` (file uploads). It parses the incoming form data and attaches `req.file` (single) or `req.files` (multiple) to the request.\n\n**Storage options:**\n- `memoryStorage()` — file held in RAM as a `Buffer`. Fast but dangerous for large files.\n- `diskStorage()` — file written to disk. You control the destination and filename.\n- **Production:** stream directly to S3/cloud storage using `multer-s3`.\n\n**Security concerns:**\n- **File type validation** — check `mimetype` AND magic bytes (not just extension — easy to fake)\n- **File size limit** — always set `limits.fileSize` to prevent memory/disk exhaustion\n- **Filename sanitisation** — never use the original filename from the client; generate a UUID\n- **Malware** — consider scanning uploads with ClamAV or a cloud API before storing',
+      '**Multer** is the standard Express middleware for handling `multipart/form-data` (file uploads). It parses the incoming form data and attaches `req.file` (single) or `req.files` (multiple) to the request.\n\n**Storage options:**\n- `memoryStorage()` — file held in RAM as a `Buffer`. Fast but dangerous for large files.\n- `diskStorage()` — file written to disk. You control the destination and filename.\n- **Production:** stream directly to S3/cloud storage using `multer-s3`.\n\n**Security concerns:**\n- **File type validation** — check `mimetype` AND magic bytes (not just extension — easy to fake)\n- **File size limit** — always set `limits.fileSize` to prevent memory/disk exhaustion\n- **Filename sanitization** — never use the original filename from the client; generate a UUID\n- **Malware** — consider scanning uploads with ClamAV or a cloud API before storing',
     code: {
       language: 'javascript',
       snippet: `const multer  = require('multer');
@@ -461,7 +463,7 @@ app.use((err, req, res, next) => {
   {
     id: 'exp-m6',
     category: 'Express.js',
-    difficulty: 'medium',
+    difficulty: 'hard',
     type: 'experience',
     question: 'What are the essential security middleware and practices for a production Express API?',
     answer:

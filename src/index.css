@@ -2,31 +2,210 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  html {
-    @apply bg-slate-950;
-    scrollbar-gutter: stable; /* reserves desktop scrollbar width so layout never shifts */
-  }
-  body {
-    @apply bg-slate-950;
-    min-height: 100svh;
-    overflow-x: clip; /* prevent any rogue horizontal overflow from triggering browser rescale */
-  }
-  #root {
-    @apply bg-slate-950;
-    min-height: 100svh;
+/* Roles and values are documented in docs/DESIGN.md */
+:root {
+  color-scheme: light;
+  --canvas: 246 247 251;
+  --side: 255 255 255;
+  --raised: 255 255 255;
+  --sunken: 236 238 245;
+  --ink: 31 37 68;
+  --body: 66 72 102;
+  --muted: 100 106 134;
+  --line: 224 227 238;
+  --accent: 21 128 90;
+  --accentdeep: 14 99 69;
+  --onaccent: 255 255 255;
+  --again: 200 55 55;
+  --known: 21 128 90;
+  --streak: 214 90 10;
+  --gold: 245 184 39;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --canvas: 20 24 41;
+    --side: 16 20 35;
+    --raised: 29 34 56;
+    --sunken: 14 17 31;
+    --ink: 240 242 250;
+    --body: 200 205 222;
+    --muted: 150 156 182;
+    --line: 46 52 80;
+    --accent: 61 205 145;
+    --accentdeep: 34 150 104;
+    --onaccent: 6 40 28;
+    --again: 255 130 125;
+    --known: 61 205 145;
+    --streak: 255 156 72;
+    --gold: 255 205 90;
   }
 }
 
-/* Force highlight.js dark background in Tailwind's Preflight context */
-.hljs { background: #0d1117 !important; }
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --canvas: 20 24 41;
+  --side: 16 20 35;
+  --raised: 29 34 56;
+  --sunken: 14 17 31;
+  --ink: 240 242 250;
+  --body: 200 205 222;
+  --muted: 150 156 182;
+  --line: 46 52 80;
+  --accent: 61 205 145;
+  --accentdeep: 34 150 104;
+  --onaccent: 6 40 28;
+  --again: 255 130 125;
+  --known: 61 205 145;
+  --streak: 255 156 72;
+  --gold: 255 205 90;
+}
 
-/* Custom scrollbar */
-::-webkit-scrollbar               { width: 5px; height: 5px; }
+@layer base {
+  html {
+    @apply bg-canvas;
+    scrollbar-gutter: stable; /* reserves desktop scrollbar width so layout never shifts */
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-canvas text-body font-sans antialiased;
+    min-height: 100svh;
+    overflow-x: clip; /* prevent any rogue horizontal overflow from triggering browser rescale */
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  #root {
+    min-height: 100svh;
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  select {
+    field-sizing: content;
+  }
+}
+
+@layer components {
+  /* Chunky pressable buttons: the lip collapses on press, so tapping feels physical */
+  .btn-primary,
+  .btn-secondary {
+    @apply inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-xl px-5 text-[15px] font-bold;
+    transition: transform 80ms, box-shadow 80ms;
+  }
+  .btn-primary {
+    @apply bg-accent text-onaccent;
+    box-shadow: 0 3px 0 rgb(var(--accentdeep));
+  }
+  .btn-secondary {
+    @apply bg-raised text-ink;
+    box-shadow: 0 0 0 1px rgb(var(--line)), 0 3px 0 rgb(var(--line));
+  }
+  .btn-primary:active,
+  .btn-secondary:active {
+    transform: translateY(3px);
+    box-shadow: none;
+  }
+}
+
+@layer utilities {
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Skip layout and paint for off-screen rows; the long study list has 400+ of them */
+  .defer-offscreen {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 320px;
+  }
+  .animate-card-in {
+    animation: card-in 220ms ease-out;
+  }
+  .animate-pop {
+    animation: pop 180ms ease-out;
+  }
+  .animate-flip {
+    animation: flip 300ms ease-out;
+  }
+}
+
+@keyframes flip {
+  from { opacity: 0; transform: rotateY(90deg) rotate(-45deg); }
+}
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.97); }
+}
+@keyframes confetti-fall {
+  0%   { transform: translateY(-20px) rotate(0); opacity: 1; }
+  100% { transform: translateY(520px) rotate(540deg); opacity: 0; }
+}
+.confetti {
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: confetti-fall 1500ms ease-in forwards;
+}
+
+/* iOS zooms the page when a focused field is under 16px */
+@media (pointer: coarse) {
+  input,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Syntax colours, drawn from the same tokens as the rest of the app */
+.hljs-keyword,
+.hljs-built_in,
+.hljs-selector-tag,
+.hljs-doctag,
+.hljs-meta .hljs-keyword {
+  color: rgb(var(--accent));
+}
+.hljs-string,
+.hljs-attr,
+.hljs-symbol,
+.hljs-regexp,
+.hljs-template-tag {
+  color: rgb(var(--streak));
+}
+.hljs-number,
+.hljs-literal,
+.hljs-variable.constant_,
+.hljs-tag .hljs-name {
+  color: rgb(var(--again));
+}
+.hljs-title,
+.hljs-title.function_,
+.hljs-title.class_,
+.hljs-type {
+  color: rgb(var(--ink));
+  font-weight: 500;
+}
+.hljs-comment,
+.hljs-quote,
+.hljs-meta {
+  color: rgb(var(--muted));
+}
+
+::-webkit-scrollbar               { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track         { background: transparent; }
-::-webkit-scrollbar-thumb         { background: #334155; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover   { background: #6366f1; }
-
-/* Hide scrollbar on filter rows while keeping scroll functional */
-.no-scrollbar::-webkit-scrollbar  { display: none; }
-.no-scrollbar                      { -ms-overflow-style: none; scrollbar-width: none; }
+::-webkit-scrollbar-thumb         { background: rgb(var(--line)); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover   { background: rgb(var(--muted)); }

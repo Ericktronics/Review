@@ -49,16 +49,17 @@ const result = await breaker.fire(paymentPayload);`,
       snippet: `// Orchestration Saga for order placement
 class OrderSaga {
   async execute(order: Order) {
-    let state: SagaState = 'started';
+    const compensations: Array<() => Promise<void>> = [];
     try {
-      await inventoryService.reserve(order);      state = 'reserved';
-      await paymentService.charge(order);         state = 'charged';
-      await shippingService.schedule(order);      state = 'shipped';
+      await inventoryService.reserve(order);
+      compensations.push(() => inventoryService.release(order));
+      await paymentService.charge(order);
+      compensations.push(() => paymentService.refund(order));
+      await shippingService.schedule(order);
       await this.emit('OrderCompleted', order);
     } catch (err) {
-      // Compensate in reverse order
-      if (state === 'charged')   await paymentService.refund(order);
-      if (state === 'reserved')  await inventoryService.release(order);
+      // Compensate completed steps in reverse order
+      for (const undo of compensations.reverse()) await undo();
       await this.emit('OrderFailed', { order, reason: err.message });
       throw err;
     }
@@ -77,7 +78,7 @@ class OrderSaga {
       'Distributed tracing records the path and timing of a request as it flows through multiple services. Each unit of work is a **span**; related spans form a **trace** connected by a **trace ID** propagated in HTTP headers (`traceparent` in W3C Trace Context).\n\n**Core concepts**:\n- **Trace**: the full end-to-end journey of one request\n- **Span**: one operation within a trace (DB query, HTTP call, message publish)\n- **Context propagation**: the trace ID is injected into outgoing requests and extracted from incoming ones\n- **Sampling**: recording every span in production is too expensive; use head-based or tail-based sampling\n\n**OpenTelemetry** is the CNCF standard SDK. Exporters send data to Jaeger, Zipkin, or Datadog. A single auto-instrumentation setup covers HTTP, DB drivers, and Redis without manual span creation.',
     code: {
       language: 'typescript',
-      snippet: `// otel.ts – initialise BEFORE importing anything else
+      snippet: `// otel.ts – initialize BEFORE importing anything else
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
@@ -92,7 +93,7 @@ const sdk = new NodeSDK({
 sdk.start();
 
 // Manual span for custom business logic
-import { trace, context } from '@opentelemetry/api';
+import { trace, SpanStatusCode } from '@opentelemetry/api';
 const tracer = trace.getTracer('order-service');
 
 async function processOrder(order: Order) {
@@ -230,7 +231,7 @@ app.use('/', proxy.createProxyMiddleware({
     type: 'basics',
     question: 'What is the Saga pattern? How does it handle distributed transactions across microservices?',
     answer:
-      "**The problem**: in microservices, each service has its own database. You cannot use a single SQL `BEGIN`/`COMMIT` transaction that spans multiple services across a network.\n\n**The Saga pattern** solves this by replacing a single distributed transaction with a sequence of **local transactions**, each confined to one service. If a step fails, previously completed steps are undone using **compensating transactions**.\n\n**Two implementations**:\n\n- **Choreography** — each service publishes an event after its local transaction. The next service subscribes and reacts. No central coordinator. Easy to add new participants; hard to visualise the full flow.\n\n- **Orchestration** — a dedicated Saga Orchestrator calls each service in order, tracks state, and triggers compensations on failure. The complete workflow is visible in one place; easier to debug.\n\n**Compensating transactions** are *logical undos*, not database rollbacks. The DB writes already happened. A compensation is a new write that reverses the effect (issue a refund, release a reservation).\n\n**Important**: compensating transactions must be **idempotent** — if the compensation message is delivered twice (at-least-once delivery), it should not refund twice.\n\n**Example flow (Orchestration)**:\n`OrderPlaced` → charge payment → success → reserve inventory → failure → **refund payment** (compensation) → mark order failed",
+      "**The problem**: in microservices, each service has its own database. You cannot use a single SQL `BEGIN`/`COMMIT` transaction that spans multiple services across a network.\n\n**The Saga pattern** solves this by replacing a single distributed transaction with a sequence of **local transactions**, each confined to one service. If a step fails, previously completed steps are undone using **compensating transactions**.\n\n**Two implementations**:\n\n- **Choreography** — each service publishes an event after its local transaction. The next service subscribes and reacts. No central coordinator. Easy to add new participants; hard to visualize the full flow.\n\n- **Orchestration** — a dedicated Saga Orchestrator calls each service in order, tracks state, and triggers compensations on failure. The complete workflow is visible in one place; easier to debug.\n\n**Compensating transactions** are *logical undos*, not database rollbacks. The DB writes already happened. A compensation is a new write that reverses the effect (issue a refund, release a reservation).\n\n**Important**: compensating transactions must be **idempotent** — if the compensation message is delivered twice (at-least-once delivery), it should not refund twice.\n\n**Example flow (Orchestration)**:\n`OrderPlaced` → charge payment → success → reserve inventory → failure → **refund payment** (compensation) → mark order failed",
     code: {
       language: 'typescript',
       snippet: `// Orchestrator-style saga
@@ -241,7 +242,8 @@ async function placeOrderSaga(orderId: string) {
     await notificationService.confirm(orderId);
     await orderService.markComplete(orderId);
   } catch {
-    // Compensating transactions in reverse order
+    // Compensating transactions in reverse order (idempotent, so safe if a step never ran)
+    // Real systems retry and alert on a failed compensation rather than ignoring it
     await inventoryService.release(orderId).catch(() => {});
     await paymentService.refund(orderId).catch(() => {});
     await orderService.markFailed(orderId);
@@ -379,7 +381,7 @@ async function startConsumer(groupId: string) {
     type: 'basics',
     question: 'What is BullMQ? How do you use it with NestJS for background job processing?',
     answer:
-      '**BullMQ** is a Node.js queue library backed by Redis. It handles background jobs, retries, delays, priority queues, and job scheduling.\n\n**When to use BullMQ vs Kafka/RabbitMQ:**\n- **BullMQ** — job queues within a Node.js ecosystem (email sending, PDF generation, image resizing, scheduled tasks). Simpler, Redis-only, excellent DX in NestJS.\n- **Kafka** — high-throughput event streams shared across many services/languages, event sourcing, replay.\n- **RabbitMQ** — cross-language task routing, complex exchange patterns.\n\n**BullMQ features:**\n- Automatic retries with exponential backoff\n- Delayed jobs (`delay: 5000` ms)\n- Priority queues\n- Repeatable (cron-like) jobs\n- Job progress tracking\n- Concurrency control (`concurrency: 5`)\n- Sandboxed processors (run jobs in separate worker threads)\n- Rate limiting',
+      '**BullMQ** is a Node.js queue library backed by Redis. It handles background jobs, retries, delays, priority queues, and job scheduling.\n\n**When to use BullMQ vs Kafka/RabbitMQ:**\n- **BullMQ** — job queues within a Node.js ecosystem (email sending, PDF generation, image resizing, scheduled tasks). Simpler, Redis-only, excellent DX in NestJS.\n- **Kafka** — high-throughput event streams shared across many services/languages, event sourcing, replay.\n- **RabbitMQ** — cross-language task routing, complex exchange patterns.\n\n**BullMQ features:**\n- Automatic retries with exponential backoff\n- Delayed jobs (`delay: 5000` ms)\n- Priority queues\n- Repeatable (cron-like) jobs\n- Job progress tracking\n- Concurrency control (`concurrency: 5`)\n- Sandboxed processors (run jobs in separate processes or worker threads)\n- Rate limiting',
     code: {
       language: 'typescript',
       snippet: `// 1. Install: npm install @nestjs/bullmq bullmq ioredis
@@ -447,11 +449,11 @@ export class EmailProcessor extends WorkerHost {
     id: 'ms-eda1',
     category: 'Microservices',
     difficulty: 'hard',
-    type: 'basics',
+    type: 'experience',
     question:
       'What is the Transactional Outbox pattern? What problem does it solve in event-driven systems?',
     answer:
-      "**The dual-write problem**: a service typically needs to (1) write to its own database and (2) publish an event about that write. These are two separate systems — a DB commit and a broker publish can't be wrapped in one atomic transaction. If the DB commit succeeds but the publish fails (network blip, broker down), downstream services never learn about a change that actually happened. If you publish first and the DB write then fails, you've announced something that never happened.\n\n**The fix — write the event to your own database, in the same transaction as the business data.** An `outbox` table lives in the same DB, so the business row and its outbox row commit atomically — standard ACID guarantees, no distributed transaction needed. A separate **relay process** then reads the outbox and publishes to the broker (Kafka/RabbitMQ/EventBridge), marking rows as sent (or deleting them) once delivery is confirmed.\n\n**Two ways to build the relay:**\n- **Polling publisher** — a background job polls the outbox table for unsent rows on an interval. Simple, but adds polling latency and load.\n- **Change Data Capture (CDC)** — a tool like **Debezium** tails the DB's write-ahead log (WAL/binlog) and streams inserts to the broker in near real time, with no polling and no extra load on the app.\n\n**Guarantee**: at-least-once delivery — the event will eventually be published if the write committed. It does not give you exactly-once; the consumer side still needs to be idempotent (see [[ms-eda2]]) because the relay can crash after publishing but before marking the row sent, causing a duplicate.\n\n**When to reach for it**: any time a service's local write must be reliably reflected as an event to other services — order placement, payment state changes, inventory updates. Skipping it is the classic cause of \"the event never fired\" bugs that only show up under broker outages.",
+      "**The dual-write problem**: a service typically needs to (1) write to its own database and (2) publish an event about that write. These are two separate systems — a DB commit and a broker publish can't be wrapped in one atomic transaction. If the DB commit succeeds but the publish fails (network blip, broker down), downstream services never learn about a change that actually happened. If you publish first and the DB write then fails, you've announced something that never happened.\n\n**The fix — write the event to your own database, in the same transaction as the business data.** An `outbox` table lives in the same DB, so the business row and its outbox row commit atomically — standard ACID guarantees, no distributed transaction needed. A separate **relay process** then reads the outbox and publishes to the broker (Kafka/RabbitMQ/EventBridge), marking rows as sent (or deleting them) once delivery is confirmed.\n\n**Two ways to build the relay:**\n- **Polling publisher** — a background job polls the outbox table for unsent rows on an interval. Simple, but adds polling latency and load.\n- **Change Data Capture (CDC)** — a tool like **Debezium** tails the DB's write-ahead log (WAL/binlog) and streams inserts to the broker in near real time, with no polling and no extra load on the app.\n\n**Guarantee**: at-least-once delivery — the event will eventually be published if the write committed. It does not give you exactly-once; the consumer side still needs to be idempotent because the relay can crash after publishing but before marking the row sent, causing a duplicate.\n\n**When to reach for it**: any time a service's local write must be reliably reflected as an event to other services — order placement, payment state changes, inventory updates. Skipping it is the classic cause of \"the event never fired\" bugs that only show up under broker outages.",
     code: {
       language: 'sql',
       snippet: `-- Same transaction: business write + outbox write commit or roll back together
@@ -483,7 +485,7 @@ COMMIT;
     id: 'ms-eda2',
     category: 'Microservices',
     difficulty: 'hard',
-    type: 'basics',
+    type: 'experience',
     question:
       'Event-driven systems promise "exactly-once" processing, but is that actually achievable? How do you design consumers and evolve event schemas safely?',
     answer:

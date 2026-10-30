@@ -11,22 +11,25 @@ export const authCards: Flashcard[] = [
     type: 'experience',
     question: 'Explain the OAuth 2.0 Authorization Code flow with PKCE. Why is PKCE required for SPAs and mobile apps?',
     answer:
-      '**Authorization Code flow steps**:\n1. App redirects user to Auth Server with `response_type=code`, `client_id`, `redirect_uri`, `scope`, `state` (CSRF token)\n2. User authenticates; Auth Server redirects back with `code`\n3. App exchanges `code` for `access_token` + `refresh_token` via back-channel POST (includes `client_secret`)\n4. App uses `access_token` to call the Resource Server\n\n**Why PKCE for public clients**: SPAs and mobile apps cannot keep a `client_secret` safe — it would be visible in source code or app binaries. PKCE (Proof Key for Code Exchange) replaces the secret with a one-time `code_verifier`/`code_challenge` pair:\n- Client generates random `code_verifier`, hashes it to `code_challenge` (S256)\n- `code_challenge` is sent with the auth request\n- `code_verifier` is sent with the token exchange\n- Auth Server validates the pair — no secret needed',
+      '**Authorization Code flow steps**:\n1. App redirects user to Auth Server with `response_type=code`, `client_id`, `redirect_uri`, `scope`, `state` (CSRF token)\n2. User authenticates; Auth Server redirects back with `code`\n3. App exchanges `code` for `access_token` + `refresh_token` via back-channel POST (includes `client_secret`)\n4. App uses `access_token` to call the Resource Server\n\n**Why PKCE for public clients**: SPAs and mobile apps cannot keep a `client_secret` safe — it would be visible in source code or app binaries — so a stolen authorization code could otherwise be exchanged by anyone. OAuth 2.1 requires PKCE for all clients using this flow. PKCE (Proof Key for Code Exchange) replaces the secret with a one-time `code_verifier`/`code_challenge` pair:\n- Client generates random `code_verifier`, hashes it to `code_challenge` (S256)\n- `code_challenge` is sent with the auth request\n- `code_verifier` is sent with the token exchange\n- Auth Server validates the pair — no secret needed',
     code: {
       language: 'typescript',
-      snippet: `import { randomBytes, createHash } from 'crypto';
+      snippet: `// Runs in the browser, so it uses the Web Crypto API
+const base64url = (bytes: Uint8Array) =>
+  btoa(String.fromCharCode(...bytes))
+    .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');
 
 // Step 1: Generate PKCE pair
-function generatePKCE() {
-  const verifier = randomBytes(32).toString('base64url');
-  const challenge = createHash('sha256')
-    .update(verifier)
-    .digest('base64url');
-  return { verifier, challenge };
+async function generatePKCE() {
+  const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  return { verifier, challenge: base64url(new Uint8Array(digest)) };
 }
 
-const { verifier, challenge } = generatePKCE();
+const { verifier, challenge } = await generatePKCE();
+const state = crypto.randomUUID();
 sessionStorage.setItem('pkce_verifier', verifier);
+sessionStorage.setItem('oauth_state', state); // verify this on the redirect back
 
 const authUrl = new URL('https://auth.example.com/authorize');
 authUrl.searchParams.set('response_type', 'code');
@@ -34,7 +37,7 @@ authUrl.searchParams.set('client_id', CLIENT_ID);
 authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
 authUrl.searchParams.set('code_challenge', challenge);
 authUrl.searchParams.set('code_challenge_method', 'S256');
-authUrl.searchParams.set('state', randomBytes(16).toString('hex'));
+authUrl.searchParams.set('state', state);
 window.location.href = authUrl.toString();`,
     },
   },
@@ -88,7 +91,7 @@ async function rotateRefreshToken(oldToken: string): Promise<Tokens> {
     type: 'experience',
     question: 'What are the OWASP API Security Top 10 risks most relevant to a Node.js backend? How do you mitigate them?',
     answer:
-      '1. **Broken Object Level Authorization (BOLA/IDOR)** — always verify the requesting user owns the resource, not just that the route requires auth\n2. **Broken Authentication** — use short-lived JWTs + refresh rotation; store tokens in httpOnly cookies; enforce MFA for sensitive actions\n3. **Broken Object Property Level Authorization** — never mass-assign request body directly to DB; use allowlists (`Pick<>`) for what fields users can update\n4. **Unrestricted Resource Consumption** — rate limit all endpoints; paginate lists; limit request body size; add timeouts to DB queries\n5. **Broken Function Level Authorization** — separate admin routes; check role on every privileged operation, not just at the route level\n6. **Injection** — use parameterized queries; validate all input with Zod/Joi; never build queries with string concatenation\n7. **Security Misconfiguration** — remove default credentials; disable stack traces in production; set security headers (Helmet); restrict CORS origins',
+      '1. **Broken Object Level Authorization (BOLA/IDOR)** — always verify the requesting user owns the resource, not just that the route requires auth\n2. **Broken Authentication** — use short-lived JWTs + refresh rotation; store tokens in httpOnly cookies; enforce MFA for sensitive actions\n3. **Broken Object Property Level Authorization** — never mass-assign request body directly to DB; use runtime allowlists (e.g. a Zod schema) for what fields users can update\n4. **Unrestricted Resource Consumption** — rate limit all endpoints; paginate lists; limit request body size; add timeouts to DB queries\n5. **Broken Function Level Authorization** — separate admin routes; check role on every privileged operation, not just at the route level\n6. **Injection** — use parameterized queries; validate all input with Zod/Joi; never build queries with string concatenation\n7. **Security Misconfiguration** — remove default credentials; disable stack traces in production; set security headers (Helmet); restrict CORS origins',
     code: {
       language: 'typescript',
       snippet: `// BOLA fix: always scope to the requesting user
@@ -123,7 +126,7 @@ app.patch('/users/:id', auth, async (req, res) => {
     type: 'experience',
     question: 'What security headers should every production Node.js API set, and what does each header protect against?',
     answer:
-      '- **Strict-Transport-Security (HSTS)** — forces HTTPS for the specified duration; prevents SSL stripping attacks\n- **X-Content-Type-Options: nosniff** — prevents browsers from MIME-sniffing a response away from the declared Content-Type\n- **X-Frame-Options: DENY** — prevents clickjacking by disallowing the page in an iframe\n- **Content-Security-Policy (CSP)** — allowlist of sources for scripts, styles, images; primary XSS defence for HTML responses\n- **Referrer-Policy: strict-origin-when-cross-origin** — controls how much referrer info is sent; prevents leaking sensitive URL params\n- **Permissions-Policy** — disables browser features (camera, geolocation) the app doesn\'t need\n- **Cache-Control: no-store** — on authenticated endpoints; prevents sensitive data from being cached by proxies/browsers',
+      '- **Strict-Transport-Security (HSTS)** — forces HTTPS for the specified duration; prevents SSL stripping attacks\n- **X-Content-Type-Options: nosniff** — prevents browsers from MIME-sniffing a response away from the declared Content-Type\n- **X-Frame-Options: DENY** — prevents clickjacking by disallowing the page in an iframe\n- **Content-Security-Policy (CSP)** — allowlist of sources for scripts, styles, images; primary XSS defense for HTML responses\n- **Referrer-Policy: strict-origin-when-cross-origin** — controls how much referrer info is sent; prevents leaking sensitive URL params\n- **Permissions-Policy** — disables browser features (camera, geolocation) the app doesn\'t need\n- **Cache-Control: no-store** — on authenticated endpoints; prevents sensitive data from being cached by proxies/browsers',
     code: {
       language: 'typescript',
       snippet: `import helmet from 'helmet';
@@ -250,7 +253,7 @@ function authMiddleware(req, res, next) {
     type: 'basics',
     question: 'What is an API key and when should you use one?',
     answer:
-      "An **API key** is a long random string (e.g. `sk_live_abc123...`) that a client sends with every request to identify and authenticate itself.\n\n**How it works**: the server generates a key, stores a hash of it, and the client sends it in a header (e.g. `Authorization: Bearer sk_live_...` or `X-API-Key: ...`). The server hashes the incoming key and compares it to the stored hash.\n\n**When to use API keys**:\n- Machine-to-machine (M2M) communication — a backend service calling another backend service\n- Public APIs where developers need to identify their app (rate limiting, billing)\n- Simple integrations where OAuth is overkill\n\n**When NOT to use API keys**:\n- On behalf of individual users — use OAuth/JWT for user-scoped permissions\n- In browser JavaScript — keys embedded in frontend code are exposed to everyone\n\n**Best practices**:\n- Store only the hash (bcrypt or SHA-256) — never the plaintext key\n- Prefix with an identifier (`sk_live_`, `pk_test_`) so they're easy to detect if leaked\n- Allow key rotation and immediate revocation\n- Scope keys to specific permissions (`read:orders`, `write:products`)",
+      "An **API key** is a long random string (e.g. `sk_live_abc123...`) that a client sends with every request to identify and authenticate itself.\n\n**How it works**: the server generates a key, stores a hash of it, and the client sends it in a header (e.g. `Authorization: Bearer sk_live_...` or `X-API-Key: ...`). The server hashes the incoming key and compares it to the stored hash.\n\n**When to use API keys**:\n- Machine-to-machine (M2M) communication — a backend service calling another backend service\n- Public APIs where developers need to identify their app (rate limiting, billing)\n- Simple integrations where OAuth is overkill\n\n**When NOT to use API keys**:\n- On behalf of individual users — use OAuth/JWT for user-scoped permissions\n- In browser JavaScript — keys embedded in frontend code are exposed to everyone\n\n**Best practices**:\n- Store only the hash — never the plaintext key. SHA-256 is fine here because keys are long and random, unlike passwords\n- Prefix with an identifier (`sk_live_`, `pk_test_`) so they're easy to detect if leaked\n- Allow key rotation and immediate revocation\n- Scope keys to specific permissions (`read:orders`, `write:products`)",
     code: {
       language: 'typescript',
       snippet: `import { createHash, randomBytes } from 'crypto';
@@ -273,7 +276,7 @@ app.use(async (req, res, next) => {
   const key = req.headers['x-api-key'] as string;
   if (!key) return res.status(401).json({ error: 'API key required' });
   const record = await validateApiKey(key);
-  if (!record) return res.status(403).json({ error: 'Invalid API key' });
+  if (!record) return res.status(401).json({ error: 'Invalid API key' });
   req.apiKey = record;
   next();
 });`,
@@ -360,7 +363,7 @@ await prisma.$queryRaw\`SELECT * FROM users WHERE name = \${req.query.name}\`;`,
     type: 'basics',
     question: 'Why should you use bcrypt for password hashing instead of SHA-256 or MD5?',
     answer:
-      "**MD5 and SHA-256 are general-purpose hash functions designed to be fast** — a GPU can compute billions of them per second. That speed is an asset for checksums, but a critical vulnerability for passwords: an attacker who steals your `users` table can try billions of password guesses per second.\n\n**bcrypt is intentionally slow**, and that's the entire point:\n\n- **Configurable cost factor** — each increment doubles the compute time. Cost 10 takes ~100 ms; cost 12 takes ~300 ms. As GPUs get faster, you raise the factor.\n- **Built-in per-password salt** — a random salt is generated automatically for every password. Two users with the same password get different hashes. This defeats rainbow table attacks (pre-computed hash lookup tables).\n- **`bcrypt.compare()` is constant-time** — it always takes the same amount of time regardless of where the strings differ, preventing timing attacks.\n\n**Rule of thumb**: cost factor 12 is the 2025 baseline. At ~300 ms per hash, it is fast enough for login UX but would take an attacker thousands of years to crack a strong password database.\n\n**Alternatives**: Argon2id (winner of the 2015 Password Hashing Competition) is preferred for new projects — it is harder to run on specialized hardware (GPUs/ASICs).",
+      "**MD5 and SHA-256 are general-purpose hash functions designed to be fast** — a GPU can compute billions of them per second. That speed is an asset for checksums, but a critical vulnerability for passwords: an attacker who steals your `users` table can try billions of password guesses per second.\n\n**bcrypt is intentionally slow**, and that's the entire point:\n\n- **Configurable cost factor** — each increment doubles the compute time. Cost 10 takes ~100 ms; cost 12 takes ~300 ms. As GPUs get faster, you raise the factor.\n- **Built-in per-password salt** — a random salt is generated automatically for every password. Two users with the same password get different hashes. This defeats rainbow table attacks (pre-computed hash lookup tables).\n- **`bcrypt.compare()` is constant-time** — it always takes the same amount of time regardless of where the strings differ, preventing timing attacks.\n\n**Rule of thumb**: cost factor 12 is the 2025 baseline. At ~300 ms per hash, it is fast enough for login UX but makes large-scale guessing against strong passwords impractical.\n\n**Alternatives**: Argon2id (winner of the 2015 Password Hashing Competition) is preferred for new projects — it is harder to run on specialized hardware (GPUs/ASICs).",
     code: {
       language: 'typescript',
       snippet: `import bcrypt from 'bcrypt';
@@ -390,7 +393,7 @@ await verifyPassword('wrong',     hash); // false`,
     type: 'basics',
     question: 'What are the OWASP Top 10 vulnerabilities most relevant to a Node.js API?',
     answer:
-      "The **OWASP Top 10** is the authoritative list of the most critical web application security risks. These are the items most relevant to a Node.js API:\n\n**A01 — Broken Access Control** (most common, most dangerous)\nNot verifying that the logged-in user is allowed to access the specific resource they're requesting. Fix: always scope queries to `req.user.id` — never trust the ID in the URL alone.\n\n**A02 — Cryptographic Failures**\nStoring passwords in plain text or using weak hashing (MD5, SHA-1). No TLS on the API. Fix: bcrypt/Argon2 for passwords, HTTPS everywhere, AES-256 for sensitive data at rest.\n\n**A03 — Injection**\nSQL injection, NoSQL injection, command injection — all caused by concatenating user input into queries or commands. Fix: always use parameterized queries; validate input with Zod/Joi; never use string interpolation in SQL.\n\n**A05 — Security Misconfiguration**\nDefault credentials left unchanged, verbose stack traces exposed in API error responses, `CORS: *` on APIs with authentication, missing security headers (`X-Content-Type-Options`, `HSTS`). Fix: `helmet` middleware covers most HTTP security headers.\n\n**A06 — Vulnerable and Outdated Components**\nOutdated npm packages with known CVEs in your `node_modules`. Fix: run `npm audit` in CI, use Dependabot/Renovate for automated update PRs.\n\n**A07 — Identification and Authentication Failures**\nNo expiry on JWT tokens, weak or hardcoded `JWT_SECRET`, no rate limiting on `/login` (enables brute-force). Fix: short-lived tokens (15 min), strong secrets from a secrets manager, rate limit auth endpoints.\n\n**Quick wins that cover multiple categories**: `helmet` (A05), `express-rate-limit` (A07), Zod validation (A03), `npm audit` in CI (A06).",
+      "The **OWASP Top 10** is the authoritative list of the most critical web application security risks. These are the items most relevant to a Node.js API, using the 2021 edition's numbering:\n\n**A01 — Broken Access Control** (most common, most dangerous)\nNot verifying that the logged-in user is allowed to access the specific resource they're requesting. Fix: always scope queries to `req.user.id` — never trust the ID in the URL alone.\n\n**A02 — Cryptographic Failures**\nStoring passwords in plain text or using weak hashing (MD5, SHA-1). No TLS on the API. Fix: bcrypt/Argon2 for passwords, HTTPS everywhere, AES-256 for sensitive data at rest.\n\n**A03 — Injection**\nSQL injection, NoSQL injection, command injection — all caused by concatenating user input into queries or commands. Fix: always use parameterized queries; validate input with Zod/Joi; never use string interpolation in SQL.\n\n**A05 — Security Misconfiguration**\nDefault credentials left unchanged, verbose stack traces exposed in API error responses, `CORS: *` on APIs with authentication, missing security headers (`X-Content-Type-Options`, `HSTS`). Fix: `helmet` middleware covers most HTTP security headers.\n\n**A06 — Vulnerable and Outdated Components**\nOutdated npm packages with known CVEs in your `node_modules`. Fix: run `npm audit` in CI, use Dependabot/Renovate for automated update PRs.\n\n**A07 — Identification and Authentication Failures**\nNo expiry on JWT tokens, weak or hardcoded `JWT_SECRET`, no rate limiting on `/login` (enables brute-force). Fix: short-lived tokens (15 min), strong secrets from a secrets manager, rate limit auth endpoints.\n\n**Quick wins that cover multiple categories**: `helmet` (A05), `express-rate-limit` (A07), Zod validation (A03), `npm audit` in CI (A06).",
     code: {
       language: 'typescript',
       snippet: `import helmet from 'helmet';
@@ -401,7 +404,7 @@ app.use(helmet()); // X-Content-Type-Options, CSP, HSTS, etc.
 
 app.use('/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }));
 
-// Parameterised query — never concat user input
+// Parameterized query — never concat user input
 const { rows } = await pool.query(
   'SELECT * FROM users WHERE email = $1',
   [req.body.email],
@@ -412,7 +415,7 @@ const LoginSchema = z.object({
   email:    z.string().email(),
   password: z.string().min(8).max(128),
 });
-const body = LoginSchema.parse(req.body); // throws 400 on bad input`,
+const body = LoginSchema.parse(req.body); // throws ZodError; map it to a 400 in your error handler`,
     },
   },
 
@@ -423,7 +426,7 @@ const body = LoginSchema.parse(req.body); // throws 400 on bad input`,
     type: 'basics',
     question: 'What is CSRF? Do REST APIs using JWT need CSRF protection?',
     answer:
-      '**Cross-Site Request Forgery (CSRF)** tricks a logged-in user\'s browser into making an unwanted request to your server. The browser automatically attaches cookies to every request — so if auth lives in a cookie, a malicious site can trigger actions on behalf of the user.\n\n**Classic attack:**\n1. User is logged in to `bank.com` (session cookie)\n2. User visits `evil.com` which has `<img src="bank.com/transfer?to=attacker&amount=1000">`\n3. Browser fires the request with the bank cookie → transfer happens\n\n**CSRF protections:**\n- **Synchroniser Token (CSRF token)** — server generates a secret token per session, embeds in forms/headers. Attacker can\'t read it from another origin (SOP).\n- **SameSite cookie** — `SameSite=Strict` or `SameSite=Lax` prevents the browser sending the cookie on cross-origin requests. Modern and effective.\n- **Custom request header** — AJAX sending a custom header (e.g. `X-Requested-With`) is blocked by CORS on cross-origin requests.\n\n**JWT in `Authorization: Bearer` header:** CSRF doesn\'t apply — browsers don\'t auto-send headers. Only cookies are auto-sent.\n\n**JWT stored in an `httpOnly` cookie:** you DO need CSRF protection — use `SameSite=Strict` + CSRF token.',
+      '**Cross-Site Request Forgery (CSRF)** tricks a logged-in user\'s browser into making an unwanted request to your server. The browser automatically attaches cookies to every request — so if auth lives in a cookie, a malicious site can trigger actions on behalf of the user.\n\n**Classic attack:**\n1. User is logged in to `bank.com` (session cookie)\n2. User visits `evil.com` which has `<img src="bank.com/transfer?to=attacker&amount=1000">`\n3. Browser fires the request with the bank cookie → transfer happens\n\n**CSRF protections:**\n- **Synchronizer Token (CSRF token)** — server generates a secret token per session, embeds in forms/headers. Attacker can\'t read it from another origin (SOP).\n- **SameSite cookie** — `SameSite=Strict` or `SameSite=Lax` prevents the browser sending the cookie on cross-origin requests. Modern and effective.\n- **Custom request header** — AJAX sending a custom header (e.g. `X-Requested-With`) is blocked by CORS on cross-origin requests.\n\n**JWT in `Authorization: Bearer` header:** CSRF doesn\'t apply — browsers don\'t auto-send headers. Only cookies are auto-sent.\n\n**JWT stored in an `httpOnly` cookie:** you DO need CSRF protection — use `SameSite=Strict` + CSRF token.',
     code: {
       language: 'typescript',
       snippet: `// Option 1: SameSite cookie — simplest modern fix
@@ -433,7 +436,8 @@ res.cookie('token', jwt, {
   sameSite: 'strict', // browser won't send cookie on cross-origin requests
 });
 
-// Option 2: CSRF token with csurf (for server-rendered apps / cookies)
+// Option 2: CSRF token (for server-rendered apps / cookies)
+// csurf shows the pattern but is deprecated; use a maintained package such as csrf-csrf
 const csrf = require('csurf');
 const csrfProtection = csrf({ cookie: true });
 
@@ -447,7 +451,8 @@ app.post('/submit', csrfProtection, (req, res) => {
 
 // Option 3: JWT in Authorization header — no CSRF risk
 // The browser never auto-sends Authorization headers
-// Attacker's site cannot set this header from cross-origin JS (blocked by CORS)
+// Attacker's site cannot read the token to set this header
+// Trade-off: a token in localStorage can be stolen through XSS
 fetch('/api/data', {
   headers: { 'Authorization': \`Bearer \${localStorage.getItem('token')}\` }
 });`,
@@ -461,7 +466,7 @@ fetch('/api/data', {
     type: 'experience',
     question: 'How does refresh token rotation work? How do you detect and handle refresh token theft?',
     answer:
-      '**Refresh token rotation** issues a new refresh token every time the old one is used. The old token is immediately invalidated. This limits the window of compromise — a stolen refresh token can only be used once.\n\n**Flow:**\n1. Login → server issues `accessToken` (short-lived, 15min) + `refreshToken` (long-lived, 7d)\n2. Access token expires → client sends refresh token to `/auth/refresh`\n3. Server validates, issues new `accessToken` + new `refreshToken`, **invalidates the old refresh token**\n4. Client stores the new refresh token\n\n**Theft detection (reuse detection):**\n- If a **used** (already rotated) refresh token is presented again, an attacker AND the legitimate user both have tokens from the same family\n- Server detects reuse → **invalidate the entire token family** → force re-login\n- This protects the legitimate user: the attacker\'s next use also fails\n\n**Storage:** store refresh tokens in DB with `{ token, userId, family, usedAt, expiresAt }`. `httpOnly` cookie is safer than `localStorage` (XSS-proof).\n\n**Token family:** group of tokens issued from the same login session. Compromising any triggers a full family revocation.',
+      '**Refresh token rotation** issues a new refresh token every time the old one is used. The old token is immediately invalidated. This limits the window of compromise — a stolen refresh token can only be used once.\n\n**Flow:**\n1. Login → server issues `accessToken` (short-lived, 15min) + `refreshToken` (long-lived, 7d)\n2. Access token expires → client sends refresh token to `/auth/refresh`\n3. Server validates, issues new `accessToken` + new `refreshToken`, **invalidates the old refresh token**\n4. Client stores the new refresh token\n\n**Theft detection (reuse detection):**\n- If a **used** (already rotated) refresh token is presented again, an attacker AND the legitimate user both have tokens from the same family\n- Server detects reuse → **invalidate the entire token family** → force re-login\n- This protects the legitimate user: the attacker\'s next use also fails\n\n**Storage:** store refresh tokens in DB with `{ token, userId, family, usedAt, expiresAt }`. An `httpOnly` cookie is safer than `localStorage` because injected scripts cannot read it. Store a hash of the token rather than the raw value, as you would a password.\n\n**Token family:** group of tokens issued from the same login session. Compromising any triggers a full family revocation.',
     code: {
       language: 'typescript',
       snippet: `// On login — create initial token family
@@ -484,6 +489,11 @@ async function refresh(oldToken: string) {
 
   // Token not found at all — invalid
   if (!stored.rows[0]) throw new Error('Invalid token');
+
+  // Family already revoked, or token past its expiry
+  if (stored.rows[0].revoked || stored.rows[0].expires_at < new Date()) {
+    throw new Error('Invalid token');
+  }
 
   // Token already used → THEFT DETECTED — invalidate entire family
   if (stored.rows[0].used_at) {

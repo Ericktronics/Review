@@ -1,53 +1,29 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { flashcards } from './data/flashcards';
-import type { Category, Flashcard } from './types';
-import { FlashCard } from './components/FlashCard';
+import type { CardStatus, Category, Filters, Flashcard, Progress, Theme, ViewMode } from './types';
+import { useStored } from './utils/storage';
+import { currentStreak, dayKey, EMPTY_STATS, recordGrade, type Stats } from './utils/stats';
+import { BrowseView } from './components/BrowseView';
+import { Icon } from './components/Icons';
+import { QuizView } from './components/QuizView';
 import { Sidebar } from './components/Sidebar';
-import { Controls } from './components/Controls';
-
-type ViewMode = 'quiz' | 'study' | 'browse';
-type Difficulty = 'all' | 'easy' | 'medium' | 'hard';
-type TypeFilter = 'all' | 'basics' | 'experience';
+import { StudyView } from './components/StudyView';
+import { Today } from './components/Today';
+import { Toolbar, type FacetCounts } from './components/Toolbar';
 
 const ALL_CATEGORIES = Array.from(new Set(flashcards.map((c) => c.category))) as Category[];
+const NO_FILTERS: Filters = { level: 'all', difficulty: 'all', status: 'all' };
 
-const DIFF_COLORS: Record<Difficulty, string> = {
-  all:    'bg-slate-700 text-slate-100 border-slate-600',
-  easy:   'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-  medium: 'bg-amber-500/20  text-amber-300  border-amber-500/40',
-  hard:   'bg-red-500/20    text-red-300    border-red-500/40',
-};
+const VIEWS: { value: ViewMode; label: string; description: string }[] = [
+  { value: 'today', label: 'Today', description: 'Your daily goal, streak and what to review next' },
+  { value: 'quiz', label: 'Quiz', description: 'One card at a time, answer hidden until you reveal it' },
+  { value: 'study', label: 'Study', description: 'Every question beside its answer, to read through' },
+  { value: 'browse', label: 'Browse', description: 'A scannable list of questions; open any to see its answer' },
+];
 
-const DIFF_ACTIVE: Record<Difficulty, string> = {
-  all:    'ring-2 ring-slate-400 ring-offset-1 ring-offset-slate-950',
-  easy:   'ring-2 ring-emerald-400 ring-offset-1 ring-offset-slate-950',
-  medium: 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-950',
-  hard:   'ring-2 ring-red-400 ring-offset-1 ring-offset-slate-950',
-};
-
-const TYPE_COLORS: Record<TypeFilter, string> = {
-  all:        'bg-slate-700 text-slate-100 border-slate-600',
-  basics:     'bg-sky-500/20    text-sky-300    border-sky-500/40',
-  experience: 'bg-violet-500/20 text-violet-300 border-violet-500/40',
-};
-
-const TYPE_ACTIVE: Record<TypeFilter, string> = {
-  all:        'ring-2 ring-slate-400 ring-offset-1 ring-offset-slate-950',
-  basics:     'ring-2 ring-sky-400 ring-offset-1 ring-offset-slate-950',
-  experience: 'ring-2 ring-violet-400 ring-offset-1 ring-offset-slate-950',
-};
-
-const TYPE_LABELS: Record<TypeFilter, string> = {
-  all:        'All',
-  basics:     'Must Know Basics',
-  experience: 'Must Know for Exp. Hires',
-};
-
-const TYPE_LABELS_SHORT: Record<TypeFilter, string> = {
-  all:        'All',
-  basics:     'Basics',
-  experience: 'Exp. Hires',
-};
+const SEARCH_TEXT = new Map(
+  flashcards.map((c) => [c.id, `${c.question}\n${c.answer}\n${c.category}\n${c.id}`.toLowerCase()])
+);
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -58,320 +34,310 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-const VIEW_LABELS: Record<ViewMode, string> = {
-  quiz:   'Quiz',
-  study:  'Study',
-  browse: 'Browse All',
-};
-
-const VIEW_DESCRIPTIONS: Record<ViewMode, string> = {
-  quiz:   'One card at a time — answer hidden until you reveal it',
-  study:  'All cards fully expanded — read through at your own pace',
-  browse: 'Grid overview — all questions and answers visible',
-};
+function passes(card: Flashcard, f: Filters, progress: Progress) {
+  if (f.level !== 'all' && card.type !== f.level) return false;
+  if (f.difficulty !== 'all' && card.difficulty !== f.difficulty) return false;
+  if (f.status === 'new') return !progress[card.id];
+  if (f.status !== 'all') return progress[card.id] === f.status;
+  return true;
+}
 
 export default function App() {
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [difficultyFilter, setDifficultyFilter] = useState<Difficulty>('all');
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
-  const [index, setIndex] = useState(0);
-  const [deck, setDeck] = useState<Flashcard[]>(flashcards);
-  const [viewMode, setViewMode] = useState<ViewMode>('study');
+  const [view, setView] = useStored<ViewMode>('flashcards.view', 'today');
+  const [storedCategory, setCategory] = useStored<Category | null>('flashcards.category', null);
+  const [theme, setTheme] = useStored<Theme>('flashcards.theme', 'dark');
+  const [progress, setProgress] = useStored<Progress>('flashcards.progress', {});
+  const [stats, setStats] = useStored<Stats>('flashcards.stats', EMPTY_STATS);
+
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [query, setQuery] = useState('');
+  const [order, setOrder] = useState<Flashcard[] | null>(null);
+  const [shuffleCount, setShuffleCount] = useState(0);
+  const [answersHidden, setAnswersHidden] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [revealed, setRevealed] = useState(false);
+  // The cards of a "Start review" session, which ignores category and filters
+  const [dailyDeck, setDailyDeck] = useState<Flashcard[] | null>(null);
+  const [sessionCount, setSessionCount] = useState(0);
 
-  // Category filter first, then difficulty filter
-  const byCat = useMemo(
-    () => (selectedCategory ? deck.filter((c) => c.category === selectedCategory) : deck),
-    [deck, selectedCategory]
-  );
+  // A saved category can disappear if the card data changes
+  const category = storedCategory && ALL_CATEGORIES.includes(storedCategory) ? storedCategory : null;
+  const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
-  const filtered = useMemo(() => {
-    let cards = byCat;
-    if (difficultyFilter !== 'all') cards = cards.filter(c => c.difficulty === difficultyFilter);
-    if (typeFilter !== 'all')       cards = cards.filter(c => c.type === typeFilter);
-    return cards;
-  }, [byCat, difficultyFilter, typeFilter]);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
-  // Counts within current category + type filter (for difficulty chips)
-  const byType = useMemo(
-    () => (typeFilter === 'all' ? byCat : byCat.filter(c => c.type === typeFilter)),
-    [byCat, typeFilter]
-  );
+  const isDark = theme === 'dark';
 
-  const diffCounts = useMemo(() => ({
-    all:    byType.length,
-    easy:   byType.filter(c => c.difficulty === 'easy').length,
-    medium: byType.filter(c => c.difficulty === 'medium').length,
-    hard:   byType.filter(c => c.difficulty === 'hard').length,
-  }), [byType]);
+  // Category and search narrow the deck; the three filters apply on top
+  const scoped = useMemo(() => {
+    const deck = order ?? flashcards;
+    return deck.filter(
+      (c) =>
+        (!category || c.category === category) &&
+        (!deferredQuery || SEARCH_TEXT.get(c.id)?.includes(deferredQuery))
+    );
+  }, [order, category, deferredQuery]);
 
-  // Counts within current category + difficulty filter (for type chips)
-  const byDiff = useMemo(
-    () => (difficultyFilter === 'all' ? byCat : byCat.filter(c => c.difficulty === difficultyFilter)),
-    [byCat, difficultyFilter]
-  );
+  const filtered = useMemo(() => scoped.filter((c) => passes(c, filters, progress)), [scoped, filters, progress]);
 
-  const typeCounts = useMemo(() => ({
-    all:        byDiff.length,
-    basics:     byDiff.filter(c => c.type === 'basics').length,
-    experience: byDiff.filter(c => c.type === 'experience').length,
-  }), [byDiff]);
+  // Each filter's counts reflect the other two, so a count always matches what selecting it shows
+  const facetCounts: FacetCounts = useMemo(() => {
+    const count = (override: Partial<Filters>) => {
+      const f = { ...filters, ...override };
+      return scoped.filter((c) => passes(c, f, progress)).length;
+    };
+    return {
+      level: { all: count({ level: 'all' }), basics: count({ level: 'basics' }), experience: count({ level: 'experience' }) },
+      difficulty: {
+        all: count({ difficulty: 'all' }),
+        easy: count({ difficulty: 'easy' }),
+        medium: count({ difficulty: 'medium' }),
+        hard: count({ difficulty: 'hard' }),
+      },
+      status: {
+        all: count({ status: 'all' }),
+        new: count({ status: 'new' }),
+        again: count({ status: 'again' }),
+        known: count({ status: 'known' }),
+      },
+    };
+  }, [scoped, filters, progress]);
 
-  const counts = useMemo(
-    () =>
-      ALL_CATEGORIES.reduce<Record<string, number>>((acc, cat) => {
-        acc[cat] = flashcards.filter((c) => c.category === cat).length;
-        return acc;
-      }, {}),
-    []
-  );
+  const { counts, knownCounts } = useMemo(() => {
+    const counts: Record<string, number> = {};
+    const knownCounts: Record<string, number> = {};
+    for (const c of flashcards) {
+      counts[c.category] = (counts[c.category] ?? 0) + 1;
+      if (progress[c.id] === 'known') knownCounts[c.category] = (knownCounts[c.category] ?? 0) + 1;
+    }
+    return { counts, knownCounts };
+  }, [progress]);
 
-  function handleCategorySelect(cat: Category | null) {
-    setSelectedCategory(cat);
-    setDifficultyFilter('all');
-    setTypeFilter('all');
-    setIndex(0);
+  const today = dayKey();
+  const doneToday = stats.days[today] ?? 0;
+  const streak = currentStreak(stats.days);
+
+  const { due, unseen } = useMemo(() => ({
+    due: flashcards.filter((c) => {
+      const entry = stats.schedule[c.id];
+      return entry && entry.due <= today;
+    }),
+    unseen: flashcards.filter((c) => !progress[c.id]),
+  }), [stats.schedule, progress, today]);
+
+  const sessionSize = Math.min(Math.max(stats.goal - doneToday, 10), due.length + unseen.length);
+
+  const grade = useCallback((id: string, status: CardStatus) => {
+    setProgress((p) => ({ ...p, [id]: status }));
+    setStats((s) => recordGrade(s, id, status));
+  }, [setProgress, setStats]);
+
+  const toggleKnown = useCallback((id: string) => {
+    setProgress((p) => {
+      const { [id]: current, ...rest } = p;
+      return current === 'known' ? rest : { ...rest, [id]: 'known' };
+    });
+  }, [setProgress]);
+
+  function changeView(next: ViewMode) {
+    setDailyDeck(null);
+    setView(next);
+  }
+
+  function handleCategorySelect(next: Category | null) {
+    setCategory(next);
+    setFilters(NO_FILTERS);
+    setQuery('');
     setSidebarOpen(false);
+    setDailyDeck(null);
+    if (view === 'today') setView('study');
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
-  function handleDifficultyFilter(d: Difficulty) {
-    setDifficultyFilter(d);
-    setIndex(0);
+  function startDailyReview() {
+    // Overdue cards first, then new ones from across every topic
+    setDailyDeck([...shuffle(due), ...shuffle(unseen)].slice(0, sessionSize));
+    setSessionCount((n) => n + 1);
+    setView('quiz');
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
-  function handleShuffle() {
-    setDeck(shuffle(deck));
-    setIndex(0);
+  function startTopic(next: Category) {
+    setCategory(next);
+    setFilters(NO_FILTERS);
+    setQuery('');
+    setDailyDeck(null);
+    setView('quiz');
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
-  function handlePrev() {
-    setIndex((i) => Math.max(0, i - 1));
-  }
-
-  function handleNext() {
-    setIndex((i) => Math.min(filtered.length - 1, i + 1));
-  }
-
-  const card = filtered[index];
-
-  // Reset the reveal state whenever the current quiz card changes
-  useEffect(() => {
-    setRevealed(false);
-  }, [card?.id]);
-
-  // Quiz mode keyboard shortcuts: ←/→ to navigate, Space to reveal/hide the answer
-  useEffect(() => {
-    if (viewMode !== 'quiz') return;
-
-    function handleKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement | null;
-      const isTyping =
-        target instanceof HTMLElement &&
-        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-      if (isTyping) return;
-
-      if (e.code === 'Space') {
-        e.preventDefault();
-        setRevealed((r) => !r);
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        handleNext();
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        handlePrev();
-      }
+  function handleResetProgress() {
+    if (window.confirm('Clear every Known and Review again mark? Your streak is kept.')) {
+      setProgress({});
+      setStats((s) => ({ ...s, schedule: {} }));
     }
+  }
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [viewMode, filtered.length]);
+  function clearFilters() {
+    setFilters(NO_FILTERS);
+    setQuery('');
+  }
+
+  // A new key starts a fresh quiz session whenever the set of cards being quizzed changes
+  const sessionKey = dailyDeck
+    ? `daily|${sessionCount}`
+    : [category, filters.level, filters.difficulty, filters.status, deferredQuery, shuffleCount].join('|');
+
+  const emptyState = (
+    <div className="px-4 py-16 text-center">
+      <p className="text-ink">No cards match.</p>
+      <button type="button" onClick={clearFilters} className="mt-2 text-[14px] text-accent underline underline-offset-2">
+        Clear search and filters
+      </button>
+    </div>
+  );
+
+  const title = view === 'today' ? 'Today' : dailyDeck ? "Today's review" : category ?? 'All topics';
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
+    <div className="flex min-h-screen">
       <Sidebar
         categories={ALL_CATEGORIES}
-        selected={selectedCategory}
+        selected={view === 'today' || dailyDeck ? undefined : category}
         counts={counts}
+        knownCounts={knownCounts}
         total={flashcards.length}
+        progress={progress}
         onSelect={handleCategorySelect}
+        onHome={() => {
+          changeView('today');
+          setSidebarOpen(false);
+          window.scrollTo({ top: 0, behavior: 'instant' });
+        }}
+        onResetProgress={handleResetProgress}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-h-screen min-w-0 overflow-x-hidden">
-        {/* ── Top bar ─────────────────────────────────────── */}
-        <header className="sticky top-0 z-10 bg-slate-950/90 backdrop-blur border-b border-slate-800">
-          {/* Row 1: view mode + shuffle */}
-          <div className="flex items-center gap-2 px-3 py-2.5">
-            {/* Hamburger (mobile only) */}
-            <button
-              className="lg:hidden p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors flex-shrink-0"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open menu"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-canvas px-4 sm:px-6 lg:px-8">
+          <button
+            type="button"
+            className="-ml-2 rounded p-2 text-muted hover:text-ink lg:hidden"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open topics"
+          >
+            <Icon name="menu" className="h-5 w-5" />
+          </button>
 
-            <div className="flex items-center gap-1 p-1 bg-slate-900 rounded-lg border border-slate-800">
-              {(Object.keys(VIEW_LABELS) as ViewMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  title={VIEW_DESCRIPTIONS[mode]}
-                  className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
-                    viewMode === mode
-                      ? 'bg-indigo-600 text-white shadow'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                  onClick={() => { setViewMode(mode); setIndex(0); }}
-                >
-                  {VIEW_LABELS[mode]}
-                </button>
-              ))}
-            </div>
+          <h1 className="tnum flex min-w-0 flex-1 items-baseline gap-2 text-[16px] font-bold text-ink">
+            <span className="truncate">{title}</span>
+            {view !== 'today' && !dailyDeck && (
+              <span className="flex-shrink-0 text-[13px] font-normal text-muted">
+                {filtered.length}<span className="hidden sm:inline"> {filtered.length === 1 ? 'card' : 'cards'}</span>
+              </span>
+            )}
+          </h1>
 
-            <div className="flex-1" />
-
-            <button
-              className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-400 text-sm font-semibold hover:bg-slate-800 hover:text-slate-200 transition-colors"
-              onClick={handleShuffle}
-              title="Shuffle cards"
-            >
-              ⇄ Shuffle
-            </button>
-          </div>
-
-          {/* Row 2: type filter */}
-          <div className="flex items-center flex-wrap gap-2 px-3 pt-1 pb-2">
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest mr-1 flex-shrink-0">
-              Type
+          {streak > 0 && (
+            <span className="tnum hidden flex-shrink-0 items-center gap-1 text-[14px] font-bold text-streak sm:inline-flex" title={`${streak} day streak`}>
+              <Icon name="flame" className="h-4 w-4" />
+              {streak}
             </span>
-            {(['all', 'basics', 'experience'] as TypeFilter[]).map((t) => (
+          )}
+
+          <button
+            type="button"
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-muted transition-colors hover:bg-sunken hover:text-ink"
+          >
+            <span key={isDark ? 'sun' : 'moon'} className="animate-flip inline-flex">
+              <Icon name={isDark ? 'sun' : 'moon'} className="h-5 w-5" />
+            </span>
+          </button>
+
+          <div className="flex flex-shrink-0 rounded-xl bg-sunken p-0.5" role="group" aria-label="View">
+            {VIEWS.map((v) => (
               <button
-                key={t}
-                onClick={() => { setTypeFilter(t); setIndex(0); }}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap
-                  ${TYPE_COLORS[t]}
-                  ${typeFilter === t ? TYPE_ACTIVE[t] : 'opacity-60 hover:opacity-100'}
-                `}
+                key={v.value}
+                type="button"
+                title={v.description}
+                aria-pressed={view === v.value}
+                onClick={() => changeView(v.value)}
+                className={`h-8 rounded-[10px] px-2 text-[13px] transition-colors sm:px-3 ${
+                  view === v.value ? 'bg-raised font-semibold text-ink shadow-soft' : 'text-muted hover:text-ink'
+                }`}
               >
-                <span className="sm:hidden">{TYPE_LABELS_SHORT[t]}</span>
-                <span className="hidden sm:inline">{TYPE_LABELS[t]}</span>
-                <span className="ml-1.5 opacity-70">{typeCounts[t]}</span>
+                {v.label}
               </button>
             ))}
-          </div>
-
-          {/* Row 3: difficulty filter */}
-          <div className="flex items-center flex-wrap gap-2 px-3 pt-1 pb-3 overflow-x-hidden">
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-widest mr-1 flex-shrink-0">
-              Difficulty
-            </span>
-            {(['all', 'easy', 'medium', 'hard'] as Difficulty[]).map((d) => (
-              <button
-                key={d}
-                onClick={() => handleDifficultyFilter(d)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all capitalize whitespace-nowrap
-                  ${DIFF_COLORS[d]}
-                  ${difficultyFilter === d ? DIFF_ACTIVE[d] : 'opacity-60 hover:opacity-100'}
-                `}
-              >
-                {d === 'all' ? 'All' : d}
-                <span className="ml-1.5 opacity-70">{diffCounts[d]}</span>
-              </button>
-            ))}
-
-            <div className="flex-1" />
-
-            {/* Card count indicator */}
-            <span className="text-xs text-slate-500">
-              {filtered.length} card{filtered.length !== 1 ? 's' : ''}
-              {difficultyFilter !== 'all' && (
-                <button
-                  className="ml-2 text-slate-600 hover:text-slate-400 transition-colors"
-                  onClick={() => handleDifficultyFilter('all')}
-                  title="Clear difficulty filter"
-                >
-                  ✕ clear
-                </button>
-              )}
-            </span>
           </div>
         </header>
 
-        {/* ── Content ─────────────────────────────────────── */}
-        <main className="flex-1 flex flex-col">
+        {view !== 'today' && !dailyDeck && (
+          <Toolbar
+            view={view}
+            query={query}
+            onQueryChange={setQuery}
+            filters={filters}
+            counts={facetCounts}
+            onFiltersChange={setFilters}
+            shuffled={order !== null}
+            onShuffle={() => {
+              setOrder(shuffle(flashcards));
+              setShuffleCount((n) => n + 1);
+            }}
+            onUnshuffle={() => {
+              setOrder(null);
+              setShuffleCount((n) => n + 1);
+            }}
+            answersHidden={answersHidden}
+            onToggleAnswers={() => setAnswersHidden((h) => !h)}
+          />
+        )}
 
-          {/* Quiz */}
-          {viewMode === 'quiz' && (
-            <div className="flex-1 flex flex-col items-center gap-4 sm:gap-7 p-4 sm:p-8 justify-start pt-6 sm:pt-10">
-              {card ? (
-                <>
-                  <div className="w-full max-w-2xl">
-                    <FlashCard
-                      key={card.id}
-                      card={card}
-                      quizMode
-                      revealed={revealed}
-                      onRevealChange={setRevealed}
-                    />
-                  </div>
-                  <Controls
-                    current={index}
-                    total={filtered.length}
-                    onPrev={handlePrev}
-                    onNext={handleNext}
-                    onShuffle={handleShuffle}
-                  />
-                  <p className="text-xs text-slate-600 -mt-2">
-                    ← → to navigate · Space to {revealed ? 'hide' : 'show'} answer
-                  </p>
-                </>
-              ) : (
-                <p className="text-slate-500 mt-20">No cards match this filter.</p>
-              )}
-            </div>
+        <main className="flex flex-1 flex-col">
+          {view === 'today' ? (
+            <Today
+              stats={stats}
+              progress={progress}
+              dueCount={due.length}
+              newCount={unseen.length}
+              sessionSize={sessionSize}
+              onStart={startDailyReview}
+              onStartTopic={startTopic}
+              onGoalChange={(goal) => setStats((s) => ({ ...s, goal }))}
+            />
+          ) : view === 'quiz' ? (
+            // Stays mounted when grading empties the filter, so the session can reach its end screen
+            <QuizView
+              key={sessionKey}
+              cards={dailyDeck ?? filtered}
+              progress={progress}
+              onGrade={grade}
+              showCategory={!category || dailyDeck !== null}
+              empty={emptyState}
+              today={doneToday}
+              goal={stats.goal}
+              streak={streak}
+              onExit={() => changeView('today')}
+            />
+          ) : filtered.length === 0 ? (
+            emptyState
+          ) : view === 'study' ? (
+            <StudyView
+              cards={filtered}
+              progress={progress}
+              showCategory={!category}
+              answersHidden={answersHidden}
+              onToggleKnown={toggleKnown}
+            />
+          ) : (
+            <BrowseView cards={filtered} progress={progress} showCategory={!category} onToggleKnown={toggleKnown} />
           )}
-
-          {/* Study */}
-          {viewMode === 'study' && (
-            <div className="flex flex-col gap-3 px-4 sm:px-6 lg:px-8 2xl:px-16 py-6">
-              {filtered.length === 0 ? (
-                <p className="text-slate-500">No cards match this filter.</p>
-              ) : (
-                <>
-                  <div className="flex items-center gap-3 pb-3 border-b border-slate-800 mb-1">
-                    <span className="text-slate-400 text-sm">
-                      {selectedCategory ?? 'All Topics'}
-                      {typeFilter !== 'all' && ` · ${TYPE_LABELS[typeFilter]}`}
-                      {difficultyFilter !== 'all' && ` · ${difficultyFilter}`}
-                      {' '}— {filtered.length} card{filtered.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  {filtered.map((c) => (
-                    <FlashCard key={c.id} card={c} studyWide />
-                  ))}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Browse */}
-          {viewMode === 'browse' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-4 sm:p-6 lg:p-8 2xl:p-16">
-              {filtered.length === 0 ? (
-                <p className="text-slate-500 col-span-full text-center py-10">No cards match this filter.</p>
-              ) : (
-                filtered.map((c) => (
-                  <FlashCard key={c.id} card={c} compact />
-                ))
-              )}
-            </div>
-          )}
-
         </main>
       </div>
     </div>

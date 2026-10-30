@@ -11,12 +11,12 @@ export const reactCards: Flashcard[] = [
     type: 'basics',
     question: 'What is React and what makes it different from a full framework like Angular?',
     answer:
-      "**React is a UI library** — it only handles the view layer. You compose it with other libraries for routing (React Router), state (Redux, Zustand), forms (React Hook Form), etc.\n\n**Angular is a full framework** — it ships opinions on everything: routing, HTTP, forms, DI, testing. One team, one way.\n\n**Key React concepts**:\n- **Components** — reusable UI pieces, either functions or classes (functions are standard now)\n- **JSX** — HTML-like syntax inside JavaScript that compiles to `React.createElement()` calls\n- **Virtual DOM** — React maintains a lightweight copy of the DOM in memory. On state change, it diffs the new virtual DOM against the previous one and only updates the real DOM where things changed (reconciliation). This avoids expensive full re-renders.\n- **Unidirectional data flow** — data flows down via props; events flow up via callbacks\n\n**Why React won**: composability over convention. You pick your own tools. Massive ecosystem. Meta + community backing.",
+      "**React is a UI library** — it only handles the view layer. You compose it with other libraries for routing (React Router), state (Redux, Zustand), forms (React Hook Form), etc.\n\n**Angular is a full framework** — it ships opinions on everything: routing, HTTP, forms, DI, testing. One team, one way.\n\n**Key React concepts**:\n- **Components** — reusable UI pieces, either functions or classes (functions are standard now)\n- **JSX** — HTML-like syntax inside JavaScript that compiles to function calls (`jsx()` with the modern transform, `React.createElement()` with the classic one)\n- **Virtual DOM** — React maintains a lightweight copy of the DOM in memory. On state change, it diffs the new virtual DOM against the previous one and only updates the real DOM where things changed (reconciliation). This avoids expensive full re-renders.\n- **Unidirectional data flow** — data flows down via props; events flow up via callbacks\n\n**Why React won**: composability over convention. You pick your own tools. Massive ecosystem. Meta + community backing.",
     code: {
       language: 'tsx',
       snippet: `// Simplest React component — a function that returns JSX
 function Greeting({ name }: { name: string }) {
-  return <h1>Hello, {name}!</h1>;  // JSX compiles to React.createElement(...)
+  return <h1>Hello, {name}!</h1>;  // JSX compiles to a function call
 }
 
 // Used like HTML
@@ -335,27 +335,27 @@ products.map(p => <li key={p.id}>{p.name}</li>);`,
     type: 'basics',
     question: 'What are React Fragments and why do you need them?',
     answer:
-      "JSX requires a **single root element** — you can't return two sibling elements side by side. Wrapping them in a `<div>` works but adds an unnecessary DOM node, which can break CSS layouts (flexbox, grid) and semantic HTML (e.g. `<tr>` inside a `<table>`).\n\n**Fragments** let you group elements without adding a real DOM node.\n\n**Two forms:**\n- `<>...</>` — shorthand, most common. Cannot accept props.\n- `<React.Fragment>...</React.Fragment>` — explicit form. Needed when you have to pass a `key` prop (e.g. inside a `.map()` returning multiple elements per item).\n\n**When you'll see them:**\n- Table rows where a component returns `<dt>` and `<dd>` pairs\n- Layout components that return multiple siblings\n- Anywhere a wrapper `<div>` would disturb the DOM structure or CSS",
+      "JSX requires a **single root element** — you can't return two sibling elements side by side. Wrapping them in a `<div>` works but adds an unnecessary DOM node, which can break CSS layouts (flexbox, grid) and semantic HTML (e.g. `<tr>` inside a `<table>`).\n\n**Fragments** let you group elements without adding a real DOM node.\n\n**Two forms:**\n- `<>...</>` — shorthand, most common. Cannot accept props.\n- `<React.Fragment>...</React.Fragment>` — explicit form. Needed when you have to pass a `key` prop (e.g. inside a `.map()` returning multiple elements per item).\n\n**When you'll see them:**\n- Table rows where a component returns several `<td>` cells\n- Layout components that return multiple siblings\n- Anywhere a wrapper `<div>` would disturb the DOM structure or CSS",
     code: {
       language: 'tsx',
       snippet: `import { Fragment } from 'react';
 
 // ✗ Extra <div> breaks table structure
-function BadRow({ label, value }: { label: string; value: string }) {
+function BadCells({ label, value }: { label: string; value: string }) {
   return (
-    <div>          {/* ← invalid inside <table> */}
-      <dt>{label}</dt>
-      <dd>{value}</dd>
+    <div>          {/* ← invalid inside <tr> */}
+      <td>{label}</td>
+      <td>{value}</td>
     </div>
   );
 }
 
 // ✓ Fragment — no extra DOM node
-function DefinitionRow({ label, value }: { label: string; value: string }) {
+function Cells({ label, value }: { label: string; value: string }) {
   return (
     <>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
+      <td>{label}</td>
+      <td>{value}</td>
     </>
   );
 }
@@ -725,7 +725,7 @@ function Dialog({
     type: 'basics',
     question: 'What are React Portals? When do you need them?',
     answer:
-      "**Problem**: modals, tooltips, and dropdowns often need to render in a different part of the DOM (usually `document.body`) to avoid CSS stacking context issues — `overflow: hidden`, `z-index`, or `transform` on an ancestor can clip or hide them.\n\nBut if you move the component out of the React tree (e.g., append a `<div>` to body with vanilla JS), you lose React features: the component can't access parent Context, events don't bubble up the React tree correctly, and React can't manage its lifecycle.\n\n**Portals** let you render a component's output into a *different DOM node* while keeping it fully inside the React component tree. You get both: the DOM position you need and the React tree membership you need.\n\n**API**: `createPortal(children, domNode)` from `react-dom`.\n\n**Key behaviour**: even though the modal renders into `document.body` in the DOM, React events fired inside the portal still bubble up through the *React* component tree to the portal's logical parent — not through the DOM tree. This means a click inside a portal will still trigger `onClick` handlers on React ancestors.\n\n**Common use cases**: modal dialogs, tooltips, popovers, context menus, drag previews.",
+      "**Problem**: modals, tooltips, and dropdowns often need to render in a different part of the DOM (usually `document.body`) to avoid CSS stacking context issues — `overflow: hidden`, `z-index`, or `transform` on an ancestor can clip or hide them.\n\nBut if you move the component out of the React tree (e.g., append a `<div>` to body with vanilla JS), you lose React features: the component can't access parent Context, events don't bubble up the React tree correctly, and React can't manage its lifecycle.\n\n**Portals** let you render a component's output into a *different DOM node* while keeping it fully inside the React component tree. You get both: the DOM position you need and the React tree membership you need.\n\n**API**: `createPortal(children, domNode)` from `react-dom`.\n\n**Key behavior**: even though the modal renders into `document.body` in the DOM, React events fired inside the portal still bubble up through the *React* component tree to the portal's logical parent — not through the DOM tree. This means a click inside a portal will still trigger `onClick` handlers on React ancestors.\n\n**Common use cases**: modal dialogs, tooltips, popovers, context menus, drag previews.",
     code: {
       language: 'tsx',
       snippet: `import { createPortal } from 'react-dom';
@@ -775,7 +775,7 @@ function ProductPage() {
     type: 'experience',
     question: 'How does React\'s reconciliation algorithm work? What is the role of Fiber?',
     answer:
-      "**Reconciliation** is React's process for determining what changed between renders and applying the minimum DOM updates.\n\n**Old Stack reconciler (pre-React 16)**: recursive, synchronous, couldn't be interrupted. If a large tree was processing, the main thread was blocked — causing frame drops and jank.\n\n**Fiber (React 16+)**: a complete rewrite of the reconciler.\n- Each component instance becomes a **fiber node** — a plain object containing component type, props, state, effect list, and a link to parent/child/sibling fibers\n- Work is split into small units. React can **pause, abort, or resume** work between units, yielding control to the browser for higher-priority tasks (like user input)\n- Two phases:\n  1. **Render phase** (interruptible) — React walks the fiber tree, determines what changed, builds an effect list. This can be paused.\n  2. **Commit phase** (synchronous, cannot pause) — React applies all DOM mutations in one synchronous pass\n\n**Concurrent Mode** (React 18): exposes fiber's scheduling capability to userland. `useTransition` marks state updates as non-urgent so they can be interrupted by higher-priority updates (e.g. typing into an input while a slow list renders).",
+      "**Reconciliation** is React's process for determining what changed between renders and applying the minimum DOM updates.\n\n**Old Stack reconciler (pre-React 16)**: recursive, synchronous, couldn't be interrupted. If a large tree was processing, the main thread was blocked — causing frame drops and jank.\n\n**Fiber (React 16+)**: a complete rewrite of the reconciler.\n- Each component instance becomes a **fiber node** — a plain object containing component type, props, state, effect list, and a link to parent/child/sibling fibers\n- Work is split into small units. React can **pause, abort, or resume** work between units, yielding control to the browser for higher-priority tasks (like user input)\n- Two phases:\n  1. **Render phase** (interruptible) — React walks the fiber tree, determines what changed, builds an effect list. This can be paused.\n  2. **Commit phase** (synchronous, cannot pause) — React applies all DOM mutations in one synchronous pass\n\n**Concurrent features** (React 18): exposes fiber's scheduling capability to userland. `useTransition` marks state updates as non-urgent so they can be interrupted by higher-priority updates (e.g. typing into an input while a slow list renders).",
     code: {
       language: 'tsx',
       snippet: `import { useState, useTransition, Suspense, lazy } from 'react';
@@ -815,7 +815,7 @@ function Search() {
     type: 'experience',
     question: 'What are Error Boundaries? How do you implement one and when should you use them?',
     answer:
-      "**Error Boundaries** catch JavaScript errors anywhere in a component tree during rendering, in lifecycle methods, and in constructors. They prevent the entire app from crashing when a subtree throws.\n\n**Key limitation**: Error Boundaries must be **class components** — there is no functional hook equivalent yet (as of React 18). They do NOT catch: errors in event handlers (use try/catch), async errors (use error state), or errors in the boundary itself.\n\n**When to use**: wrap sections of the UI that load dynamic data or render complex widgets that could throw. A common pattern: one top-level boundary for global fallback + finer-grained boundaries around unstable features.",
+      "**Error Boundaries** catch JavaScript errors anywhere in a component tree during rendering, in lifecycle methods, and in constructors. They prevent the entire app from crashing when a subtree throws.\n\n**Key limitation**: Error Boundaries must be **class components** — there is no built-in hook equivalent (still true in React 19). They do NOT catch: errors in event handlers (use try/catch), async errors (use error state), server-side rendering errors, or errors in the boundary itself.\n\n**When to use**: wrap sections of the UI that load dynamic data or render complex widgets that could throw. A common pattern: one top-level boundary for global fallback + finer-grained boundaries around unstable features.",
     code: {
       language: 'tsx',
       snippet: `import { Component, type ReactNode } from 'react';
@@ -908,11 +908,11 @@ const Dashboard = React.lazy(() => import('./Dashboard'));
   {
     id: 'react-m9',
     category: 'React',
-    difficulty: 'medium',
+    difficulty: 'hard',
     type: 'experience',
     question: 'What exact conditions must ALL be true for `useCallback` to actually prevent a child component from re-rendering?',
     answer:
-      '`useCallback(fn, deps)` returns the **same function reference** between renders while deps are stable. But that alone prevents nothing — three conditions must ALL be true:\n\n1. **The callback is passed as a prop to a child component** — `useCallback` used for a local handler has zero effect on any renders.\n\n2. **The child is wrapped in `React.memo`** — without it, the child re-renders every time the parent does, regardless of prop stability. `useCallback` without `React.memo` is wasted overhead.\n\n3. **The `useCallback` dependencies don\'t change between renders** — if a dep changes, a new function reference is created anyway, and the child re-renders.\n\nFail any one condition → `useCallback` provides no re-render benefit.\n\n**Common mistake**: sprinkling `useCallback` everywhere "for performance" without `React.memo` on the receiving child — this adds memoization overhead with zero benefit.',
+      '`useCallback(fn, deps)` returns the **same function reference** between renders while deps are stable. But that alone prevents nothing — three conditions must ALL be true:\n\n1. **The callback is passed as a prop to a child component** — `useCallback` used for a local handler has zero effect on any renders.\n\n2. **The child is wrapped in `React.memo`** — without it, the child re-renders every time the parent does, regardless of prop stability. `useCallback` without `React.memo` is wasted overhead.\n\n3. **The `useCallback` dependencies don\'t change between renders** — if a dep changes, a new function reference is created anyway, and the child re-renders.\n\nFail any one condition → `useCallback` provides no re-render benefit. The child\'s other props must also be stable, or `React.memo` still re-renders it.\n\n**Common mistake**: sprinkling `useCallback` everywhere "for performance" without `React.memo` on the receiving child — this adds memoization overhead with zero benefit.',
     code: {
       language: 'tsx',
       snippet: `// ✅ Pattern that actually prevents re-renders (all 3 conditions met)
@@ -1063,7 +1063,7 @@ dispatch(fetchCart(userId));                     // dispatch a thunk`,
     type: 'experience',
     question: 'What problem does `createSelector` from Redux Toolkit solve, and how does it prevent unnecessary re-renders?',
     answer:
-      '**The problem**: `useSelector(selector)` runs the selector after every dispatch. If the selector returns a **new array or object reference** on each call — even with identical data — React treats it as changed and re-renders the component. Selectors that derive data with `.filter()`, `.map()`, or object spread always do this.\n\n**`createSelector` solution** (from reselect, re-exported by Redux Toolkit): creates a **memoized selector** from input selectors and a result function. The result function only re-runs when the OUTPUT of an input selector actually changes. Same inputs → same cached reference → no re-render.\n\n**How it works internally**:\n1. Run each input selector with `(state, ...args)`.\n2. Compare results to last call with `===`.\n3. All same → return the cached result reference.\n4. Any changed → re-run the result function, cache and return the new value.\n\n**Caveat — single-call memoization**: `createSelector` only remembers the last set of inputs. If multiple component instances use the same selector with different args (e.g., different item IDs), they stomp each other\'s cache. Fix: use a **selector factory** — a function that returns a fresh `createSelector` per component instance.',
+      '**The problem**: `useSelector(selector)` runs the selector after every dispatch. If the selector returns a **new array or object reference** on each call — even with identical data — React treats it as changed and re-renders the component. Selectors that derive data with `.filter()`, `.map()`, or object spread always do this.\n\n**`createSelector` solution** (from reselect, re-exported by Redux Toolkit): creates a **memoized selector** from input selectors and a result function. The result function only re-runs when the OUTPUT of an input selector actually changes. Same inputs → same cached reference → no re-render.\n\n**How it works internally**:\n1. Run each input selector with `(state, ...args)`.\n2. Compare results to last call with `===`.\n3. All same → return the cached result reference.\n4. Any changed → re-run the result function, cache and return the new value.\n\n**Caveat — cache size depends on the version**: in Reselect 4 (RTK 1), `createSelector` only remembers the last set of inputs, so component instances passing different args (e.g., item IDs) stomp each other\'s cache. The fix there is a **selector factory** that creates one selector per component instance. Reselect 5 (RTK 2) defaults to `weakMapMemoize`, which caches per argument set, so factories are rarely needed.',
     code: {
       language: 'typescript',
       snippet: `import { createSelector } from '@reduxjs/toolkit';
@@ -1085,8 +1085,8 @@ const ItemList = () => {
   return <ul>{items.map(i => <li key={i.id}>{i.name}</li>)}</ul>;
 };
 
-// ── Selector factory for per-instance memoization ──────────────────
-// Problem: two <ItemDetail id="1" /> and <ItemDetail id="2" /> share one cache → bust each other
+// ── Selector factory for per-instance memoization (Reselect 4 / RTK 1) ──
+// Problem there: <ItemDetail id="1" /> and <ItemDetail id="2" /> share one cache → bust each other
 const makeSelectItemById = () =>
   createSelector(
     [(state: RootState) => state.items.list, (_: RootState, id: string) => id],

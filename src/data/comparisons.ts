@@ -11,7 +11,7 @@ export const comparisonsCards: Flashcard[] = [
     type: 'basics',
     question: '`null` vs `undefined` — what is the difference, and when do you use each?',
     answer:
-      '**`undefined`**: a variable was declared but never assigned, a function parameter was not provided, or a property does not exist on an object. JavaScript sets this automatically — you never set it yourself.\n\n**`null`**: an intentional absence of value. A programmer explicitly sets this to say "this field has no value right now."\n\n| | `null` | `undefined` |\n|---|---|---|\n| `typeof` | `"object"` (historic bug) | `"undefined"` |\n| `== null` | `true` | `true` |\n| `=== null` | `true` | `false` |\n| Set by | Developer, intentionally | JavaScript, automatically |\n\n**Use `null` when**: explicitly clearing a value (`user.avatar = null`), signalling "no result" from a function (`return null` when not found), or marking optional DB fields as empty.\n\n**Never assign `undefined`**: if you want to represent "no value", use `null`. `undefined` means "I forgot to set this" — `null` means "I set this to nothing on purpose."\n\n**Practical tip**: `x == null` (loose equality) is the one valid use of `==` — it matches both `null` and `undefined` in a single check.',
+      '**`undefined`**: a variable was declared but never assigned, a function parameter was not provided, or a property does not exist on an object. JavaScript sets this automatically — you never set it yourself.\n\n**`null`**: an intentional absence of value. A programmer explicitly sets this to say "this field has no value right now."\n\n| | `null` | `undefined` |\n|---|---|---|\n| `typeof` | `"object"` (historic bug) | `"undefined"` |\n| `== null` | `true` | `true` |\n| `=== null` | `true` | `false` |\n| Set by | Developer, intentionally | JavaScript, automatically |\n\n**Use `null` when**: explicitly clearing a value (`user.avatar = null`), signaling "no result" from a function (`return null` when not found), or marking optional DB fields as empty.\n\n**Never assign `undefined`**: if you want to represent "no value", use `null`. `undefined` means "I forgot to set this" — `null` means "I set this to nothing on purpose."\n\n**Practical tip**: `x == null` (loose equality) is the one valid use of `==` — it matches both `null` and `undefined` in a single check.',
     code: {
       language: 'javascript',
       snippet: `// undefined — automatic, means "not set"
@@ -46,7 +46,7 @@ console.log(value === null); // true  — only matches null`,
     type: 'basics',
     question: '`==` vs `===` — what is the difference, and which should you use?',
     answer:
-      '**`==` (loose equality)**: coerces both operands to the same type before comparing. The coercion rules are complex and produce surprising results.\n\n**`===` (strict equality)**: no type coercion — both value AND type must match.\n\n**Always use `===`**. The only arguable exception is `x == null`, which checks for both `null` and `undefined` simultaneously.\n\n**Why `==` is dangerous**: the coercion rules are hard to memorise (`"" == false` is true, but `"0" == false` is also true, while `"" == "0"` is false). Code that relies on `==` is a source of subtle bugs.\n\n**ESLint rule**: `eqeqeq` enforces `===` everywhere and is enabled in every serious codebase.',
+      '**`==` (loose equality)**: coerces both operands to the same type before comparing. The coercion rules are complex and produce surprising results.\n\n**`===` (strict equality)**: no type coercion — both value AND type must match.\n\n**Always use `===`**. The only arguable exception is `x == null`, which checks for both `null` and `undefined` simultaneously.\n\n**Why `==` is dangerous**: the coercion rules are hard to memorize (`"" == false` is true, but `"0" == false` is also true, while `"" == "0"` is false). Code that relies on `==` is a source of subtle bugs.\n\n**ESLint rule**: `eqeqeq` enforces `===` everywhere and is enabled in every serious codebase.',
     code: {
       language: 'javascript',
       snippet: `// === strict — no surprises
@@ -150,7 +150,7 @@ Promise.allSettled([p1, p2, p3])
 const [user, account] = await Promise.all([
   fetchUser(id),
   fetchAccount(id),
-]); // if either fails, the whole thing fails — correct behaviour
+]); // if either fails, the whole thing fails — correct behavior
 
 // ✓ Use Promise.allSettled: send notifications, don't stop on one failure
 const results = await Promise.allSettled(
@@ -168,7 +168,7 @@ console.log(\`\${failed.length} emails failed\`);`,
     type: 'basics',
     question: 'SQL vs NoSQL — what is the difference, and which do you choose?',
     answer:
-      '**SQL (Relational)**: structured tables, fixed schema, joins, ACID transactions. Examples: PostgreSQL, MySQL.\n\n**NoSQL (Non-relational)**: flexible schema, various models, trades some consistency for scale/flexibility. Examples: MongoDB (document), Redis (key-value), Cassandra (column), Neo4j (graph).\n\n| | SQL | NoSQL |\n|---|---|---|\n| Schema | Fixed, defined upfront | Flexible, schema-less |\n| Relationships | JOINs between tables | Embedded documents or denormalized |\n| Transactions | ACID (strong) | Varies (often eventual consistency) |\n| Scaling | Vertical (bigger machine) | Horizontal (more machines) |\n| Query language | SQL (standardized) | Varies by DB |\n\n**Choose SQL when**:\n- Data has real foreign-key relationships (users → orders → products → categories)\n- **Referential integrity must be enforced at the DB level** — foreign keys guarantee no orphaned records without application-layer workarounds\n- ACID transactions are required (financial, medical, inventory)\n- Schema is stable and well-understood upfront\n- You need ad-hoc querying across many dimensions (SQL is expressive)\n\n**Choose NoSQL when**:\n- Need horizontal scale at massive volume (billions of writes)\n- Schema changes frequently or data is naturally document-shaped (product catalogs, user settings, CMS content)\n- Data is hierarchical/nested and always accessed as a whole document\n- The problem fits a specialised model: key-value (Redis), time-series (InfluxDB), full-text search (Elasticsearch), graph (Neo4j)',
+      '**SQL (Relational)**: structured tables, fixed schema, joins, ACID transactions. Examples: PostgreSQL, MySQL.\n\n**NoSQL (Non-relational)**: flexible schema, various models, trades some consistency for scale/flexibility. Examples: MongoDB (document), Redis (key-value), Cassandra (column), Neo4j (graph).\n\n| | SQL | NoSQL |\n|---|---|---|\n| Schema | Fixed, defined upfront | Flexible, schema-less |\n| Relationships | JOINs between tables | Embedded documents or denormalized |\n| Transactions | ACID (strong) | Varies (often eventual consistency) |\n| Scaling | Vertical (bigger machine) | Horizontal (more machines) |\n| Query language | SQL (standardized) | Varies by DB |\n\n**Choose SQL when**:\n- Data has real foreign-key relationships (users → orders → products → categories)\n- **Referential integrity must be enforced at the DB level** — foreign keys guarantee no orphaned records without application-layer workarounds\n- ACID transactions are required (financial, medical, inventory)\n- Schema is stable and well-understood upfront\n- You need ad-hoc querying across many dimensions (SQL is expressive)\n\n**Choose NoSQL when**:\n- Need horizontal scale at massive volume (billions of writes)\n- Schema changes frequently or data is naturally document-shaped (product catalogs, user settings, CMS content)\n- Data is hierarchical/nested and always accessed as a whole document\n- The problem fits a specialized model: key-value (Redis), time-series (InfluxDB), full-text search (Elasticsearch), graph (Neo4j)',
     code: {
       language: 'sql',
       snippet: `-- SQL: normalized tables with JOINs
@@ -292,7 +292,7 @@ app.get('/profile', (req, res) => {
     type: 'basics',
     question: 'REST vs GraphQL — what is the difference, and which do you choose?',
     answer:
-      '**REST**: multiple endpoints, each returning a fixed data shape defined by the server. Clients take what the server gives them.\n\n**GraphQL**: single endpoint, clients send a query describing exactly the fields they want. The server resolves only those fields.\n\n| | REST | GraphQL |\n|---|---|---|\n| Endpoints | One per resource | One (`/graphql`) |\n| Data shape | Server-defined | Client-defined |\n| Over-fetching | Common | Eliminated |\n| Under-fetching / N+1 | Common (multiple requests) | Solved with one query |\n| HTTP caching | Works naturally (GET) | Hard (all POSTs) |\n| Learning curve | Low | Higher (schema, resolvers) |\n| Tooling | Mature | Growing |\n\n**Use REST when**:\n- Building public APIs (simple to consume, familiar to all clients)\n- HTTP caching of responses matters\n- Simple CRUD with predictable data shapes\n- Team or consumers are not familiar with GraphQL\n\n**Use GraphQL when**:\n- Frontend has many different views that need different slices of the same data\n- Mobile clients need to minimize bandwidth (request only what\'s needed)\n- Multiple teams/clients consume your API with different data requirements\n- Rapid frontend iteration where data requirements change often',
+      '**REST**: multiple endpoints, each returning a fixed data shape defined by the server. Clients take what the server gives them.\n\n**GraphQL**: single endpoint, clients send a query describing exactly the fields they want. The server resolves only those fields.\n\n| | REST | GraphQL |\n|---|---|---|\n| Endpoints | One per resource | One (`/graphql`) |\n| Data shape | Server-defined | Client-defined |\n| Over-fetching | Common | Eliminated |\n| Under-fetching | Common (multiple requests) | Solved with one query |\n| Server-side N+1 | Depends on the handler | Common in resolvers; use DataLoader |\n| HTTP caching | Works naturally (GET) | Hard (all POSTs) |\n| Learning curve | Low | Higher (schema, resolvers) |\n| Tooling | Mature | Growing |\n\n**Use REST when**:\n- Building public APIs (simple to consume, familiar to all clients)\n- HTTP caching of responses matters\n- Simple CRUD with predictable data shapes\n- Team or consumers are not familiar with GraphQL\n\n**Use GraphQL when**:\n- Frontend has many different views that need different slices of the same data\n- Mobile clients need to minimize bandwidth (request only what\'s needed)\n- Multiple teams/clients consume your API with different data requirements\n- Rapid frontend iteration where data requirements change often',
     code: {
       language: 'javascript',
       snippet: `// ── REST — server controls shape ─────────────────────────────────
@@ -335,7 +335,7 @@ fetch('/graphql', {
     type: 'basics',
     question: '`require()` (CommonJS) vs `import` (ES Modules) — what is the difference, and which do you use in Node.js?',
     answer:
-      '**CommonJS (`require`)**:\n- Loads modules **synchronously** at runtime\n- Dynamic — you can `require()` inside an `if` block or function\n- `module.exports` / `require()`\n- `__dirname`, `__filename` are available\n- Default in Node.js for years; still the majority of npm packages\n\n**ES Modules (`import`)**:\n- **Static** — imports are resolved at parse time, not runtime. Cannot be inside conditionals\n- Enables **tree-shaking** (bundlers remove unused exports)\n- Supports **top-level `await`**\n- No `__dirname` / `__filename` — use `import.meta.url` instead\n- The official JavaScript standard; browser-native\n\n| | CommonJS | ES Modules |\n|---|---|---|\n| Loading | Synchronous | Asynchronous capable |\n| Dynamic imports | `require()` anywhere | `import()` (dynamic, returns Promise) |\n| `__dirname` | Available | Use `import.meta.url` |\n| Tree-shaking | No | Yes |\n| Top-level await | No | Yes |\n\n**Use ESM for new projects**: set `"type": "module"` in `package.json`. Use `.js` extension for ESM files, `.cjs` for CommonJS files.\n\n**Mixing them is painful**: `import` cannot `require()` a CJS module directly in all cases — check package compatibility.',
+      '**CommonJS (`require`)**:\n- Loads modules **synchronously** at runtime\n- Dynamic — you can `require()` inside an `if` block or function\n- `module.exports` / `require()`\n- `__dirname`, `__filename` are available\n- Default in Node.js for years; still the majority of npm packages\n\n**ES Modules (`import`)**:\n- **Static** — imports are resolved at parse time, not runtime. Cannot be inside conditionals\n- Enables **tree-shaking** (bundlers remove unused exports)\n- Supports **top-level `await`**\n- No `__dirname` / `__filename` — use `import.meta.url` instead\n- The official JavaScript standard; browser-native\n\n| | CommonJS | ES Modules |\n|---|---|---|\n| Loading | Synchronous | Asynchronous capable |\n| Dynamic imports | `require()` anywhere | `import()` (dynamic, returns Promise) |\n| `__dirname` | Available | Use `import.meta.url` |\n| Tree-shaking | No | Yes |\n| Top-level await | No | Yes |\n\n**Use ESM for new projects**: set `"type": "module"` in `package.json`. Use `.js` extension for ESM files, `.cjs` for CommonJS files.\n\n**Mixing them takes care**: ESM can `import` CJS modules, though named exports are not always detected. `require()` of an ESM module only works in Node 22.12+ and 20.19+, and only if the module has no top-level `await`.',
     code: {
       language: 'javascript',
       snippet: `// ── CommonJS ─────────────────────────────────────────────────────
@@ -454,7 +454,7 @@ const data = await Promise.any(
 );
 
 // If cdn1 is slow but cdn2 is fast → uses cdn2
-// If cdn1 fails but cdn2 succeeds → uses cdn2 (race ignores the failure)
+// If cdn1 fails but cdn2 succeeds → uses cdn2 (any ignores the failure)
 // Only rejects if BOTH fail
 
 // Promise.any rejects with AggregateError if ALL fail
@@ -613,13 +613,13 @@ await prisma.$transaction(async (tx) => {
   });
   // If anything throws, both operations are rolled back
 });
-// After commit: every read returns updated balance — guaranteed
+// After commit: every read on the primary returns the updated balance
 
 // ── Eventual consistency — DynamoDB / Redis counter ───────────────
 // Incrementing a post's view count
-// Multiple servers write to different replicas simultaneously
+// Reads from a replica can lag behind the primary
 await redis.incr(\`post:\${postId}:views\`);
-// Different clients may see 1,247 vs 1,249 vs 1,251 for a few ms
+// Different clients may briefly see 1,247 vs 1,249 vs 1,251
 // That's fine — nobody cares if a view count is off by 2 for a second
 
 // Real-world pattern: write to eventually-consistent store,

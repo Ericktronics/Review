@@ -11,7 +11,7 @@ export const restCards: Flashcard[] = [
     type: 'experience',
     question: 'Compare REST, gRPC, and GraphQL. When would you choose each for a backend API, and what are the operational trade-offs?',
     answer:
-      '| | REST | gRPC | GraphQL |\n|---|---|---|---|\n| Protocol | HTTP/1.1 or 2 | HTTP/2 (required) | HTTP/1.1 or 2 |\n| Payload | JSON / XML | Protobuf (binary) | JSON |\n| Contract | OpenAPI (optional) | `.proto` (required) | Schema (required) |\n| Streaming | SSE / WebSocket | Native bi-directional | Subscriptions |\n| Browser support | Native | Needs grpc-web proxy | Native |\n| Overfetching | Common | No (fields in proto) | Solved |\n\n**Choose REST**: public APIs, wide client ecosystem, human-debuggable traffic.\n**Choose gRPC**: internal microservice-to-service calls where latency and payload size matter; works great in polyglot environments via generated stubs.\n**Choose GraphQL**: product APIs with many client types (web, mobile, partner) that each need different data shapes; avoids multiple round-trips and BFF layers.',
+      '| | REST | gRPC | GraphQL |\n|---|---|---|---|\n| Protocol | HTTP/1.1 or 2 | HTTP/2 (required) | HTTP/1.1 or 2 |\n| Payload | JSON / XML | Protobuf (binary) | JSON |\n| Contract | OpenAPI (optional) | `.proto` (required) | Schema (required) |\n| Streaming | SSE / WebSocket | Native bi-directional | Subscriptions |\n| Browser support | Native | Needs grpc-web proxy | Native |\n| Overfetching | Common | Possible (full message; field masks help) | Solved |\n\n**Choose REST**: public APIs, wide client ecosystem, human-debuggable traffic.\n**Choose gRPC**: internal microservice-to-service calls where latency and payload size matter; works great in polyglot environments via generated stubs.\n**Choose GraphQL**: product APIs with many client types (web, mobile, partner) that each need different data shapes; avoids multiple round-trips and BFF layers.',
   },
 
   {
@@ -64,7 +64,7 @@ app.post('/payments', async (req, res) => {
       '**Algorithms**:\n- **Fixed window** — counter resets every N seconds. Simple but vulnerable to burst at window boundary (2× rate in 1 second)\n- **Sliding window log** — store timestamps of each request. Accurate but memory-heavy\n- **Sliding window counter** — weighted average of current and previous windows. Good balance\n- **Token bucket** — tokens refill at rate R, requests consume 1 token. Allows bursts up to bucket size\n- **Leaky bucket** — requests enter a queue and are processed at a fixed rate. Smoothes traffic\n\n**Distributed**: a single in-process counter fails across multiple nodes. Use **Redis** with atomic Lua scripts or `INCR` + `EXPIRE`.\n\n**Identify by**: IP (unauthenticated), `userId` or API key (authenticated). Return `Retry-After` header and `429` status.',
     code: {
       language: 'typescript',
-      snippet: `// Sliding window counter with Redis (Lua for atomicity)
+      snippet: `// Sliding window log with Redis (Lua for atomicity)
 const LIMIT = 100;
 const WINDOW_MS = 60_000; // 1 minute
 
@@ -81,7 +81,7 @@ async function isRateLimited(key: string): Promise<boolean> {
     redis.call('ZREMRANGEBYSCORE', key, '-inf', window)
     local count = redis.call('ZCARD', key)
     if count < limit then
-      redis.call('ZADD', key, now, now)
+      redis.call('ZADD', key, now, now .. '-' .. math.random()) -- unique member per request
       redis.call('PEXPIRE', key, ARGV[4])
       return 0
     end
@@ -112,7 +112,7 @@ async function isRateLimited(key: string): Promise<boolean> {
     type: 'basics',
     question: 'What do HTTP status code ranges mean? Give examples for each range.',
     answer:
-      '**1xx — Informational**: request received, continuing.\n- `100 Continue`\n\n**2xx — Success**:\n- `200 OK` — standard success\n- `201 Created` — resource created (POST)\n- `204 No Content` — success with no body (DELETE)\n\n**3xx — Redirection**:\n- `301 Moved Permanently` — resource has a new permanent URL; clients should update bookmarks\n- `302 Found` — temporary redirect; client should keep using the original URL for future requests\n- `304 Not Modified` — cached version still valid; no body returned\n\n**4xx — Client Error** (the request is wrong):\n- `400 Bad Request` — malformed input\n- `401 Unauthorized` — not authenticated\n- `403 Forbidden` — authenticated but not authorised\n- `404 Not Found`\n- `422 Unprocessable Entity` — validation failed\n- `429 Too Many Requests` — rate limited\n\n**5xx — Server Error**:\n- `500 Internal Server Error` — generic crash\n- `502 Bad Gateway` — the server was acting as a proxy/gateway and received an invalid response from the upstream server\n- `503 Service Unavailable` — server is overloaded or in maintenance; often temporary\n- `504 Gateway Timeout` — the server was acting as a proxy/gateway and the upstream server did not respond in time',
+      '**1xx — Informational**: request received, continuing.\n- `100 Continue`\n\n**2xx — Success**:\n- `200 OK` — standard success\n- `201 Created` — resource created (POST)\n- `204 No Content` — success with no body (DELETE)\n\n**3xx — Redirection**:\n- `301 Moved Permanently` — resource has a new permanent URL; clients should update bookmarks\n- `302 Found` — temporary redirect; client should keep using the original URL for future requests\n- `304 Not Modified` — cached version still valid; no body returned\n\n**4xx — Client Error** (the request is wrong):\n- `400 Bad Request` — malformed input\n- `401 Unauthorized` — not authenticated\n- `403 Forbidden` — authenticated but not authorized\n- `404 Not Found`\n- `422 Unprocessable Entity` — validation failed\n- `429 Too Many Requests` — rate limited\n\n**5xx — Server Error**:\n- `500 Internal Server Error` — generic crash\n- `502 Bad Gateway` — the server was acting as a proxy/gateway and received an invalid response from the upstream server\n- `503 Service Unavailable` — server is overloaded or in maintenance; often temporary\n- `504 Gateway Timeout` — the server was acting as a proxy/gateway and the upstream server did not respond in time',
   },
 
   // ─── REST & HTTP (Medium) ────────────────────────────────────────────────────
@@ -194,26 +194,26 @@ app.delete('/users/:id', deleteUser);`,
     type: 'basics',
     question: 'What is API versioning? What strategies exist?',
     answer:
-      "**API versioning** lets you evolve an API (rename fields, change behaviour, remove endpoints) without breaking existing clients that depend on the old contract.\n\n**Strategies**:\n\n**1. URI versioning** — `/v1/users`, `/v2/users`\n- Most common in practice\n- Explicit, easy to test in a browser, easy to route at the gateway\n- Technically violates REST (the URI should identify the resource, not the version)\n\n**2. Query parameter** — `/users?version=2`\n- Simple to implement, but pollutes URLs and complicates caching\n\n**3. Header versioning** — `Accept: application/vnd.myapi.v2+json`\n- Cleaner URLs, aligns with HTTP content negotiation\n- Harder to test manually; not visible in browser history\n\n**4. No versioning / evolutionary API**\n- Add fields (additive changes are backward-compatible)\n- Deprecate fields before removing them\n- Works well with GraphQL; harder with REST\n\n**Best practice**: use URI versioning for public REST APIs. Run multiple versions in parallel during the transition period. Set a sunset date and return a `Sunset` header.",
+      "**API versioning** lets you evolve an API (rename fields, change behavior, remove endpoints) without breaking existing clients that depend on the old contract.\n\n**Strategies**:\n\n**1. URI versioning** — `/v1/users`, `/v2/users`\n- Most common in practice\n- Explicit, easy to test in a browser, easy to route at the gateway\n- Technically violates REST (the URI should identify the resource, not the version)\n\n**2. Query parameter** — `/users?version=2`\n- Simple to implement, but pollutes URLs and complicates caching\n\n**3. Header versioning** — `Accept: application/vnd.myapi.v2+json`\n- Cleaner URLs, aligns with HTTP content negotiation\n- Harder to test manually; not visible in browser history\n\n**4. No versioning / evolutionary API**\n- Add fields (additive changes are backward-compatible)\n- Deprecate fields before removing them\n- Works well with GraphQL; harder with REST\n\n**Best practice**: use URI versioning for public REST APIs. Run multiple versions in parallel during the transition period. Set a sunset date and return a `Sunset` header.",
     code: {
       language: 'typescript',
       snippet: `// URI versioning — most common approach
 const v1Router = express.Router();
 const v2Router = express.Router();
 
-v1Router.get('/users/:id', getUserV1);
-v2Router.get('/users/:id', getUserV2); // richer response, different shape
-
-app.use('/v1', v1Router);
-app.use('/v2', v2Router);
-
-// Return deprecation warning in response headers
+// Return deprecation warning in response headers (register before the routes)
 v1Router.use((req, res, next) => {
   res.setHeader('Deprecation', 'true');
   res.setHeader('Sunset', 'Sat, 01 Jan 2026 00:00:00 GMT');
   res.setHeader('Link', '</v2/users>; rel="successor-version"');
   next();
-});`,
+});
+
+v1Router.get('/users/:id', getUserV1);
+v2Router.get('/users/:id', getUserV2); // richer response, different shape
+
+app.use('/v1', v1Router);
+app.use('/v2', v2Router);`,
     },
   },
 
@@ -266,7 +266,7 @@ app.get('/feed', async (req, res) => {
     type: 'basics',
     question: 'What is CORS? Why does the browser enforce it and how do you configure it on a server?',
     answer:
-      "**CORS (Cross-Origin Resource Sharing)** is a browser security mechanism that controls whether a web page on one domain can make requests to a different domain.\n\n**Why it exists**: without CORS, a malicious website (`evil.com`) could include JavaScript that silently reads your bank's API using your already-logged-in session cookies. The **Same-Origin Policy** prevents this: browsers block cross-origin requests by default unless the target server explicitly allows them.\n\n**Note**: CORS is enforced by the browser only — server-to-server requests (Node.js calling another API) are not affected.\n\n**How it works**:\n1. **Simple requests** (GET/POST with basic headers): the browser attaches an `Origin` header. The server must respond with `Access-Control-Allow-Origin: https://app.example.com` (or `*` for public APIs).\n2. **Preflight requests** (for PUT/PATCH/DELETE, custom headers like `Authorization`, or JSON bodies): the browser first sends an `OPTIONS` request to ask 'am I allowed to make this call?'. The server must respond with `Access-Control-Allow-Methods` and `Access-Control-Allow-Headers` before the actual request is sent.\n\n**Most common gotcha**: setting `Access-Control-Allow-Origin: *` while also setting `Access-Control-Allow-Credentials: true` — this combination is rejected by browsers. If you need credentials (cookies, Authorization header), you must specify exact origins, not `*`.",
+      "**CORS (Cross-Origin Resource Sharing)** is a browser security mechanism that controls whether a web page on one domain can make requests to a different domain.\n\n**Why it exists**: without CORS, a malicious website (`evil.com`) could include JavaScript that silently reads your bank's API using your already-logged-in session cookies. The **Same-Origin Policy** prevents this: by default, browsers stop scripts from reading cross-origin responses unless the target server explicitly allows it.\n\n**Note**: CORS is enforced by the browser only — server-to-server requests (Node.js calling another API) are not affected.\n\n**How it works**:\n1. **Simple requests** (GET/POST with basic headers): the browser attaches an `Origin` header. The server must respond with `Access-Control-Allow-Origin: https://app.example.com` (or `*` for public APIs).\n2. **Preflight requests** (for PUT/PATCH/DELETE, custom headers like `Authorization`, or JSON bodies): the browser first sends an `OPTIONS` request to ask 'am I allowed to make this call?'. The server must respond with `Access-Control-Allow-Methods` and `Access-Control-Allow-Headers` before the actual request is sent.\n\n**Most common gotcha**: setting `Access-Control-Allow-Origin: *` while also setting `Access-Control-Allow-Credentials: true` — this combination is rejected by browsers. If you need credentials (cookies, Authorization header), you must specify exact origins, not `*`.",
     code: {
       language: 'typescript',
       snippet: `import cors from 'cors';
@@ -281,8 +281,12 @@ app.use(cors({
 }));
 
 // Manual preflight for fine-grained control
+const ALLOWED_ORIGINS = ['https://app.example.com'];
 app.options('/api/*', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', req.headers.origin ?? '');
+  // Never reflect an unchecked Origin: that allows every site
+  if (ALLOWED_ORIGINS.includes(req.headers.origin ?? '')) {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin!);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
   res.sendStatus(204);
 });`,
@@ -307,7 +311,7 @@ app.options('/api/*', (req, res) => {
 
 app.put('/users/:id', async (req, res) => {
   // Replace the entire document
-  const user = await User.findByIdAndReplace(req.params.id, req.body);
+  const user = await User.findOneAndReplace({ _id: req.params.id }, req.body, { new: true });
   res.json(user);
 });
 
@@ -326,7 +330,7 @@ app.patch('/users/:id', async (req, res) => {
   {
     id: 'rest-m5',
     category: 'REST & HTTP',
-    difficulty: 'medium',
+    difficulty: 'hard',
     type: 'experience',
     question: 'How do you implement idempotency in a payment API? Why does it matter?',
     answer:
@@ -374,7 +378,7 @@ router.post('/payments', idempotencyMiddleware, async (req, res) => {
     type: 'basics',
     question: 'How would you design a RESTful API expected to handle very heavy traffic? What strategies do you apply?',
     answer:
-      '**This is a classic Micro1/senior-screen question.** There are 6 layers to cover:\n\n**1. Pagination** — never return unbounded lists. Use cursor pagination for large, frequently-updated datasets; offset pagination for simple, sortable tables. Include `nextCursor` or `totalCount` in the response.\n\n**2. Caching** — add a Redis layer in front of the DB for frequently-read, rarely-changed data. Set `Cache-Control` headers for public resources so CDN/proxies cache them too. Aim for 80%+ cache hit rate on hot endpoints.\n\n**3. Rate limiting** — protect all endpoints with per-user or per-IP limits. Use sliding window counters in Redis. Return `429 Too Many Requests` with a `Retry-After` header.\n\n**4. HTTP compression** — enable `gzip`/`brotli` response compression. A 100 KB JSON payload compresses to ~10 KB, reducing bandwidth costs and latency especially on mobile.\n\n**5. Async processing** — move slow work (emails, PDF generation, webhooks, image resizing) off the HTTP request path. Accept the request, enqueue a job, return `202 Accepted`. Process via workers (BullMQ, SQS).\n\n**6. Connection pooling + DB read replicas** — never create a new DB connection per request. Pool connections (pg Pool, PgBouncer). Route `SELECT` queries to read replicas to spread the load.',
+      'There are 6 layers to cover:\n\n**1. Pagination** — never return unbounded lists. Use cursor pagination for large, frequently-updated datasets; offset pagination for simple, sortable tables. Include `nextCursor` or `totalCount` in the response.\n\n**2. Caching** — add a Redis layer in front of the DB for frequently-read, rarely-changed data. Set `Cache-Control` headers for public resources so CDN/proxies cache them too. Aim for 80%+ cache hit rate on hot endpoints.\n\n**3. Rate limiting** — protect all endpoints with per-user or per-IP limits. Use sliding window counters in Redis. Return `429 Too Many Requests` with a `Retry-After` header.\n\n**4. HTTP compression** — enable `gzip`/`brotli` response compression. A 100 KB JSON payload compresses to ~10 KB, reducing bandwidth costs and latency especially on mobile.\n\n**5. Async processing** — move slow work (emails, PDF generation, webhooks, image resizing) off the HTTP request path. Accept the request, enqueue a job, return `202 Accepted`. Process via workers (BullMQ, SQS).\n\n**6. Connection pooling + DB read replicas** — never create a new DB connection per request. Pool connections (pg Pool, PgBouncer). Route `SELECT` queries to read replicas to spread the load.',
     code: {
       language: 'typescript',
       snippet: `// Cursor pagination — scalable for large datasets
@@ -474,7 +478,7 @@ const typeDefs = \`
 // DataLoader — batches + caches author lookups within one request
 import DataLoader from 'dataloader';
 
-const authorLoader = new DataLoader(async (ids: readonly string[]) => {
+const createAuthorLoader = () => new DataLoader(async (ids: readonly string[]) => {
   const authors = await db.author.findMany({ where: { id: { in: ids as string[] } } });
   const byId = new Map(authors.map(a => [a.id, a]));
   return ids.map(id => byId.get(id));   // must return in the same order as ids
@@ -496,7 +500,7 @@ const resolvers = {
 };
 
 // context created fresh per request — loader cache must not leak across requests
-const context = () => ({ authorLoader });`,
+const context = () => ({ authorLoader: createAuthorLoader() });`,
     },
   },
 ];

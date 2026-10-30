@@ -1,119 +1,104 @@
-import { useState } from 'react';
-import type { Category } from '../types';
+import { GROUPS } from '../data/groups';
+import type { Category, Progress } from '../types';
+import { Icon } from './Icons';
 
 interface Props {
   categories: Category[];
-  selected: Category | null;
+  /** null is "All topics"; undefined highlights nothing, for screens that are not topic-scoped. */
+  selected: Category | null | undefined;
   counts: Record<string, number>;
+  knownCounts: Record<string, number>;
   total: number;
+  progress: Progress;
   onSelect: (c: Category | null) => void;
+  onHome: () => void;
+  onResetProgress: () => void;
   isOpen: boolean;
   onClose: () => void;
 }
 
-function NavContent({
-  categories, selected, counts, total, onSelect, showClose, onClose,
-}: Props & { showClose?: boolean }) {
-  const [query, setQuery] = useState('');
+function NavItem({
+  label, count, known, active, onClick,
+}: { label: string; count: number; known: number; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-current={active ? 'page' : undefined}
+      onClick={onClick}
+      className={`flex min-h-8 w-full items-center justify-between gap-3 rounded px-2 py-1 text-left text-[14px] leading-5 transition-colors [@media(pointer:coarse)]:min-h-10 ${
+        active ? 'bg-accent/15 font-semibold text-ink' : 'text-body hover:bg-ink/[0.05] hover:text-ink'
+      }`}
+    >
+      <span className="min-w-0">{label}</span>
+      <span className="tnum flex-shrink-0 text-[12px] font-normal text-muted">
+        {known > 0 ? `${known}/${count}` : count}
+      </span>
+    </button>
+  );
+}
 
-  const filtered = query.trim()
-    ? categories.filter(c => c.toLowerCase().includes(query.trim().toLowerCase()))
-    : categories;
+function NavContent({
+  categories, selected, counts, knownCounts, total, progress, onSelect, onHome, onResetProgress, showClose, onClose,
+}: Props & { showClose?: boolean }) {
+  const grouped = new Set(GROUPS.flatMap((g) => g.categories));
+  const ungrouped = categories.filter((c) => !grouped.has(c));
+  const groups = ungrouped.length > 0 ? [...GROUPS, { label: 'Other', color: '', categories: ungrouped }] : GROUPS;
+  const knownTotal = Object.values(progress).filter((s) => s === 'known').length;
 
   return (
     <>
-      <div className="flex items-center gap-2.5 px-4 py-5 border-b border-slate-800">
-        <span className="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-600 text-white font-bold font-mono text-sm flex-shrink-0">
-          {'</>'}
-        </span>
-        <span className="font-bold text-sm text-slate-100 leading-tight">
-          Dev<br />Flashcards
-        </span>
+      <div className="flex h-14 flex-shrink-0 items-center justify-between px-4">
+        <button type="button" onClick={onHome} className="rounded text-[15px] font-semibold text-ink hover:text-accent">
+          Dev Flashcards
+        </button>
         {showClose && (
           <button
+            type="button"
             onClick={onClose}
-            className="ml-auto text-slate-500 hover:text-slate-300 transition-colors p-1 rounded-md hover:bg-slate-800"
+            className="-mr-1 rounded p-2 text-muted hover:bg-ink/[0.05] hover:text-ink"
             aria-label="Close menu"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <Icon name="close" className="h-5 w-5" />
           </button>
         )}
       </div>
 
-      <ul className="p-2 flex-1">
-        <li>
-          <button
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-              selected === null
-                ? 'bg-indigo-500/15 text-indigo-300'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-            }`}
-            onClick={() => onSelect(null)}
-          >
-            <span>All Topics</span>
-            <span className={`text-xs px-1.5 py-0.5 rounded-md ${selected === null ? 'bg-indigo-500/20 text-indigo-300' : 'bg-slate-800 text-slate-500'}`}>
-              {total}
-            </span>
-          </button>
-        </li>
-
-        <li className="mt-1 mb-1">
-          <p className="px-3 py-1 text-xs font-semibold uppercase tracking-widest text-slate-600">
-            Categories
-          </p>
-        </li>
-
-        {/* Search input — below the CATEGORIES label */}
-        <li className="px-1 pb-1">
-          <div className="relative">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search categories…"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-7 pr-7 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
-            />
-            {query && (
-              <button
-                onClick={() => setQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
-                aria-label="Clear search"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </li>
-
-        {filtered.length === 0 && query && (
-          <li className="px-3 py-3 text-xs text-slate-500 text-center">No categories found</li>
-        )}
-
-        {filtered.map((cat) => (
-          <li key={cat}>
-            <button
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                selected === cat
-                  ? 'bg-indigo-500/15 text-indigo-300'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-              }`}
-              onClick={() => onSelect(cat)}
-            >
-              <span className="text-left leading-tight">{cat}</span>
-              <span className={`text-xs px-1.5 py-0.5 rounded-md flex-shrink-0 ml-1 ${selected === cat ? 'bg-indigo-500/20 text-indigo-300' : 'bg-slate-800 text-slate-500'}`}>
-                {counts[cat] ?? 0}
-              </span>
-            </button>
-          </li>
+      <div className="flex-1 overflow-y-auto px-2 pb-4">
+        <NavItem
+          label="All topics"
+          count={total}
+          known={knownTotal}
+          active={selected === null}
+          onClick={() => onSelect(null)}
+        />
+        {groups.map((group) => (
+          <section key={group.label} className="mt-4">
+            <h2 className="px-2 pb-1 text-[12px] leading-5 text-muted">{group.label}</h2>
+            {group.categories.map((cat) => (
+              <NavItem
+                key={cat}
+                label={cat}
+                count={counts[cat] ?? 0}
+                known={knownCounts[cat] ?? 0}
+                active={selected === cat}
+                onClick={() => onSelect(cat)}
+              />
+            ))}
+          </section>
         ))}
-      </ul>
+      </div>
+
+      {Object.keys(progress).length > 0 && (
+        <div className="flex-shrink-0 border-t px-3 py-2">
+          <button
+            type="button"
+            onClick={onResetProgress}
+            className="rounded px-1 py-1 text-[12px] text-muted hover:text-ink"
+          >
+            Reset progress
+          </button>
+        </div>
+      )}
     </>
   );
 }
@@ -124,26 +109,25 @@ export function Sidebar(props: Props) {
   return (
     <>
       {/* ── Desktop sidebar — always in the flex flow, never fixed ── */}
-      <nav className="hidden lg:flex flex-col w-56 flex-shrink-0 h-screen sticky top-0 bg-slate-900 border-r border-slate-800 overflow-y-auto">
-        <NavContent {...props} showClose={false} />
+      <nav className="sticky top-0 hidden h-screen w-60 flex-shrink-0 flex-col border-r bg-side lg:flex" aria-label="Topics">
+        <NavContent {...props} />
       </nav>
 
       {/* ── Mobile drawer — fixed overlay, hidden on desktop ── */}
       <div
-        className={`fixed inset-0 bg-black/50 z-20 lg:hidden transition-opacity duration-300 ${
-          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        className={`fixed inset-0 z-20 bg-black/40 transition-opacity duration-200 lg:hidden ${
+          isOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
         onClick={onClose}
       />
-      <nav className={`
-        fixed top-0 left-0 z-30 lg:hidden
-        w-64 h-screen
-        bg-slate-900 border-r border-slate-800
-        flex flex-col overflow-y-auto
-        transition-transform duration-300 ease-in-out
-        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        <NavContent {...props} showClose={true} />
+      <nav
+        aria-label="Topics"
+        {...(isOpen ? {} : { inert: '' })}
+        className={`fixed left-0 top-0 z-30 flex h-[100dvh] w-72 max-w-[85vw] flex-col border-r bg-side transition-transform duration-200 lg:hidden ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <NavContent {...props} showClose />
       </nav>
     </>
   );

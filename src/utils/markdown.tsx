@@ -1,21 +1,32 @@
 import type { ReactNode } from 'react';
 
-function renderInline(text: string): ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+export function renderInline(text: string): ReactNode {
+  // Bold may contain code, and code may contain asterisks (`**kwargs`)
+  const parts = text.split(/(\*\*(?:`[^`]+`|[^*`])+\*\*|`[^`]+`)/g);
   return (
     <>
-      {parts.map((p, i) =>
-        p.startsWith('**') && p.endsWith('**') ? (
-          <strong key={i} className="font-semibold text-slate-100">
-            {p.slice(2, -2)}
-          </strong>
-        ) : (
-          <span key={i}>{p}</span>
-        )
-      )}
+      {parts.map((p, i) => {
+        if (p.length > 4 && p.startsWith('**') && p.endsWith('**')) {
+          return (
+            <strong key={i} className="font-semibold text-ink">
+              {renderInline(p.slice(2, -2))}
+            </strong>
+          );
+        }
+        if (p.length > 2 && p.startsWith('`') && p.endsWith('`')) {
+          return (
+            <code key={i} className="rounded-[3px] bg-sunken px-1 py-px font-mono text-[0.875em] text-ink [-webkit-box-decoration-break:clone] [box-decoration-break:clone]">
+              {p.slice(1, -1)}
+            </code>
+          );
+        }
+        return <span key={i}>{p}</span>;
+      })}
     </>
   );
 }
+
+const NUMBERED = /^(\d+)[.)] /;
 
 export function renderAnswer(text: string): ReactNode {
   const lines = text.split('\n');
@@ -27,6 +38,23 @@ export function renderAnswer(text: string): ReactNode {
 
     // blank line
     if (!line.trim()) { i++; continue; }
+
+    // fenced code block
+    if (line.trim().startsWith('```')) {
+      const code: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith('```')) {
+        code.push(lines[i]);
+        i++;
+      }
+      i++; // closing fence
+      nodes.push(
+        <pre key={`pre-${i}`} className="overflow-x-auto rounded-md border bg-sunken px-3 py-2.5 font-mono text-[13px] leading-[1.55]">
+          {code.join('\n')}
+        </pre>
+      );
+      continue;
+    }
 
     // markdown table row
     if (line.trim().startsWith('|')) {
@@ -41,12 +69,12 @@ export function renderAnswer(text: string): ReactNode {
         const headers = header.split('|').filter(Boolean).map(s => s.trim());
         const body = rows.map(r => r.split('|').filter(Boolean).map(s => s.trim()));
         nodes.push(
-          <div key={`tbl-${i}`} className="overflow-x-auto rounded-lg border border-slate-700 my-1">
-            <table className="w-full text-xs">
-              <thead className="bg-slate-800">
+          <div key={`tbl-${i}`} className="overflow-x-auto">
+            <table className="w-full border-collapse text-[14px] leading-snug">
+              <thead>
                 <tr>
                   {headers.map((h, j) => (
-                    <th key={j} className="px-3 py-2 text-left font-semibold text-slate-300 border-b border-slate-700">
+                    <th key={j} className="border-b border-muted/40 py-2 pr-4 text-left align-bottom font-semibold text-ink">
                       {renderInline(h)}
                     </th>
                   ))}
@@ -54,9 +82,9 @@ export function renderAnswer(text: string): ReactNode {
               </thead>
               <tbody>
                 {body.map((row, j) => (
-                  <tr key={j} className={j % 2 === 0 ? 'bg-slate-900' : 'bg-slate-800/40'}>
+                  <tr key={j}>
                     {row.map((cell, k) => (
-                      <td key={k} className="px-3 py-2 text-slate-300 border-b border-slate-700/50">
+                      <td key={k} className="border-b py-2 pr-4 align-top">
                         {renderInline(cell)}
                       </td>
                     ))}
@@ -70,39 +98,37 @@ export function renderAnswer(text: string): ReactNode {
       continue;
     }
 
-    // bullet list
+    // bullet list; items indented in the source stay indented
     if (line.trim().startsWith('- ')) {
-      const items: string[] = [];
+      const items: { text: string; nested: boolean }[] = [];
       while (i < lines.length && lines[i].trim().startsWith('- ')) {
-        items.push(lines[i].trim().slice(2));
+        items.push({ text: lines[i].trim().slice(2), nested: /^\s{2,}/.test(lines[i]) });
         i++;
       }
       nodes.push(
-        <ul key={`ul-${i}`} className="space-y-1.5 my-1">
+        <ul key={`ul-${i}`} className="list-disc space-y-1.5 pl-5 marker:text-muted">
           {items.map((item, j) => (
-            <li key={j} className="flex gap-2">
-              <span className="text-indigo-400 flex-shrink-0 leading-relaxed">•</span>
-              <span className="leading-relaxed">{renderInline(item)}</span>
-            </li>
+            <li key={j} className={item.nested ? 'ml-5' : undefined}>{renderInline(item.text)}</li>
           ))}
         </ul>
       );
       continue;
     }
 
-    // numbered list
-    if (line.trim().match(/^\d+[.)]/)) {
-      const items: string[] = [];
+    // numbered list; keeps the source numbers so a list split by nested bullets carries on counting
+    if (NUMBERED.test(line.trim())) {
+      const items: { n: number; text: string }[] = [];
       while (i < lines.length) {
         const cur = lines[i].trim();
-        if (cur.match(/^\d+[.)] /)) {
-          items.push(cur.replace(/^\d+[.)] /, ''));
+        const match = cur.match(NUMBERED);
+        if (match) {
+          items.push({ n: Number(match[1]), text: cur.slice(match[0].length) });
           i++;
         } else if (cur === '') {
           // look ahead past blank lines — stay in the list if next non-blank is a numbered item
           let peek = i + 1;
           while (peek < lines.length && lines[peek].trim() === '') peek++;
-          if (peek < lines.length && lines[peek].trim().match(/^\d+[.)] /)) {
+          if (peek < lines.length && NUMBERED.test(lines[peek].trim())) {
             i++; // consume the blank line and continue
           } else {
             break;
@@ -112,14 +138,9 @@ export function renderAnswer(text: string): ReactNode {
         }
       }
       nodes.push(
-        <ol key={`ol-${i}`} className="space-y-1.5 my-1">
-          {items.map((item, j) => (
-            <li key={j} className="flex gap-2">
-              <span className="text-indigo-400 font-mono text-xs flex-shrink-0 w-5 leading-relaxed pt-0.5">
-                {j + 1}.
-              </span>
-              <span className="leading-relaxed">{renderInline(item)}</span>
-            </li>
+        <ol key={`ol-${i}`} className="tnum list-decimal space-y-1.5 pl-6 marker:text-muted">
+          {items.map((item) => (
+            <li key={item.n} value={item.n}>{renderInline(item.text)}</li>
           ))}
         </ol>
       );
@@ -127,13 +148,9 @@ export function renderAnswer(text: string): ReactNode {
     }
 
     // regular paragraph
-    nodes.push(
-      <p key={`p-${i}`} className="leading-relaxed">
-        {renderInline(line)}
-      </p>
-    );
+    nodes.push(<p key={`p-${i}`}>{renderInline(line)}</p>);
     i++;
   }
 
-  return <div className="space-y-2">{nodes}</div>;
+  return <div className="space-y-3">{nodes}</div>;
 }

@@ -132,7 +132,7 @@ it('POST /users returns 201 with location header', async () => {
     .post('/users')
     .send({ email: 'x@y.com', password: 'secret123' });
   expect(res.status).toBe(201);
-  expect(res.headers.location).toMatch(/\/users\/.+/);
+  expect(res.headers.location).toMatch(/\\/users\\/.+/);
 });`,
     },
   },
@@ -144,7 +144,7 @@ it('POST /users returns 201 with location header', async () => {
     type: 'experience',
     question: 'What are structured logging best practices for a Node.js production service? What should every log line contain?',
     answer:
-      '**Structured logging** emits JSON objects instead of free-form strings so that log aggregators (Datadog, Loki, CloudWatch) can index, filter, and alert on fields.\n\n**Every log line should include**:\n- `level` — debug / info / warn / error\n- `ts` — ISO timestamp\n- `correlationId` / `requestId` — to trace a request across services\n- `service` / `env` — which service and environment emitted this\n- `msg` — human-readable summary\n- Relevant domain context (`userId`, `orderId`, `durationMs`)\n\n**Log levels discipline**:\n- `debug` — verbose, disabled in production\n- `info` — significant events (request received, job completed)\n- `warn` — unexpected but recoverable (retry, cache miss, deprecated usage)\n- `error` — requires attention; always include the full `err` object (stack trace)\n\n**Never log**: passwords, tokens, PII, full request bodies with sensitive fields. Redact before logging.\n\n**Library**: `pino` is the fastest structured logger for Node.js (~5× faster than `winston` for high-throughput services).',
+      '**Structured logging** emits JSON objects instead of free-form strings so that log aggregators (Datadog, Loki, CloudWatch) can index, filter, and alert on fields.\n\n**Every log line should include**:\n- `level` — debug / info / warn / error\n- `time` — ISO timestamp\n- `correlationId` / `requestId` — to trace a request across services\n- `service` / `env` — which service and environment emitted this\n- `msg` — human-readable summary\n- Relevant domain context (`userId`, `orderId`, `durationMs`)\n\n**Log levels discipline**:\n- `debug` — verbose, disabled in production\n- `info` — significant events (request received, job completed)\n- `warn` — unexpected but recoverable (retry, deprecated usage)\n- `error` — requires attention; always include the full `err` object (stack trace)\n\n**Never log**: passwords, tokens, PII, full request bodies with sensitive fields. Redact before logging.\n\n**Library**: `pino` is a very fast structured logger for Node.js and a common choice over `winston` for high-throughput services.',
     code: {
       language: 'typescript',
       snippet: `import pino from 'pino';
@@ -165,7 +165,7 @@ export function getLogger() {
 
 // Usage
 getLogger().info({ userId, durationMs: 42 }, 'User fetched from DB');
-// → { "level":"info","ts":"2025-01-01T...","service":"order-api",
+// → { "level":30,"time":"2025-01-01T...","service":"order-api",
 //     "correlationId":"abc-123","userId":"u_1","durationMs":42,
 //     "msg":"User fetched from DB" }
 
@@ -174,7 +174,7 @@ try {
   await processOrder(order);
 } catch (err) {
   getLogger().error({ err, orderId: order.id }, 'Order processing failed');
-  // pino serialises err.message + err.stack automatically
+  // pino serializes err.message + err.stack automatically
 }`,
     },
   },
@@ -235,7 +235,8 @@ npx depcheck
 npm ci   # installs from lockfile exactly; errors if lockfile is out of sync
 
 # Review what a package actually does before installing
-npx npm-package-inspect express   # or: npm pack <pkg> && tar -tvf *.tgz`,
+npm view express                  # metadata, maintainers, dependencies
+npm pack express && tar -tvf express-*.tgz   # list the files it ships`,
     },
   },
 
@@ -246,10 +247,10 @@ npx npm-package-inspect express   # or: npm pack <pkg> && tar -tvf *.tgz`,
     type: 'experience',
     question: 'What are the most important async anti-patterns in Node.js / TypeScript and how do you fix each?',
     answer:
-      '1. **Floating Promises** — calling an async function without `await` or `.catch()`. The rejection is silently swallowed. Fix: always `await`, or attach `.catch()`, or use `void fn()` only when intentionally fire-and-forget (and still handle errors inside).\n\n2. **`await` inside a loop** — sequential I/O when parallel is possible. Fix: collect promises first, then `Promise.all`.\n\n3. **Not using `Promise.allSettled` for fan-out** — `Promise.all` aborts on the first failure. Fix: use `allSettled` when each item\'s result is independent.\n\n4. **Mixing async/await with raw `.then()/.catch()`** — creates confusing dual error paths. Fix: pick one style per function.\n\n5. **`new Promise()` constructor anti-pattern** — wrapping an already-Promise-returning function in `new Promise()`. Unnecessary and loses the inner rejection.',
+      '1. **Floating Promises** — calling an async function without `await` or `.catch()`. Nothing handles a rejection, which crashes the process by default in Node 15+. Fix: always `await`, or attach `.catch()`, or use `void fn()` only when intentionally fire-and-forget (and still handle errors inside).\n\n2. **`await` inside a loop** — sequential I/O when parallel is possible. Fix: collect promises first, then `Promise.all`.\n\n3. **Not using `Promise.allSettled` for fan-out** — `Promise.all` aborts on the first failure. Fix: use `allSettled` when each item\'s result is independent.\n\n4. **Mixing async/await with raw `.then()/.catch()`** — creates confusing dual error paths. Fix: pick one style per function.\n\n5. **`new Promise()` constructor anti-pattern** — wrapping an already-Promise-returning function in `new Promise()`. Unnecessary and loses the inner rejection.',
     code: {
       language: 'typescript',
-      snippet: `// ✗ Floating promise – rejection silently swallowed
+      snippet: `// ✗ Floating promise – a rejection goes unhandled
 sendEmail(user);  // forgot await
 
 // ✓ Fix
@@ -274,7 +275,7 @@ const data = await new Promise((res, rej) => {
 const data = await fetch(url);
 
 // ✗ Missing await on async forEach callback (async is ignored)
-ids.forEach(async (id) => { await deleteUser(id); });  // errors are lost!
+ids.forEach(async (id) => { await deleteUser(id); });  // nothing waits; errors go unhandled
 
 // ✓ Fix
 await Promise.all(ids.map((id) => deleteUser(id)));`,
@@ -290,7 +291,7 @@ await Promise.all(ids.map((id) => deleteUser(id)));`,
     type: 'basics',
     question: 'What is the DRY principle and when does following it too strictly hurt you?',
     answer:
-      "**DRY (Don't Repeat Yourself)**: every piece of knowledge or logic should have a **single, authoritative representation** in the codebase. Duplication forces you to update multiple places when requirements change, and bugs fixed in one copy survive in the copies you forgot.\n\n**How to apply it**: extract repeated logic into a shared function, module, or class. If the same logic appears three or more times in different places, it's a clear candidate for abstraction.\n\n**When DRY hurts** (the counterintuitive part):\n- **Premature abstraction** — two pieces of code look similar today but may need to diverge tomorrow. Forcing them into one shared function couples them artificially.\n- **Wrong abstraction** — unifying things that are coincidentally similar (but semantically different) produces confusing, tangled code that is harder to change than the original duplication.\n\n**Rule of thumb** (3-strike rule, Kent Beck): first time you write it, just write it. Second time you write something similar, note the duplication. Third time, refactor.\n\n**Most important quote** — Sandi Metz: *'Duplication is far cheaper than the wrong abstraction.'* When in doubt, wait until the pattern is clear before abstracting.",
+      "**DRY (Don't Repeat Yourself)**: every piece of knowledge or logic should have a **single, authoritative representation** in the codebase. Duplication forces you to update multiple places when requirements change, and bugs fixed in one copy survive in the copies you forgot.\n\n**How to apply it**: extract repeated logic into a shared function, module, or class. If the same logic appears three or more times in different places, it's a clear candidate for abstraction.\n\n**When DRY hurts** (the counterintuitive part):\n- **Premature abstraction** — two pieces of code look similar today but may need to diverge tomorrow. Forcing them into one shared function couples them artificially.\n- **Wrong abstraction** — unifying things that are coincidentally similar (but semantically different) produces confusing, tangled code that is harder to change than the original duplication.\n\n**Rule of thumb** (Rule of Three, popularized by Martin Fowler's *Refactoring*): first time you write it, just write it. Second time you write something similar, note the duplication. Third time, refactor.\n\n**Most important quote** — Sandi Metz: *'Duplication is far cheaper than the wrong abstraction.'* When in doubt, wait until the pattern is clear before abstracting.",
   },
 
   {
@@ -300,11 +301,11 @@ await Promise.all(ids.map((id) => deleteUser(id)));`,
     type: 'basics',
     question: 'What does KISS mean as a software principle and what does it look like in code?',
     answer:
-      "**KISS (Keep It Simple, Stupid)**: solutions should be as simple as possible. Complexity should be justified by a real requirement, not speculation or cleverness.\n\n**Signs you're violating KISS**:\n- Functions longer than 20–30 lines doing multiple things\n- Deep nesting (more than 3 levels)\n- Clever one-liners that need a comment to explain\n- Premature generalisation ('I'll make this configurable for future use cases')\n\n**In practice**:\n- Prefer flat `if/else` over nested ternary chains\n- Prefer explicit variable names over compact math tricks\n- Build the simplest thing that works today; refactor when the requirement is real\n\n**KISS ≠ lazy**: it takes more skill to write simple, readable code than complex clever code.",
+      "**KISS (Keep It Simple, Stupid)**: solutions should be as simple as possible. Complexity should be justified by a real requirement, not speculation or cleverness.\n\n**Signs you're violating KISS**:\n- Functions longer than 20–30 lines doing multiple things\n- Deep nesting (more than 3 levels)\n- Clever one-liners that need a comment to explain\n- Premature generalization ('I'll make this configurable for future use cases')\n\n**In practice**:\n- Prefer flat `if/else` over nested ternary chains\n- Prefer explicit variable names over compact math tricks\n- Build the simplest thing that works today; refactor when the requirement is real\n\n**KISS ≠ lazy**: it takes more skill to write simple, readable code than complex clever code.",
     code: {
       language: 'typescript',
       snippet: `// ✗ Violates KISS — clever but unreadable
-const result = arr.reduce((a, v, i) => i % 2 ? {...a, [v]: arr[i + 1]} : a, {} as Record<string,string>);
+const result = arr.reduce((a, v, i) => i % 2 ? a : {...a, [v]: arr[i + 1]}, {} as Record<string,string>);
 
 // ✓ Follows KISS — obvious intent, easily debuggable
 const result: Record<string, string> = {};
@@ -421,7 +422,7 @@ GRANT SELECT ON ALL TABLES IN SCHEMA public TO analytics_user;`,
     type: 'basics',
     question: 'What is technical debt? How do you manage it?',
     answer:
-      "**Technical debt** is the extra cost you pay in the future because of shortcuts taken today. Like financial debt, it accrues interest: the longer you leave it, the more it costs to change, and the slower new development becomes.\n\n**Analogy**: taking a shortcut to meet a deadline is like taking out a loan. You get the benefit now, but future-you must pay back the principal plus interest (the time spent working around bad code).\n\n**Types of technical debt**:\n- **Deliberate** — a conscious trade-off ('we'll ship the prototype now and refactor in sprint 4'). Acceptable if you actually pay it back.\n- **Accidental** — a decision that seemed fine at the time but turned out to be problematic as the system grew.\n- **Bit rot** — code that was good quality when written but has become debt as the requirements and architecture around it evolved.\n\n**Why it slows teams down**: every new feature requires navigating accumulated shortcuts. Bug fixes are harder. New developers take longer to ramp up. A codebase with heavy debt can halve team velocity.\n\n**How to manage it**:\n1. **Make it visible** — track debt items in your issue tracker alongside features. Invisible debt is never prioritised.\n2. **Boy Scout Rule** — leave the code slightly better than you found it when working nearby.\n3. **Allocate capacity** — reserve ~20% of each sprint for debt reduction in high-churn areas.\n4. **Prioritise by churn** — debt in code you change every week costs far more than debt in stable code no one touches.\n5. **Prevent new debt** — enforce it through code reviews, architecture decision records (ADRs), and test coverage gates in CI.",
+      "**Technical debt** is the extra cost you pay in the future because of shortcuts taken today. Like financial debt, it accrues interest: the longer you leave it, the more it costs to change, and the slower new development becomes.\n\n**Analogy**: taking a shortcut to meet a deadline is like taking out a loan. You get the benefit now, but future-you must pay back the principal plus interest (the time spent working around bad code).\n\n**Types of technical debt**:\n- **Deliberate** — a conscious trade-off ('we'll ship the prototype now and refactor in sprint 4'). Acceptable if you actually pay it back.\n- **Accidental** — a decision that seemed fine at the time but turned out to be problematic as the system grew.\n- **Bit rot** — code that was good quality when written but has become debt as the requirements and architecture around it evolved.\n\n**Why it slows teams down**: every new feature requires navigating accumulated shortcuts. Bug fixes are harder. New developers take longer to ramp up. A codebase with heavy debt can seriously slow a team down.\n\n**How to manage it**:\n1. **Make it visible** — track debt items in your issue tracker alongside features. Invisible debt is never prioritized.\n2. **Boy Scout Rule** — leave the code slightly better than you found it when working nearby.\n3. **Allocate capacity** — reserve ~20% of each sprint for debt reduction in high-churn areas.\n4. **Prioritize by churn** — debt in code you change every week costs far more than debt in stable code no one touches.\n5. **Prevent new debt** — enforce it through code reviews, architecture decision records (ADRs), and test coverage gates in CI.",
   },
 
   {
@@ -461,7 +462,7 @@ npm ci  # installs from lockfile exactly — use in CI`,
     type: 'basics',
     question: 'What should you look for when reviewing someone else\'s code?',
     answer:
-      "Code review is about **knowledge sharing and quality gate**, not style policing. Focus on:\n\n**Correctness**:\n- Does it do what the ticket/PR says?\n- Are edge cases handled (empty array, null, concurrent access)?\n- Is error handling correct?\n\n**Security**:\n- Is user input validated and sanitised?\n- SQL injection / XSS risks? Hard-coded secrets?\n\n**Maintainability**:\n- Readable? Would a new team member understand it?\n- Descriptive names? Meaningful tests?\n\n**Performance**:\n- N+1 queries? Expensive operations inside a hot loop?\n\n**Tone tips**:\n- Ask questions ('What happens if X is null?') rather than making demands\n- Use 'nit:' prefix for non-blocking style suggestions\n- Approve with comments for non-blocking issues instead of requesting changes",
+      "Code review is about **knowledge sharing and quality gate**, not style policing. Focus on:\n\n**Correctness**:\n- Does it do what the ticket/PR says?\n- Are edge cases handled (empty array, null, concurrent access)?\n- Is error handling correct?\n\n**Security**:\n- Is user input validated and sanitized?\n- SQL injection / XSS risks? Hard-coded secrets?\n\n**Maintainability**:\n- Readable? Would a new team member understand it?\n- Descriptive names? Meaningful tests?\n\n**Performance**:\n- N+1 queries? Expensive operations inside a hot loop?\n\n**Tone tips**:\n- Ask questions ('What happens if X is null?') rather than making demands\n- Use 'nit:' prefix for non-blocking style suggestions\n- Approve with comments for non-blocking issues instead of requesting changes",
   },
 
   {
